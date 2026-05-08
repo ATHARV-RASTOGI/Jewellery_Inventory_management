@@ -1,0 +1,35 @@
+package com.ems.inventory.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import com.ems.inventory.model.Product;
+
+@Repository
+public interface ProductRepository extends JpaRepository<Product, Long> {
+    List<Product> findByMainCategory(String mainCategory);
+    List<Product> findByMainCategoryAndSubCategory(String mainCategory, String subCategory);
+
+    List<Product> findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(
+            String mainCategory, 
+            String subCategory, 
+            String purity, 
+            Double maxWeight
+    );
+
+   @Query("SELECT p FROM Product p WHERE " +
+           "LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(p.sku) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(p.mainCategory) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+    List<Product> searchProducts(@Param("keyword") String keyword);
+
+    @Query("SELECT SUM(p.price) FROM Product p")
+    public Double getTotalvalue();
+
+
+    Integer countByStockQuantityLessThanEqual(Integer threshold);
+}
