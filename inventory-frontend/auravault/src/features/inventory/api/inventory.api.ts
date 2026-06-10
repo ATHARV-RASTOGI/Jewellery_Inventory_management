@@ -14,7 +14,7 @@ export interface Product {
   mainCategory: string;
   subCategory: string;
   material: string;
-  purity: "18K" | "22K" | "22KT" | "24K" | "14K";
+  purity: "18K" | "22K" | "24K";
   baseWeight: number;
   stockQuantity: number;
   price: number;

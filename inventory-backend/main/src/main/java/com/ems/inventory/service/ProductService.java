@@ -5,9 +5,10 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.model.Product;
+import com.ems.inventory.repository.GoldRateRepository;
 import com.ems.inventory.repository.ProductRepository;
-
 
 @Service
 public class ProductService {
@@ -15,6 +16,9 @@ public class ProductService {
     @Autowired
     private ProductRepository productRepository;
     
+    @Autowired
+    private GoldRateRepository GoldRateRepository;
+
     public Product saveProduct(Product newproduct) {
         return productRepository.save(newproduct);
     }
@@ -64,19 +68,19 @@ public class ProductService {
         return total != null ? total : 0.0;
     }
 
-    public Long getTotalItems() {
-        return productRepository.count();
+    public Integer  getTotalItems() {
+        return productRepository.calculateTotalItemsInStock();
     }
 
     public Double getliveGoldRate() {
-        return  90000.00;
+    Goldrates latestRate = GoldRateRepository.getLatestGoldRate();
+    if (latestRate != null && latestRate.getRates() != null) {
+        return latestRate.getRates().getUsd();
     }
+    return 0.0; // Default if no rate found
+}
 
-    public Object getTotalLoanAmount() {
-        return 0.0;
-    }
 
-   
     public Integer getCountOfItemsWithLowStock() {
        return productRepository.countByStockQuantityLessThanEqual(3);
     }

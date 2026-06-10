@@ -75,7 +75,7 @@ export const INVENTORY_CATEGORIES: CategoryDef[] = [
     subcategories: [
       { id: "earrings-studs", name: "Studs" },
       { id: "earrings-drops", name: "Drop & Dangle" },
-      { id: "earrings-hoops", name: "Hoops & Huggies" },
+      { id: "earrings-hoops", name: "Hoops"},
       { id: "earrings-jhumkas", name: "Jhumkas" },
       { id: "earrings-chandbali", name: "Chandbali" },
       

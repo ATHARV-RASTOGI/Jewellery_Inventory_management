@@ -27,8 +27,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            "LOWER(p.mainCategory) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     List<Product> searchProducts(@Param("keyword") String keyword);
 
-    @Query("SELECT SUM(p.price) FROM Product p")
+    @Query("SELECT COALESCE(SUM(p.price * p.stockQuantity), 0.0) FROM Product p")
     public Double getTotalvalue();
+
+    @Query("SELECT COALESCE(SUM(p.stockQuantity), 0) FROM Product p")
+    public Integer calculateTotalItemsInStock();
 
 
     Integer countByStockQuantityLessThanEqual(Integer threshold);

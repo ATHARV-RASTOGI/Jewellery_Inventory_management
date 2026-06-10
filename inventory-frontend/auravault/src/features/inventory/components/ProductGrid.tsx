@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react"; // <-- Add useEffect here!
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   X,
@@ -83,7 +83,41 @@ export const ProductGrid = ({ activeCategory }: Props) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editForm, setEditForm] = useState<ProductFormData>(EMPTY_FORM);
   const [addForm, setAddForm] = useState<ProductFormData>(EMPTY_FORM);
+// --- PASTE STARTING HERE ---
+  const [live24kRatePerGram, setLive24kRatePerGram] = useState(0);
 
+  // Fetch the live rate from the backend
+  useEffect(() => {
+    const fetchLiveRate = async () => {
+      try {
+        const response = await apiClient.get("/gold-rate/latest");
+        const perGramRate = response.data.rates.INR / 10.0;
+        setLive24kRatePerGram(perGramRate);
+      } catch (error) {
+        console.error("Failed to fetch live gold rate", error);
+      }
+    };
+    fetchLiveRate();
+  }, []);
+
+  // The Math Engine that watches the Add Form
+  useEffect(() => {
+    if (!showAddModal || live24kRatePerGram === 0 || !addForm.baseWeight) return;
+
+    let purityMultiplier = 1.0; 
+    if (addForm.purity === "22K") {
+      purityMultiplier = 22 / 24;
+    } else if (addForm.purity === "18K") {
+      purityMultiplier = 18 / 24;
+    }
+    const calculatedPrice = Math.round(live24kRatePerGram * purityMultiplier * addForm.baseWeight);
+
+    // Update the form automatically!
+    if (addForm.price !== calculatedPrice) {
+      setAddForm((prev) => ({ ...prev, price: calculatedPrice }));
+    }
+  }, [addForm.purity, addForm.baseWeight, live24kRatePerGram, showAddModal]);
+  // --- PASTE ENDING HERE ---
   const {
     data: products = [],
     isLoading,
@@ -548,9 +582,7 @@ export const ProductGrid = ({ activeCategory }: Props) => {
                   >
                     <option value="24K">24K</option>
                     <option value="22K">22K</option>
-                    <option value="22KT">22KT</option>
                     <option value="18K">18K</option>
-                    <option value="14K">14K</option>
                   </select>
                 </div>
                 <div className="space-y-1">

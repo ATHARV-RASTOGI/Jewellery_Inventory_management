@@ -24,4 +24,8 @@ public class LoanService {
     public Loan saveLoan(Loan LoanData){
         return repository.save(LoanData);
     }
+
+   public Double getTotalLoanAmount() {
+    return repository.getTotalLoanAmount();
+}
 }
