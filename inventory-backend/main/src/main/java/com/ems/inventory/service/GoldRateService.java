@@ -95,8 +95,6 @@ public class GoldRateService {
 
             rates.setInr(mcxAdjusted10gPrice);
             
-         
-            rates.setUsd(mcxAdjusted10gPrice / 94.95); 
 
             goldRate.setRates(rates);
 

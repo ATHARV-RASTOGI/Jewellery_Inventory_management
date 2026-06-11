@@ -13,14 +13,10 @@ import jakarta.persistence.Embeddable;
 
     @Embeddable
     public class Rates{
-    @JsonProperty("USD")
-    private double usd;
-
+        
     @JsonProperty("INR")
     private double inr;
 
-    public double getUsd() { return usd; }
-    public void setUsd(double usd) { this.usd = usd; }
     public double getInr() { return inr; }
     public void setInr(double inr) { this.inr = inr; }
     }
