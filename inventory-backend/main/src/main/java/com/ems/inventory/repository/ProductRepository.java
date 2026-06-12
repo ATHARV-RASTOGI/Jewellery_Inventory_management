@@ -11,7 +11,13 @@ import com.ems.inventory.model.Product;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
+    
+    // --- THIS IS THE MAGIC LINE WE NEEDED TO ADD ---
+    List<Product> findByMainCategoryOrSubCategory(String mainCategory, String subCategory);
+
+    // Your existing methods:
     List<Product> findByMainCategory(String mainCategory);
+    
     List<Product> findByMainCategoryAndSubCategory(String mainCategory, String subCategory);
 
     List<Product> findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(
@@ -32,7 +38,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     @Query("SELECT COALESCE(SUM(p.stockQuantity), 0) FROM Product p")
     public Integer calculateTotalItemsInStock();
-
 
     Integer countByStockQuantityLessThanEqual(Integer threshold);
 }

@@ -7,8 +7,10 @@ import org.springframework.stereotype.Service;
 
 import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.model.Product;
+import com.ems.inventory.model.Silver;
 import com.ems.inventory.repository.GoldRateRepository;
 import com.ems.inventory.repository.ProductRepository;
+import com.ems.inventory.repository.SilverRateRepository;
 
 @Service
 public class ProductService {
@@ -18,6 +20,9 @@ public class ProductService {
     
     @Autowired
     private GoldRateRepository GoldRateRepository;
+
+     @Autowired
+    private SilverRateRepository silverRateRepository;
 
     public Product saveProduct(Product newproduct) {
         return productRepository.save(newproduct);
@@ -75,10 +80,18 @@ public class ProductService {
     public Double getliveGoldRate() {
     Goldrates latestRate = GoldRateRepository.getLatestGoldRate();
     if (latestRate != null && latestRate.getRates() != null) {
-        return latestRate.getRates().getUsd();
+        return latestRate.getRates().getInr();
     }
     return 0.0; // Default if no rate found
-}
+    }
+
+    public Double getlivesilverDouble() {
+    Silver latestRate = silverRateRepository.getLatestsilver();
+    if (latestRate != null && latestRate.getRates() != null) {
+        return latestRate.getRates().getInr();
+    }
+    return 0.0; // Default if no rate found
+    }
 
 
     public Integer getCountOfItemsWithLowStock() {

@@ -1,7 +1,14 @@
 package com.ems.inventory.model;
 
 import java.time.LocalDate;
-import jakarta.persistence.*;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -10,6 +17,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
+@Table(name = "loan")
 public class Loan {
 
     @Id
@@ -35,8 +43,6 @@ public class Loan {
     private String purity;
 
     private Integer ltvPercentage;
-
-    private Integer tenureMonths;
 
     @Column(name = "loan_taken")
     private LocalDate loanTaken;
