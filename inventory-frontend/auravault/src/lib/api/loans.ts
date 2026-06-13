@@ -3,13 +3,16 @@ import { apiClient } from "./client";
 // Define the Loan type here since we removed the mock-data import
 export type Loan = {
   id: string;
-  customerName: string;
-  phoneNumber: string;
+  name: string;
+  mobileNo: string;
   address?: string;
-  metalType: "Gold" | "Silver";
+  metal: "Gold" | "Silver";
   loanAmount: number;
   issueDate: string;
   status: "active" | "closed";
+  description ?: string;
+  weight: number;
+
 };
 
 export type SettleLoanInput = {

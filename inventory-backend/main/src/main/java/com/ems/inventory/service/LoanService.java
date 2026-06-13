@@ -17,7 +17,7 @@ public class LoanService {
         this.repository=repo;
     }
 
-    public List<Loan> getAllLoans() {
+    public List<Loan> getAll() {
         return repository.findAll();
     }
 

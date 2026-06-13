@@ -2,16 +2,17 @@ package com.ems.inventory.service;
 
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-import com.ems.inventory.model.Rates;
+
 import com.ems.inventory.model.Goldrates;
+import com.ems.inventory.model.Rates;
 import com.ems.inventory.repository.GoldRateRepository;
 
 import jakarta.annotation.PostConstruct;
@@ -19,8 +20,7 @@ import jakarta.annotation.PostConstruct;
 @Service
 public class GoldRateService {
 
-    @Autowired
-    private GoldRateRepository goldRateRepository;
+    private final GoldRateRepository goldRateRepository;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -34,7 +34,11 @@ public class GoldRateService {
 
     // MCX ADJUSTMENT: International spot price + Import Duty (~15%) + GST (~3%)
     // Adjust this multiplier (e.g., 1.18 = +18%) to match today's MCX price exactly.
-    private static final double INDIAN_MARKET_MULTIPLIER = 1.18; 
+    private static final double INDIAN_MARKET_MULTIPLIER = 1.18;
+
+    GoldRateService(GoldRateRepository goldRateRepository) {
+        this.goldRateRepository = goldRateRepository;
+    } 
 
     @PostConstruct
     public void fetchOnStartup() {
@@ -73,7 +77,7 @@ public class GoldRateService {
                 System.err.println("API responded, but 'price' data was missing.");
             }
 
-        } catch (Exception e) {
+        } catch (NumberFormatException | RestClientException e) {
             System.err.println("API FETCH ERROR: " + e.getMessage());
         }
     }

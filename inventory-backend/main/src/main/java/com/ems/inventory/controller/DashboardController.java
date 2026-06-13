@@ -1,6 +1,5 @@
 package com.ems.inventory.controller;
 
-import com.ems.inventory.service.SilverRateService;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,6 +13,7 @@ import com.ems.inventory.model.Silver;
 import com.ems.inventory.service.GoldRateService;
 import com.ems.inventory.service.LoanService;
 import com.ems.inventory.service.ProductService;
+import com.ems.inventory.service.SilverRateService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -54,7 +54,7 @@ public class DashboardController {
         
         stats.put("totalInventoryValue",    Math.round(SilverRatePerGram));
         stats.put("totalItemsInStock",       productService.getTotalItems());
-        stats.put("activeLoansCount",        loanService.getAllLoans().size());
+        stats.put("activeLoansCount",        loanService.getAll().size());
         stats.put("totalOutstandingAmount",  loanService.getTotalLoanAmount());
         
         // 3. Send the properly calculated math rounded to a clean number

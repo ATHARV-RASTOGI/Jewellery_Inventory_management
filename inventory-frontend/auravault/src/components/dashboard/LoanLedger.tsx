@@ -75,9 +75,9 @@ export const LoanLedger = () => {
       const tabMatch = tab === "all" || l.status === tab;
       const qMatch =
         !q ||
-        l.customerName.toLowerCase().includes(q) ||
+        l.name.toLowerCase().includes(q) ||
         l.id.toLowerCase().includes(q) ||
-        l.metalType.toLowerCase().includes(q);
+        l.metal.toLowerCase().includes(q);
       return tabMatch && qMatch;
     });
   }, [loans, search, tab]);
@@ -177,11 +177,11 @@ export const LoanLedger = () => {
                       {l.id}
                     </td>
                     <td className="px-5 py-4">
-                      <p className="font-medium text-[13.5px]">{l.customerName}</p>
-                      <p className="text-[11.5px] text-muted-foreground">{l.phoneNumber}</p>
+                      <p className="font-medium text-[13.5px]">{l.name}</p>
+                      <p className="text-[11.5px] text-muted-foreground">{l.mobileNo}</p>
                     </td>
                     <td className="px-5 py-4">
-                      <span className="text-[13px] font-medium">{l.metalType}</span>
+                      <span className="text-[13px] font-medium">{l.metal}</span>
                     </td>
                     <td className="px-5 py-4 text-[12.5px] text-muted-foreground">
                       {fmtDate(l.issueDate)}
@@ -247,7 +247,7 @@ export const LoanLedger = () => {
               <div>
                 <h3 className="text-base font-semibold">Close loan {settleTarget.id}</h3>
                 <p className="text-[12px] text-muted-foreground mt-0.5">
-                  {settleTarget.customerName} · {settleTarget.metalType}
+                  {settleTarget.name} · {settleTarget.metal}
                 </p>
               </div>
               <button

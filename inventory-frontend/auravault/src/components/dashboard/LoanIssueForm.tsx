@@ -13,21 +13,25 @@ const fieldInput =
 const today = () => new Date().toISOString().slice(0, 10);
 
 type FormState = {
-  customerName: string;
+  name: string;
   phoneNumber: string;
   address: string;
   metalType: "Gold" | "Silver";
   loanAmount: number | ""; 
   issueDate: string;
+  description?: string;
+  weight?: number;
 };
 
 const initialForm = (): FormState => ({
-  customerName: "",
+  name: "",
   phoneNumber: "",
   address: "",
   metalType: "Gold",
   loanAmount: "", // Starts empty so the placeholder "0" shows naturally
   issueDate: today(),
+  description: "",
+  weight: 0, // Default to 0 for weight
 });
 
 // Added onClose prop so the form can close itself after success
@@ -37,13 +41,16 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
 
   const mutation = useMutation({
     mutationFn: () => issueLoan({
-      customerName: form.customerName,
-      phoneNumber: form.phoneNumber,
+      name: form.name,
+      mobileNo: form.phoneNumber,
       address: form.address,
-      metalType: form.metalType,
+      metal: form.metalType,
       loanAmount: Number(form.loanAmount),
       issueDate: form.issueDate || today(),
+      description: "", // Optional field, can be extended in the form later
+      weight: 0, // Placeholder value, as weight isn't captured in the form currently
     }),
+
     onSuccess: () => {
       toast.success("Loan issued successfully");
       // Fixed: Using the 'qc' variable we defined above
@@ -86,8 +93,8 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
               <label className={fieldLabel}>Customer name</label>
               <input
                 className={fieldInput}
-                value={form.customerName}
-                onChange={(e) => update("customerName", e.target.value)}
+                value={form.name}
+                onChange={(e) => update("name", e.target.value)}
                 required
                 placeholder="e.g. Anjali Verma"
               />
@@ -137,7 +144,31 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
                 </button>
               ))}
             </div>
+            <div className="space-y-1.5 pt-2">
+            <label className={fieldLabel}>Base Weight (g)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={form.weight || ""}
+              onChange={(e) => update("weight", parseFloat(e.target.value) || 0)}
+              className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-border/50 text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              placeholder="0.00"
+            />
           </div>
+
+           <div className="space-y-1.5 pt-2">
+            <label className={fieldLabel}>Description</label>
+            <input
+              type="string"
+              value={form.description || ""}
+              onChange={(e) => update("description", e.target.value)}
+              className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-border/50 text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              placeholder="Type i.e ring , necklace etc"
+            />
+          </div>
+            
+          </div>
+          
         </section>
 
         {/* Loan & Date */}
