@@ -28,4 +28,18 @@ public class LoanService {
    public Double getTotalLoanAmount() {
     return repository.getTotalLoanAmount();
 }
+    public Loan closeLoan(Long id, String closeDate, Double settlementAmount) {
+        Loan existingLoan = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Loan with ID " + id + " not found!"));
+
+        // 1. Flip the status so it disappears from the "Open" list
+        existingLoan.setStatus("closed");
+        
+        // 2. Save the settlement data
+        existingLoan.setCloseDate(closeDate);
+        existingLoan.setSettlementAmount(settlementAmount);
+
+        // 3. Save to database
+        return repository.save(existingLoan);
+    }
 }

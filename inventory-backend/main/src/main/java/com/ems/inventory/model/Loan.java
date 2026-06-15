@@ -1,28 +1,24 @@
-package com.ems.inventory.model;
-import java.time.LocalDate;
+package com.ems.inventory.model; // Make sure this matches your actual package name!
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 
 @Entity
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @Data
-@Table(name = "loan")
+@Setter
+@Table(name = "loan") // Ensure this matches your database table name
 public class Loan {
 
     @Id
@@ -50,10 +46,17 @@ public class Loan {
     private String status;
 
     @Column(name = "loan_taken")
-@JsonDeserialize(using = LocalDateDeserializer.class)
-@JsonSerialize(using = LocalDateSerializer.class)
-@JsonFormat(pattern = "yyyy-MM-dd")
-private LocalDate issueDate;
+    @JsonDeserialize(using = LocalDateDeserializer.class)
+    @JsonSerialize(using = LocalDateSerializer.class)
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate issueDate;
+
+    
+    @Column(name = "close_date")
+    private String closeDate;
+
+    @Column(name = "settlement_amount")
+    private Double settlementAmount;
 
     @PrePersist
     public void prePersist() {

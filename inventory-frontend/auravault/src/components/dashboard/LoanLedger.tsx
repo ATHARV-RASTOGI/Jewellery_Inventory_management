@@ -50,8 +50,12 @@ export const LoanLedger = () => {
     mutationFn: settleLoan,
     onSuccess: () => {
       toast.success("Loan settled");
+      
+      // 1. Close the modal FIRST!
+      setSettleTarget(null); 
+      
+      // 2. Then try to refresh the data
       qc.invalidateQueries({ queryKey: queryKeys.loans });
-      setSettleTarget(null);
     },
     onError: () => toast.error("Failed to settle loan"),
   });

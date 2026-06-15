@@ -40,6 +40,7 @@ export async function settleLoan({ id, closeDate, settlementAmount }: SettleLoan
   const response = await apiClient.patch<Loan>(`/loans/${id}/close`, { 
     closeDate, 
     settlementAmount 
+   
   });
   return response.data;
 }
