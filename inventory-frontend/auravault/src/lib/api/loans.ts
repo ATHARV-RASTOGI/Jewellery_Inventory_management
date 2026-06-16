@@ -15,6 +15,14 @@ export type Loan = {
 
 };
 
+export type InterestPayment = {
+  id: number;
+  loanId: number;
+  amountPaid: number;
+  paymentDate: string;
+  balanceAfter: number;
+};
+
 export type SettleLoanInput = {
   id: string;
   closeDate: string;
@@ -48,4 +56,23 @@ export async function settleLoan({ id, closeDate, settlementAmount }: SettleLoan
 // DELETE /api/loans/{id}
 export async function closeLoan(id: string): Promise<void> {
   await apiClient.delete(`/loans/${id}`);
+}
+
+export async function payInterest(input: {
+  id: string;
+  amountPaid: number;
+}): Promise<InterestPayment> {
+  const response = await apiClient.post<InterestPayment>(
+    `/loans/${input.id}/pay-interest`,
+    { amountPaid: input.amountPaid }
+  );
+  return response.data;
+}
+
+// GET: fetch all interest payments for a loan
+export async function fetchInterestPayments(loanId: string): Promise<InterestPayment[]> {
+  const response = await apiClient.get<InterestPayment[]>(
+    `/loans/${loanId}/interest-payments`
+  );
+  return response.data;
 }
