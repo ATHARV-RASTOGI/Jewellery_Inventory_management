@@ -17,9 +17,19 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 }
 
 // GET /api/dashboard/gold-rate
-export async function fetchGoldRate(): Promise<{ rate: number; updatedAt: string }> {
-  const { data } = await apiClient.get<{ rate: number; updatedAt: string }>(
-    "/dashboard/gold-rate",
-  );
-  return data;
+export async function fetchGoldRate(): Promise<{ 
+  rate: number; 
+  silverRatePerGram: number;
+  updatedAt: string;
+}> {
+  const { data } = await apiClient.get("/gold-rate/latest");
+  
+  console.log("rates object:", data.rates);
+  console.log("INR value:", data.rates?.INR);
+
+  return {
+    rate: Number(data.rates?.INR ?? 0),  // force to number, safe fallback
+    silverRatePerGram: 95,
+    updatedAt: data.timestamp,
+  };
 }

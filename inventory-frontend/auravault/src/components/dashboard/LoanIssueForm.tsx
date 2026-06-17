@@ -47,8 +47,8 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
       metal: form.metalType,
       loanAmount: Number(form.loanAmount),
       issueDate: form.issueDate || today(),
-      description: "", // Optional field, can be extended in the form later
-      weight: 0, // Placeholder value, as weight isn't captured in the form currently
+      description: "",
+      weight: 0, 
     }),
 
     onSuccess: () => {

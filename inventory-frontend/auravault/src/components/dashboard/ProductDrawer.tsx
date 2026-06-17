@@ -106,12 +106,23 @@ export const ProductDrawer = ({ product, onClose ,onEdit}: Props) => {
                     {formatINR(product.price)}
                   </span>
                 </div>
+                
+              </div>
+              <div className="rounded-xl bg-surface-2/60 p-4">
+               <div className="flex items-baseline justify-between">
+                  <span className="text-[12px] text-muted-foreground">Total Inventory Price</span>
+                  <span className="text-lg font-semibold tracking-tight">
+                    {formatINR(product.price * product.stockQuantity)}
+                  </span>
+                </div>
               </div>
             </div>
 
+            
+
             <div className="border-t border-border-subtle px-6 py-4 flex items-center gap-2">
               <button 
-                onClick={() => onEdit(product)} // <-- This is the magic line you need!
+                onClick={() => onEdit(product)} 
                 className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-surface-2 text-sm font-medium hover:bg-surface-3 transition-colors"
               >
                 <Pencil className="w-3.5 h-3.5" /> Edit

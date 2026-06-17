@@ -1,6 +1,7 @@
 package com.ems.inventory.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -40,4 +41,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     public Integer calculateTotalItemsInStock();
 
     Integer countByStockQuantityLessThanEqual(Integer threshold);
+
+        Optional<Product> findBySku(String sku);
 }

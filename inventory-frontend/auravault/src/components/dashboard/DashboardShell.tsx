@@ -5,6 +5,7 @@ import { TopStats } from "./TopStats";
 import { InventoryView } from "./InventoryView";
 import { LoanLedger } from "./LoanLedger";
 import { LoanIssueForm } from "./LoanIssueForm";
+import { SalesLedger } from "./SalesLedger";
 
 export const DashboardShell = () => {
   const [activeView, setActiveView] = useState<string>("dashboard");
@@ -13,12 +14,14 @@ export const DashboardShell = () => {
     activeView === "dashboard"
       ? "Dashboard"
       : activeView === "loan-ledger"
-      ? "Active Loans Ledger"
-      : activeView === "issue-loan"
-      ? "Issue New Loan"
-      : activeView === "settings"
-      ? "Settings"
-      : "Inventory";
+        ? "Active Loans Ledger"
+        : activeView === "issue-loan"
+          ? "Issue New Loan"
+          : activeView === "sales-ledger"
+            ? "Sales Ledger"
+            : activeView === "settings"
+              ? "Settings"
+              : "Inventory";
 
   const showStats = activeView === "dashboard" || activeView === "loan-ledger";
 
@@ -58,6 +61,8 @@ export const DashboardShell = () => {
             <LoanLedger />
           ) : activeView === "issue-loan" ? (
             <LoanIssueForm />
+          ) : activeView === "sales-ledger" ? (
+            <SalesLedger /> // ← add this
           ) : activeView === "settings" ? (
             <div className="rounded-xl bg-surface p-12 text-center">
               <p className="text-sm text-muted-foreground">Settings will be wired up later.</p>

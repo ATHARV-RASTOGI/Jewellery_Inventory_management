@@ -15,13 +15,19 @@ type Stat = {
 
 // Uses the real type from your API file instead of the mock data
 const buildStats = (s: DashboardStats): Stat[] => [
+   {
+    title: "Todays Silver Rate ",
+     value: `${formatINR(s.totalInventoryValue)} / g`,
+    icon: TrendingUp,
+    trend: "Silver Rate",
+    trendPositive: true,
+  },
   {
-    title: "Total Inventory Value",
-    value: formatINR(s.totalInventoryValue),
-    icon: IndianRupee,
-    trend: `${s.inventoryChangePercent >= 0 ? "+" : ""}${s.inventoryChangePercent.toFixed(1)}% from last month`,
-    trendPositive: s.inventoryChangePercent >= 0,
-    showTrendIcon: true,
+    title: "Today's Gold Rate",
+    value: `${formatINR(s.goldRatePerGram)} / g`,
+    icon: TrendingUp,
+    trend: "24K Gold Rate",
+    trendPositive: true,
   },
   {
     title: "Items In Stock",
@@ -34,16 +40,10 @@ const buildStats = (s: DashboardStats): Stat[] => [
     title: "Active Loans",
     value: formatNum(s.activeLoansCount),
     icon: FileText,
-    trend: `${formatINR(s.totalOutstandingAmount)} outstanding`,
+    trend:" Active Loans", 
     trendPositive: true,
   },
-  {
-    title: "Today's Gold Rate",
-    value: `${formatINR(s.goldRatePerGram)} / g`,
-    icon: TrendingUp,
-    trend: "24K · updated 12 min ago",
-    trendPositive: true,
-  },
+ 
 ];
 
 // A safe fallback to display zero-values while Spring Boot is loading

@@ -1,4 +1,7 @@
 import { useState } from "react";
+
+// Add ShoppingBag to the imports at the top
+
 import {
   ChevronDown,
   Gem,
@@ -8,7 +11,9 @@ import {
   Boxes,
   Settings,
   LogOut,
+  ShoppingBag,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 // Defined locally so we don't need an external constants file
@@ -179,6 +184,20 @@ export const Sidebar = ({ activeView, onViewChange }: Props) => {
             >
               <Scale className="w-4 h-4 shrink-0" />
               Issue New Loan
+            </button>
+          </div>
+        </div>
+
+        {/* After the Ledger & Loans div, before the Inventory div */}
+        <div>
+          <p className={sectionLabel}>Sales</p>
+          <div className="space-y-0.5">
+            <button
+              onClick={() => onViewChange("sales-ledger")}
+              className={itemClass(activeView === "sales-ledger" )}
+            >
+              <ShoppingBag className="w-4 h-4 shrink-0" />
+              Sales Ledger
             </button>
           </div>
         </div>
