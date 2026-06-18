@@ -319,10 +319,3 @@ Grand total = subtotal + (subtotal × 0.03)
 
 ---
 
-## License
-
-Private — K.K Jewellers internal use only.
-
-```
-
-```
