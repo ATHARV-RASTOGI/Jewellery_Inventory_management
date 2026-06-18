@@ -1,0 +1,62 @@
+# ─── Spring Boot / Maven ───────────────────────────────────────────────────────
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven wrapper (keep properties, ignore jar)
+.mvn/wrapper/maven-wrapper.jar
+
+# ─── Application secrets ───────────────────────────────────────────────────────
+# Never commit real credentials
+inventory-backend/src/main/resources/application.properties
+inventory-backend/src/main/resources/application-prod.properties
+inventory-backend/src/main/resources/application-local.properties
+
+# ─── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ─── Node / Frontend ───────────────────────────────────────────────────────────
+inventory-frontend/auravault/node_modules/
+inventory-frontend/auravault/.next/
+inventory-frontend/auravault/dist/
+inventory-frontend/auravault/.env
+inventory-frontend/auravault/.env.local
+inventory-frontend/auravault/.env.production
+
+# Bun
+bun.lockb
+
+# ─── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ─── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+spring.log
