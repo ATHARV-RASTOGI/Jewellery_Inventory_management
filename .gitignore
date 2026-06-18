@@ -37,12 +37,12 @@ inventory-backend/src/main/resources/application-local.properties
 *.sw?
 
 # ─── Node / Frontend ───────────────────────────────────────────────────────────
-inventory-frontend/auravault/node_modules/
-inventory-frontend/auravault/.next/
-inventory-frontend/auravault/dist/
-inventory-frontend/auravault/.env
-inventory-frontend/auravault/.env.local
-inventory-frontend/auravault/.env.production
+inventory-frontend/node_modules/
+inventory-frontend/.next/
+inventory-frontend/dist/
+inventory-frontend/.env
+inventory-frontend/.env.local
+inventory-frontend/.env.production
 
 # Bun
 bun.lockb
