@@ -59,4 +59,4 @@ Thumbs.db
 # ─── Logs ──────────────────────────────────────────────────────────────────────
 *.log
 logs/
-spring.log
+spring.log"application.properties" 

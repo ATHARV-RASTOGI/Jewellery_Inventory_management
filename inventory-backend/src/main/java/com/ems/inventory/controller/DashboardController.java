@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/dashboard")
-@RequiredArgsConstructor // Still using your awesome Lombok setup!
+@RequiredArgsConstructor
 public class DashboardController {
 
     private final SilverRateService silverRateService;

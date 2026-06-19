@@ -17,10 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ems.inventory.model.Product;
 import com.ems.inventory.service.ProductService;
 
+import lombok.RequiredArgsConstructor;
+
 
 
 @RestController
 @RequestMapping("/api/inventory/products")
+@RequiredArgsConstructor
 public class ProductController {
   
     private ProductService service;

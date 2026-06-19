@@ -43,14 +43,10 @@ public class LoanController {
    
     public ResponseEntity<Loan> closeLoan(@PathVariable Long id, @RequestBody java.util.Map<String, Object> payload) {
         
-        // Extract the data React sent
         String closeDate = (String) payload.get("closeDate");
         
-        // Safely extract the amount (it might come as an Integer or Double from JS)
         Number amountNumber = (Number) payload.get("settlementAmount");
         Double settlementAmount = amountNumber != null ? amountNumber.doubleValue() : null;
-
-        // Pass it to your service to save!
         Loan closedLoan = loanService.closeLoan(id, closeDate, settlementAmount);
         
         return ResponseEntity.ok(closedLoan);

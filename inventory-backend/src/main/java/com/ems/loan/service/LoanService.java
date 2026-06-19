@@ -5,9 +5,9 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.ems.inventory.repository.InterestPaymentRepository;
 import com.ems.loan.model.InterestPayment;
 import com.ems.loan.model.Loan;
+import com.ems.loan.repository.InterestPaymentRepository;
 import com.ems.loan.repository.LoanRepository;
 
 
@@ -52,7 +52,7 @@ public class LoanService {
     }
 
        public List<InterestPayment> getInterestPayments(Long loanId) {
-        return interestPaymentRepository.findByLoanIdOrderByPaymentDateAsc(loanId);
+        return interestPaymentRepository.findByLoan_IdOrderByPaymentDateAsc(loanId);
     }
 
     // ── Record an interest payment & reduce outstanding balance ───────────────
@@ -72,7 +72,7 @@ public class LoanService {
 
         // Record the payment with the new balance
         InterestPayment payment = new InterestPayment();
-        payment.setLoanId(loanId);
+        payment.setLoan(loan);
         payment.setAmountPaid(amountPaid);
         payment.setPaymentDate(LocalDate.now());
         payment.setBalanceAfter(newBalance);

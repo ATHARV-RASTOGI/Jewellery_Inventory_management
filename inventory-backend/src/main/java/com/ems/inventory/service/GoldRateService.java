@@ -2,6 +2,7 @@ package com.ems.inventory.service;
 
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -20,15 +21,15 @@ import jakarta.annotation.PostConstruct;
 @Service
 public class GoldRateService {
 
+    @Value("${goldapi.key}")
+    private String apiKey;
+
     private final GoldRateRepository goldRateRepository;
 
     private final RestTemplate restTemplate = new RestTemplate();
 
     // We use XAU/INR directly to get the most accurate currency conversion
     private final static String GOLD_API_URL = "https://www.goldapi.io/api/XAU/INR/";
-    
-    // YOUR LIVE API KEY
-    private final static String API_KEY = "goldapi-2dfb4fc06b25112540f024a99aa7cec7-io";
     
     private static final double OUNCE_TO_GRAMS = 31.1035;
 
@@ -54,7 +55,7 @@ public class GoldRateService {
 
             // 1. Set up the Headers to bypass the API security
             HttpHeaders headers = new HttpHeaders();
-            headers.set("x-access-token", API_KEY);
+            headers.set("x-access-token", apiKey);
             headers.set("Content-Type", "application/json");
 
             HttpEntity<String> entity = new HttpEntity<>(headers);
