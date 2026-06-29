@@ -17,7 +17,9 @@ import com.ems.inventory.model.Rates;
 import com.ems.inventory.repository.GoldRateRepository;
 
 import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 @Service
 public class GoldRateService {
 
@@ -37,10 +39,6 @@ public class GoldRateService {
     // Adjust this multiplier (e.g., 1.18 = +18%) to match today's MCX price exactly.
     private static final double INDIAN_MARKET_MULTIPLIER = 1.18;
 
-    GoldRateService(GoldRateRepository goldRateRepository) {
-        this.goldRateRepository = goldRateRepository;
-    } 
-
     @PostConstruct
     public void fetchOnStartup() {
         System.out.println("=== SERVER STARTED: TRIGGERING INITIAL GOLD RATE FETCH ===");
@@ -48,7 +46,7 @@ public class GoldRateService {
     }
 
     // Runs every hour exactly on the hour (e.g., 1:00, 2:00, 3:00)
-    @Scheduled(cron = "0 0 * * * ?")
+    @Scheduled(cron = "0 0 11 * * ?")
     public void fetchAndSaveGoldRate() {
         try {
             System.out.println("=== FETCHING LIVE GOLD RATE FROM API ===");

@@ -2,7 +2,6 @@ package com.ems.inventory.service;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ems.inventory.model.Goldrates;
@@ -12,17 +11,17 @@ import com.ems.inventory.repository.GoldRateRepository;
 import com.ems.inventory.repository.ProductRepository;
 import com.ems.inventory.repository.SilverRateRepository;
 
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
 @Service
 public class ProductService {
-
-    @Autowired
-    private ProductRepository productRepository;
+  
+    private final ProductRepository productRepository;
     
-    @Autowired
-    private GoldRateRepository GoldRateRepository;
+    private final GoldRateRepository GoldRateRepository;
 
-     @Autowired
-    private SilverRateRepository silverRateRepository;
+    private final SilverRateRepository silverRateRepository;
 
     public Product saveProduct(Product newproduct) {
         return productRepository.save(newproduct);

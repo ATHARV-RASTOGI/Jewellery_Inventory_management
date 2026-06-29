@@ -1,7 +1,6 @@
 package com.ems.sales.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -33,7 +32,7 @@ public class Saleitem {
 
 
     @Transient
-    public Long getSaleId() {
+    public Long  getSaleId() {
         return sale != null ? sale.getId() : null;
     }
 

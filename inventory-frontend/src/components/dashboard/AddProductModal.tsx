@@ -28,6 +28,7 @@ const EMPTY: Omit<Product, "id"> = {
 // Purity multipliers (fraction of 24K pure gold)
 const PURITY_MULTIPLIER: Record<string, number> = {
   "24K": 1.0,
+  "20K": 20 / 24,   // 0.8333 
   "22K": 22 / 24,   // 0.9167
   "18K": 18 / 24,   // 0.75
 };
@@ -197,6 +198,7 @@ export const AddProductModal = ({
                 }}
               >
                 <option>18K</option>
+                <option>20K</option>
                 <option>22K</option>
                 <option>24K</option>
               </select>
@@ -245,7 +247,7 @@ export const AddProductModal = ({
     {!priceOverridden && goldRate?.rate && form.baseWeight > 0 && (
       <span className="text-[10.5px] text-amber-400 flex items-center gap-1">
         <Zap className="w-3 h-3" />
-        Auto-calculated · gold value + {form.material?.toLowerCase() === "gold" ? "12" : "8"}% making
+        Auto-calculated · gold value + {form.material?.toLowerCase() === "gold" ? "13" : "8"}% making
       </span>
     )}
     {priceOverridden && !productToEdit && (

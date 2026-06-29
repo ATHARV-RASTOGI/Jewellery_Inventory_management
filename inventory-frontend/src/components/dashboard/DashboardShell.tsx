@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Bell, Search } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { TopStats } from "./TopStats";
-import { InventoryView } from "./InventoryView";
 import { LoanLedger } from "./LoanLedger";
 import { LoanIssueForm } from "./LoanIssueForm";
 import { SalesLedger } from "./SalesLedger";
+import { ExportButton } from "../ui/ExportButton";
+import { InventoryView } from "./InventoryView";
 
 export const DashboardShell = () => {
   const [activeView, setActiveView] = useState<string>("dashboard");
@@ -23,7 +24,7 @@ export const DashboardShell = () => {
               ? "Settings"
               : "Inventory";
 
-  const showStats = activeView === "dashboard" || activeView === "loan-ledger";
+  const showStats = activeView === "dashboard";
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -55,22 +56,32 @@ export const DashboardShell = () => {
         </header>
 
         <main className="flex-1 px-8 pb-10 space-y-6 overflow-y-auto">
-          {showStats && <TopStats />}
+  {showStats && <TopStats />}
 
-          {activeView === "loan-ledger" ? (
-            <LoanLedger />
-          ) : activeView === "issue-loan" ? (
-            <LoanIssueForm />
-          ) : activeView === "sales-ledger" ? (
-            <SalesLedger />
-          ) : activeView === "settings" ? (
-            <div className="rounded-xl bg-surface p-12 text-center">
-              <p className="text-sm text-muted-foreground">Settings will be wired up later.</p>
-            </div>
-          ) : (
-            <InventoryView activeView={activeView} />
-          )}
-        </main>
+  {activeView === "dashboard" ? (
+    <div className="flex items-center justify-center h-[50vh] text-muted-foreground text-sm">
+      Dashboard overview area
+    </div>
+  ) : activeView === "loan-ledger" ? (
+    <LoanLedger />
+  ) : activeView === "issue-loan" ? (
+    <LoanIssueForm />
+  ) : activeView === "sales-ledger" ? (
+    <SalesLedger />
+  ) : activeView === "settings" ? (
+    <div className="space-y-6 max-w-2xl animate-in fade-in slide-in-from-top-4 duration-300">
+      <div className="rounded-xl bg-surface p-6 border border-border/40">
+        <h2 className="text-sm font-medium tracking-tight mb-1 text-foreground">
+          Data Backup & Reports
+        </h2>
+        <ExportButton />
+      </div>
+    </div>
+  ) : (
+    // EVERYTHING ELSE is treated as an Inventory request
+    <InventoryView activeView={activeView} />
+  )}
+</main>
       </div>
     </div>
   );
