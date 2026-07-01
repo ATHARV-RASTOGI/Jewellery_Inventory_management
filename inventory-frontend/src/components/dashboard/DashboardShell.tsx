@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, LayoutDashboard } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { TopStats } from "./TopStats";
 import { LoanLedger } from "./LoanLedger";
@@ -11,20 +11,61 @@ import { InventoryView } from "./InventoryView";
 export const DashboardShell = () => {
   const [activeView, setActiveView] = useState<string>("dashboard");
 
-  const viewTitle =
-    activeView === "dashboard"
-      ? "Dashboard"
-      : activeView === "loan-ledger"
-        ? "Active Loans Ledger"
-        : activeView === "issue-loan"
-          ? "Issue New Loan"
-          : activeView === "sales-ledger"
-            ? "Sales Ledger"
-            : activeView === "settings"
-              ? "Settings"
-              : "Inventory";
+  const viewTitle: Record<string, string> = {
+    "dashboard":    "Dashboard",
+    "loan-ledger":  "Active Loans Ledger",
+    "issue-loan":   "Issue New Loan",
+    "sales-ledger": "Sales Ledger",
+    "settings":     "Settings",
+    "inventory":    "Inventory",
+  };
 
   const showStats = activeView === "dashboard";
+
+  const renderView = () => {
+    switch (activeView) {
+      case "dashboard":
+        return (
+          <div className="space-y-6">
+            {/* placeholder — swap in your charts here */}
+            <div className="rounded-xl bg-surface border border-border/40 p-10 flex flex-col items-center justify-center gap-3 text-center">
+              <LayoutDashboard className="w-8 h-8 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">
+                Dashboard charts coming soon — add your analysis components here.
+              </p>
+            </div>
+          </div>
+        );
+
+      case "loan-ledger":
+        return <LoanLedger />;
+
+      case "issue-loan":
+        return <LoanIssueForm />;
+
+      case "sales-ledger":
+        return <SalesLedger />;
+
+      case "settings":
+        return (
+          <div className="space-y-6 max-w-2xl animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="rounded-xl bg-surface p-6 border border-border/40">
+              <h2 className="text-sm font-medium tracking-tight mb-1 text-foreground">
+                Data Backup & Reports
+              </h2>
+              <p className="text-[12px] text-muted-foreground mb-4">
+                Export your loans, inventory, and sales data as an Excel file.
+              </p>
+              <ExportButton />
+            </div>
+          </div>
+        );
+
+      default:
+        // All inventory sub-views (inventory, inventory-add, etc.) fall here
+        return <InventoryView activeView={activeView} />;
+    }
+  };
 
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -32,9 +73,11 @@ export const DashboardShell = () => {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="h-16 px-8 flex items-center gap-4">
+        <header className="h-16 px-8 flex items-center gap-4 border-b border-border/30">
           <div>
-            <h1 className="text-[15px] font-semibold tracking-tight">{viewTitle}</h1>
+            <h1 className="text-[15px] font-semibold tracking-tight">
+              {viewTitle[activeView] ?? "Inventory"}
+            </h1>
             <p className="text-[11.5px] text-muted-foreground">
               Welcome back, manage your shop at a glance.
             </p>
@@ -55,33 +98,10 @@ export const DashboardShell = () => {
           </button>
         </header>
 
-        <main className="flex-1 px-8 pb-10 space-y-6 overflow-y-auto">
-  {showStats && <TopStats />}
-
-  {activeView === "dashboard" ? (
-    <div className="flex items-center justify-center h-[50vh] text-muted-foreground text-sm">
-      Dashboard overview area
-    </div>
-  ) : activeView === "loan-ledger" ? (
-    <LoanLedger />
-  ) : activeView === "issue-loan" ? (
-    <LoanIssueForm />
-  ) : activeView === "sales-ledger" ? (
-    <SalesLedger />
-  ) : activeView === "settings" ? (
-    <div className="space-y-6 max-w-2xl animate-in fade-in slide-in-from-top-4 duration-300">
-      <div className="rounded-xl bg-surface p-6 border border-border/40">
-        <h2 className="text-sm font-medium tracking-tight mb-1 text-foreground">
-          Data Backup & Reports
-        </h2>
-        <ExportButton />
-      </div>
-    </div>
-  ) : (
-    // EVERYTHING ELSE is treated as an Inventory request
-    <InventoryView activeView={activeView} />
-  )}
-</main>
+        <main className="flex-1 px-8 pb-10 space-y-6 overflow-y-auto pt-6">
+          {showStats && <TopStats />}
+          {renderView()}
+        </main>
       </div>
     </div>
   );

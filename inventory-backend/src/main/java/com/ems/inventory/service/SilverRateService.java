@@ -46,7 +46,7 @@ public class SilverRateService {
         fetchAndSaveSilverRate();
     }
     
-    @Scheduled(cron = "0 0 * * * ?")
+   @Scheduled(cron = "0 0 11 * * ? ", zone = "Asia/Kolkata")
     public void fetchAndSaveSilverRate(){
         try{
             System.out.println("=== FETCHING LIVE SILVER RATE FROM API ===");
@@ -99,4 +99,18 @@ public class SilverRateService {
     public Silver getLatestSilverRate() {
         return silverRateRepository.getLatestsilver();
     }   
+
+    public void updateManualSilverRate(double perGramRate) {
+    Silver silver = new Silver();
+    Rates rates= new Rates();
+    silver.setTimestamp(java.time.LocalDateTime.now().toString());
+    silver.setBase("INR");
+
+
+    rates.setInr(perGramRate);
+    silver.setRates(rates);
+
+    silverRateRepository.save(silver);
+    System.out.println("Manual silver rate updated: ₹" + perGramRate + " per  10 gram");
+}
 }

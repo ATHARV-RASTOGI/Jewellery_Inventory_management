@@ -16,6 +16,14 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   return data;
 }
 
+  export async function updateGoldRate(rate: number): Promise<void> {
+  await apiClient.post("/gold-rate/update", { rate });
+  }
+
+export async function updateSilverRate(rate: number): Promise<void> {
+  await apiClient.post("/gold-rate/silver/update", { rate }); // ← same controller
+  }
+
 // GET /api/dashboard/gold-rate
 export async function fetchGoldRate(): Promise<{ 
   rate: number; 
@@ -32,4 +40,6 @@ export async function fetchGoldRate(): Promise<{
     silverRatePerGram: 95,
     updatedAt: data.timestamp,
   };
+
+
 }

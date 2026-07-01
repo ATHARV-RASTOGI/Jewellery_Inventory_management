@@ -46,12 +46,12 @@ public class GoldRateService {
     }
 
     // Runs every hour exactly on the hour (e.g., 1:00, 2:00, 3:00)
-    @Scheduled(cron = "0 0 11 * * ?")
+    @Scheduled(cron = "0 0 11 * * ? ", zone = "Asia/Kolkata")
     public void fetchAndSaveGoldRate() {
         try {
             System.out.println("=== FETCHING LIVE GOLD RATE FROM API ===");
 
-            // 1. Set up the Headers to bypass the API security
+           
             HttpHeaders headers = new HttpHeaders();
             headers.set("x-access-token", apiKey);
             headers.set("Content-Type", "application/json");
@@ -111,5 +111,24 @@ public class GoldRateService {
 
     public Goldrates getLatestGoldRate() {
         return goldRateRepository.getLatestGoldRate();
-    }   
+ 
+ 
+    }  
+    
+    public void updateManualGoldRate(double per10gRate) {
+
+    Goldrates goldRate = new Goldrates();
+    
+    goldRate.setTimestamp(java.time.LocalDateTime.now().toString());
+    goldRate.setBase("INR");
+
+    Rates rates = new Rates();
+    rates.setInr(per10gRate);  // store as-is, already per 10g
+    goldRate.setRates(rates);
+
+    goldRateRepository.save(goldRate);
+    System.out.println("Manual gold rate updated: ₹" + per10gRate + " per 10g");
+}
+
+    
 }
