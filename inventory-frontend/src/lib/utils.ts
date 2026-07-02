@@ -24,25 +24,6 @@ export function getStockStatus(stock: number): "in-stock" | "low" | "out" {
 }
 
 // Loan Calculations
-export const LOAN_MONTHLY_INTEREST = 0.02; 
-
-export function calculateLoanSettlement(principal: number, issueDate: string, closeDate: string = new Date().toISOString()) {
-  const issue = new Date(issueDate);
-  const close = new Date(closeDate);
-  
-  const diffInTime = close.getTime() - issue.getTime();
-  const diffInMonths = Math.max(1, diffInTime / (1000 * 3600 * 24 * 30.44)); 
-  
-  const totalamount = principal * Math.pow((1 + LOAN_MONTHLY_INTEREST), diffInMonths);
-  const interestAmount = totalamount - principal;
-
-  return {
-    principal,
-    interestAmount,
-    totalAmount: principal + interestAmount,
-    months: Math.ceil(diffInMonths)
-  };
-}
 
 export function formatNum(num: number) {
   return new Intl.NumberFormat("en-IN").format(num);

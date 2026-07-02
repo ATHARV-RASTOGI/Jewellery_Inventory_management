@@ -1,7 +1,9 @@
 package com.ems.loan.service;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,8 @@ public class LoanService {
 
     private final LoanRepository repository;
     private final InterestPaymentRepository interestPaymentRepository;
+
+    private static final double MONTHLY_INTEREST_RATE = 0.02;
 
     public LoanService(LoanRepository repo, InterestPaymentRepository intrest){
         this.repository=repo;
@@ -72,6 +76,7 @@ public class LoanService {
 
         // Record the payment with the new balance
         InterestPayment payment = new InterestPayment();
+        payment.setCustomer_name(loan.getName());
         payment.setLoan(loan);
         payment.setAmountPaid(amountPaid);
         payment.setPaymentDate(LocalDate.now());
@@ -83,5 +88,29 @@ public class LoanService {
 public long countActiveLoans() {
     return repository.countActiveLoans();
 }
+
+    public Map<String , Object> calculateSettlement(Long loanId, String closeDateStr){
+        Loan loan = repository.findById(loanId).orElseThrow(()-> new RuntimeException("loan not found"+ loanId));
+
+        LocalDate issueDate= loan.getIssueDate();
+        LocalDate closeDate = LocalDate.parse(closeDateStr);
+
+        long days=  java.time.temporal.ChronoUnit.DAYS.between(issueDate, closeDate);
+        double months= Math.max(1 ,days / 30.44);
+        int monthsCeil = (int)Math.ceil(months);
+
+        double totalAmount= loan.getLoanAmount()+ Math.pow(1+ MONTHLY_INTEREST_RATE,months);
+        double interestAmount = totalAmount - loan.getLoanAmount();
+
+        Map<String , Object> result = new HashMap<>();
+        result.put("principal", loan.getLoanAmount());
+        result.put("months", monthsCeil);
+        result.put("interestAmount", Math.round(interestAmount));
+        result.put("totalAmount", Math.round(totalAmount));
+        result.put("monthlyInterest", Math.round(loan.getLoanAmount() * MONTHLY_INTEREST_RATE));
+         return result;
+
+
+    }
 
 }

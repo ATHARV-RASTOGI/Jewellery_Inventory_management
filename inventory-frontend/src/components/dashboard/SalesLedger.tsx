@@ -121,7 +121,7 @@ const NewSaleModal = ({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [skuInput, setSkuInput] = useState("");
   const [skuError, setSkuError] = useState("");
-
+  const [items, setItems] = useState<SaleItem[]>([]);
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
     queryFn:()=> fetchProducts(),
@@ -275,6 +275,7 @@ const NewSaleModal = ({
               />
             </div>
           </div>
+          
 
           {/* SKU search */}
           <div className="space-y-2">

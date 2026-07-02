@@ -1,6 +1,7 @@
 package com.ems.loan.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ems.loan.model.InterestPayment;
@@ -65,5 +67,13 @@ public class LoanController {
     Number amount = (Number) payload.get("amountPaid");
     InterestPayment payment = loanService.recordInterestPayment(id, amount.doubleValue());
     return ResponseEntity.status(HttpStatus.CREATED).body(payment);
+}
+
+
+@GetMapping("/{id}/calculate-settlement")
+public ResponseEntity<Map<String, Object>> calculateSettlement(
+        @PathVariable Long id,
+        @RequestParam String closeDate) {
+    return ResponseEntity.ok(loanService.calculateSettlement(id, closeDate));
 }
 }

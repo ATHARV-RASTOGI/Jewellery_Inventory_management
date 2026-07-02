@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search, MoreHorizontal, X, CheckCircle2, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
+import { calculateSettlement, type SettlementCalculation } from "@/lib/api/loans";
 
-import { cn, formatINR, calculateLoanSettlement, LOAN_MONTHLY_INTEREST } from "@/lib/utils";
+import { cn, formatINR } from "@/lib/utils";
 import {
   closeLoan,
   fetchLoans,
@@ -28,13 +29,18 @@ const fmtDate = (iso: string) =>
     month: "short",
     year: "numeric",
   });
-
 const todayIso = () => new Date().toISOString().slice(0, 10);
+
+// Fallback monthly interest rate when backend does not provide one
+const FALLBACK_MONTHLY_INTEREST_RATE = 0.02;
 
 export const LoanLedger = () => {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<"all" | LoanStatus>("all");
+  const [computed, setComputed] = useState<SettlementCalculation | null>(null);
+
+  const displayMonthlyRate = computed ? computed.monthlyInterest * 100 : FALLBACK_MONTHLY_INTEREST_RATE * 100;
 
   // settle state
   const [settleTarget, setSettleTarget] = useState<Loan | null>(null);
@@ -87,26 +93,34 @@ export const LoanLedger = () => {
     onError: () => toast.error("Failed to record payment"),
   });
 
+
+  useEffect(() => {
+  if (!settleTarget) return;
+  const timer = setTimeout(async () => {
+    try {
+      const result = await calculateSettlement(settleTarget.id, closeDate);
+      setComputed(result);
+      setSettlementAmount(result.totalAmount);
+    } catch (err) {
+      console.error("Settlement calc failed:", err);
+    }
+  }, 300);
+  return () => clearTimeout(timer);
+}, [settleTarget, closeDate]);
+
   const openSettle = (l: Loan) => {
-    setSettleTarget(l);
-    const today = todayIso();
-    setCloseDate(today);
-    const { totalAmount } = calculateLoanSettlement(l.loanAmount, l.issueDate, today);
-    setSettlementAmount(totalAmount);
-  };
+  setSettleTarget(l);
+  setComputed(null);
+  const today = todayIso();
+  setCloseDate(today);
+};
 
-  const openInterest = (l: Loan) => {
-    setInterestTarget(l);
-    // pre-fill with one month's interest
-    const monthlyInterest = Math.round(l.loanAmount * LOAN_MONTHLY_INTEREST);
-    setInterestAmount(monthlyInterest);
-    setInterestNote("Interest payment");
-  };
+const openInterest = (l: Loan) => {
+  setInterestTarget(l);
+  const monthlyInterest = Math.round(l.loanAmount * FALLBACK_MONTHLY_INTEREST_RATE);
+  setInterestAmount(monthlyInterest);
+};
 
-  const computed = useMemo(() => {
-    if (!settleTarget) return null;
-    return calculateLoanSettlement(settleTarget.loanAmount, settleTarget.issueDate, closeDate);
-  }, [settleTarget, closeDate]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -289,10 +303,10 @@ export const LoanLedger = () => {
               </div>
               <div className="rounded-lg bg-surface-2 px-3 py-2">
                 <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
-                  Monthly interest (2%)
+                  Monthly interest ({FALLBACK_MONTHLY_INTEREST_RATE * 100}%)
                 </p>
                 <p className="text-[13px] font-medium mt-0.5 tabular-nums">
-                  {formatINR(Math.round(interestTarget.loanAmount * LOAN_MONTHLY_INTEREST))}
+                  {formatINR(Math.round(interestTarget.loanAmount * FALLBACK_MONTHLY_INTEREST_RATE))}
                 </p>
               </div>
             </div>
@@ -433,12 +447,6 @@ export const LoanLedger = () => {
                 onChange={(e) => {
                   const d = e.target.value;
                   setCloseDate(d);
-                  const { totalAmount } = calculateLoanSettlement(
-                    settleTarget.loanAmount,
-                    settleTarget.issueDate,
-                    d,
-                  );
-                  setSettlementAmount(totalAmount);
                 }}
                 className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
@@ -449,7 +457,7 @@ export const LoanLedger = () => {
                 <span className="tabular-nums">{computed.months} month(s)</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Interest @ {LOAN_MONTHLY_INTEREST * 100}%/mo</span>
+                <span>Interest @ {displayMonthlyRate}%/mo</span>
                 <span className="tabular-nums">{formatINR(computed.interestAmount)}</span>
               </div>
               <div className="flex justify-between pt-1.5 border-t border-border-subtle">

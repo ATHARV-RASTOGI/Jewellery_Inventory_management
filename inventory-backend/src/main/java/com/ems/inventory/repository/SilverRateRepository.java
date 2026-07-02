@@ -2,8 +2,6 @@ package com.ems.inventory.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-
-
 import com.ems.inventory.model.Silver;
 
 

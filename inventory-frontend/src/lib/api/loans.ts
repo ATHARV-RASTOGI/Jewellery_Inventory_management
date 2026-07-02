@@ -76,3 +76,22 @@ export async function fetchInterestPayments(loanId: string): Promise<InterestPay
   );
   return response.data;
 }
+
+export type SettlementCalculation = {
+  principal: number;
+  months: number;
+  interestAmount: number;
+  totalAmount: number;
+  monthlyInterest: number;
+};
+
+export async function calculateSettlement(
+  loanId: string,
+  closeDate: string
+): Promise<SettlementCalculation> {
+  const { data } = await apiClient.get<SettlementCalculation>(
+    `/loans/${loanId}/calculate-settlement`,
+    { params: { closeDate } }
+  );
+  return data;
+}

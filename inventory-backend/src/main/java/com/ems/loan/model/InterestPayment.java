@@ -57,4 +57,7 @@ public class InterestPayment {
 
     @Column(name = "balance_after")
     private Double balanceAfter;
+
+    @Column(name = "customer_name")
+    private String customer_name;
 }
