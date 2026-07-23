@@ -6,11 +6,13 @@ export function ExportButton() {
   const [inventory, setInventory] = useState(true);
   const [sales, setSales]         = useState(true);
   const [summary, setSummary]     = useState(true);
+  const [gold, setGold]           = useState(true);
+  const [silver, setSilver]       = useState(true);
   const [loading, setLoading]     = useState(false);
 
   async function handleExport() {
     setLoading(true);
-    const params = new URLSearchParams({ loans: String(loans), inventory: String(inventory), sales: String(sales), summary: String(summary) });
+    const params = new URLSearchParams({ loans: String(loans), inventory: String(inventory), sales: String(sales), summary: String(summary), gold: String(gold), silver: String(silver) });
 
     const res = await fetch(`/api/export?${params}`);
     const blob = await res.blob();
@@ -27,8 +29,8 @@ export function ExportButton() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-4 text-sm">
-        {[["Loans", loans, setLoans], ["Inventory", inventory, setInventory],
+      <div className="flex flex-wrap gap-4 text-sm">
+        {[["Loans", loans, setLoans], ["Inventory", inventory, setInventory], ["Gold Products", gold, setGold], ["Silver Products", silver, setSilver],
           ["Sales", sales, setSales], ["Summary", summary, setSummary]].map(
           ([label, val, set]: any) => (
             <label key={label} className="flex items-center gap-2 cursor-pointer">
@@ -40,7 +42,7 @@ export function ExportButton() {
       </div>
       <button
         onClick={handleExport}
-        disabled={loading || (!loans && !inventory && !sales && !summary)}
+        disabled={loading || (!loans && !inventory && !sales && !summary && !gold && !silver)}
         className="px-6 py-2 text-[11px] tracking-[0.22em] uppercase bg-foreground text-background rounded-full hover:bg-foreground/85 transition-colors disabled:opacity-40"
       >
         {loading ? "Exporting…" : "Export to Excel"}

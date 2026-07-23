@@ -8,8 +8,7 @@ import {
   type Sale, type SaleItem,
 } from "@/lib/api/sales";
 import { fetchProducts, type Product } from "@/lib/api/inventory";
-
-const GST_RATE = 0.03;
+import { GST_RATE } from "@/lib/constants";
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-IN", {
