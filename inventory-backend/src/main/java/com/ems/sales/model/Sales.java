@@ -20,6 +20,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -54,9 +55,21 @@ public class Sales {
     @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore  // prevents infinite loop when serializing
     private List<Saleitem> items = new ArrayList<>();
+    @Transient
+    private Integer itemCount;
+
+    public Integer getItemCount() {
+        return itemCount;
+    }
+
+    public void setItemCount(Integer itemCount) {
+        this.itemCount = itemCount;
+    }
 
     @PrePersist
     public void prePersist() {
         if (this.saleDate == null) this.saleDate = LocalDate.now();
     }
+
+    
 }

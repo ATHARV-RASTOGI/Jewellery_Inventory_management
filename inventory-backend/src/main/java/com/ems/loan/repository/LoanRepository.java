@@ -1,9 +1,11 @@
 package com.ems.loan.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
 
 import com.ems.loan.model.Loan;
 
+@Repository
 public interface LoanRepository extends JpaRepository<Loan, Long>{
      @Query("SELECT COALESCE(SUM(l.loanAmount), 0.0) FROM Loan l")
     Double getTotalLoanAmount();

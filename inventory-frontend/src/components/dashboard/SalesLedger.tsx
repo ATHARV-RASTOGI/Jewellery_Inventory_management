@@ -37,7 +37,7 @@ const Receipt = ({
     {/* Customer */}
     <div className="mb-3 space-y-0.5">
       <p><span className="font-bold">Name:</span> {sale.customerName}</p>
-      <p><span className="font-bold">Phone:</span> {sale.customerPhone}</p>
+      <p><span className="font-bold">Phone:</span> {sale.customerPhoneNo}</p>
       {sale.customerAddress && (
         <p><span className="font-bold">Address:</span> {sale.customerAddress}</p>
       )}
@@ -469,7 +469,7 @@ const filtered = sales.filter((s: Sale) => {
     return (
       !q ||
       (s.customerName || "").toLowerCase().includes(q) ||
-      (s.customerPhone || "").includes(q) ||
+      String(s.customerPhoneNo || "").includes(q) ||
       String(s.id).includes(q)
     );
 });
@@ -518,9 +518,9 @@ const filtered = sales.filter((s: Sale) => {
               <tr key={sale.id} className="hover:bg-surface-2/50 transition-colors">
                 <td className="px-4 py-3.5 text-muted-foreground text-xs">#{sale.id}</td>
                 <td className="px-4 py-3.5 font-semibold text-[13px]">{sale.customerName}</td>
-                <td className="px-4 py-3.5 text-muted-foreground text-[13px]">{sale.customerPhone}</td>
+                <td className="px-4 py-3.5 text-muted-foreground text-[13px]">{sale.customerPhoneNo}</td>
                 <td className="px-4 py-3.5 text-muted-foreground text-[13px]">{fmtDate(sale.saleDate)}</td>
-                <td className="px-4 py-3.5 text-muted-foreground text-[13px]">—</td>
+                <td className="px-4 py-3.5 text-muted-foreground text-[13px]">{sale.itemCount}{sale.itemCount === 1 ? " Item" : " Items"}</td>
                 <td className="px-4 py-3.5 tabular-nums">{formatINR(sale.subtotal)}</td>
                 <td className="px-4 py-3.5 tabular-nums text-muted-foreground">{formatINR(sale.gstAmount)}</td>
                 <td className="px-4 py-3.5 tabular-nums font-semibold">{formatINR(sale.grandTotal)}</td>

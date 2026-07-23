@@ -61,14 +61,5 @@ public ResponseEntity<String> updateGoldRate(@RequestBody Map<String, Object> pa
     }
 }
 
-  @PostMapping("/silver/update")
-    public ResponseEntity<String> updateSilverRate(@RequestBody Map<String, Object> payload) {
-        try {
-            Number rate = (Number) payload.get("rate");
-            silverRateService.updateManualSilverRate(rate.doubleValue());
-            return ResponseEntity.ok("Silver rate updated successfully");
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
-        }
-    }
+ 
 }

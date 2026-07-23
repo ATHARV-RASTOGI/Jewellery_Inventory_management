@@ -1,8 +1,17 @@
 package com.ems.sales.service;
 
+import java.time.LocalDate;
+import java.time.Month;
+import java.time.format.TextStyle;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -67,6 +76,8 @@ public class SalesService {
         saleitem.setPricePerPiece(pricePerPiece);
         saleitem.setLineTotal(pricePerPiece * quantity);
         saleItemRepository.save(saleitem);
+        // keep both sides of the relationship in sync
+        savedsale.getItems().add(saleitem);
 
         subtotal += pricePerPiece * quantity;
         }
@@ -76,8 +87,93 @@ public class SalesService {
         savedsale.setGstAmount(gst);
         savedsale.setGrandTotal(subtotal + gst);
 
-        return saleRepository.save(savedsale);
+        Sales finalSale = saleRepository.save(savedsale);
+        // populate transient itemCount without loading the collection
+        finalSale.setItemCount((int) saleItemRepository.countBySale_Id(finalSale.getId()));
+        return finalSale;
 
     }
 
+    public List<Map<String,Object>> getMonthlyRevenue(){
+        int currentYear = LocalDate.now().getYear();
+        LocalDate start = LocalDate.of(currentYear, 1, 1);
+        LocalDate end = LocalDate.now();
+
+        Map<Month, Double> monthlyTotal = new LinkedHashMap<>();
+        for (Month m : Month.values()) {
+            monthlyTotal.put(m, 0.0);
+        }
+
+        List<Object[]> rows = saleRepository.findMonthlyRevenueBetween(start, end);
+        for (Object[] r : rows) {
+            Integer monthIndex = ((Number) r[0]).intValue(); // 1-12
+            Double sum = ((Number) r[1]).doubleValue();
+            Month m = Month.of(monthIndex);
+            monthlyTotal.put(m, sum);
+        }
+
+        List<Map<String,Object>> result = new ArrayList<>();
+        for(Map.Entry<Month, Double> entry : monthlyTotal.entrySet()){
+            Map<String ,Object>point = new HashMap<>();
+            point.put("month", entry.getKey().getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
+            point.put("revenue", Math.round(entry.getValue()));
+            result.add(point);
+        }
+        return result;
+    }
+
+    public List<Map<String, Object>> getSalesByMaterial() {
+    int currentYear = LocalDate.now().getYear();
+    LocalDate start = LocalDate.of(currentYear, 1, 1);
+    LocalDate end = LocalDate.now();
+
+    List<Object[]> rows = saleItemRepository.findMaterialTotalsBetween(start, end);
+    List<Map<String, Object>> result = new ArrayList<>();
+    for (Object[] r : rows) {
+        String material = (String) r[0];
+        Double value = ((Number) r[1]).doubleValue();
+        Map<String, Object> point = new HashMap<>();
+        point.put("material", material);
+        point.put("value", Math.round(value));
+        result.add(point);
+    }
+    return result;
+}
+
+public List<Sales> getRecentSales(int limit){
+    int bounded = Math.max(0, limit);
+    Page<Sales> page = saleRepository.findAllByOrderBySaleDateDesc(PageRequest.of(0, bounded));
+    List<Sales> sales = page.getContent();
+    // populate item counts without initializing collections
+    for (Sales s : sales) {
+        s.setItemCount((int) saleItemRepository.countBySale_Id(s.getId()));
+    }
+    return sales;
+}
+
+public List<Map<String, Object>> getWeeklySales() {
+    LocalDate today = LocalDate.now();
+    LocalDate weekStart = today.minusDays(6);
+
+    Map<LocalDate, Double> dailyTotals = new LinkedHashMap<>();
+    for (int i = 0; i < 7; i++) {
+        dailyTotals.put(weekStart.plusDays(i), 0.0);
+    }
+
+    List<Object[]> rows = saleRepository.findDailyRevenueBetween(weekStart, today);
+    for (Object[] r : rows) {
+        LocalDate date = (LocalDate) r[0];
+        Double sum = ((Number) r[1]).doubleValue();
+        dailyTotals.put(date, sum);
+    }
+
+    List<Map<String, Object>> result = new ArrayList<>();
+    for (Map.Entry<LocalDate, Double> entry : dailyTotals.entrySet()) {
+        Map<String, Object> point = new HashMap<>();
+        point.put("day", entry.getKey().getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
+        point.put("sales", Math.round(entry.getValue()));
+        result.add(point);
+    }
+    return result;
+}
 }

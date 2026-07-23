@@ -21,8 +21,15 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   }
 
 export async function updateSilverRate(rate: number): Promise<void> {
-  await apiClient.post("/gold-rate/silver/update", { rate }); // ← same controller
+  await apiClient.post("/silver-rates/update", { rate });
   }
+
+export const fetchSilverRate = async () => {
+    // FIX: Using apiClient ensures it hits the correct backend URL
+    const { data } = await apiClient.get("/silver-rates/latest");
+    return data; 
+  }; 
+
 
 // GET /api/dashboard/gold-rate
 export async function fetchGoldRate(): Promise<{ 

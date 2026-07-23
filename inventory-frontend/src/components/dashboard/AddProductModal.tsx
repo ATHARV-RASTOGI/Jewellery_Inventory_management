@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { X, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type Product } from "@/lib/api/inventory";
-import { fetchGoldRate } from "@/lib/api/dashboard";
+import { fetchGoldRate, fetchSilverRate } from "@/lib/api/dashboard";
 
 type Props = {
   open: boolean;
@@ -11,18 +11,39 @@ type Props = {
   onCreate: (p: Product) => void;
   onUpdate?: (p: Product) => void;
   productToEdit?: Product | null;
+  activeCategory: string; // Add this!
 };
 
 const EMPTY: Omit<Product, "id"> = {
   name: "",
   sku: "",
-  mainCategory: "",
+  mainCategory: "rings",
   subCategory: "",
   material: "Gold",
   purity: "22K",
   baseWeight: 0,
   stockQuantity: 0,
   price: 0,
+};
+
+// Put this near the top of AddProductModal.tsx, under your EMPTY object
+
+const SUBCATEGORIES: Record<string, Record<string, { id: string, label: string }[]>> = {
+  gold: {
+    rings: [{ id: "rings-gents", label: "Gents Rings" }, { id: "rings-womens", label: "Women's Rings" }, { id: "rings-couple", label: "Couple Bands" }],
+    necklaces: [{ id: "necklaces-short", label: "Short Necklaces" }, { id: "necklaces-long", label: "Long Necklaces" }, { id: "necklaces-choker", label: "Chokers" }],
+    bangles: [{ id: "bangles-daily", label: "Daily Wear" }, { id: "bangles-bridal", label: "Bridal Bangles" }],
+    earrings: [{ id: "earrings-studs", label: "Studs" }, { id: "earrings-drops", label: "Drops & Danglers" }],
+    sets: [{ id: "sets-bridal", label: "Bridal Sets" }, { id: "sets-light", label: "Lightweight Sets" }],
+    coins: [{ id: "coins-1g", label: "1g - 5g Coins" }, { id: "coins-10g", label: "10g+ Coins & Bars" }],
+  },
+  silver: {
+    anklets: [{ id: "anklets-daily", label: "Daily Wear" }, { id: "anklets-bridal", label: "Bridal Heavy" }],
+    bracelets: [{ id: "bracelets-mens", label: "Men's Kadas" }, { id: "bracelets-womens", label: "Women's Bracelets" }],
+    rings: [{ id: "rings-mens", label: "Men's Rings" }, { id: "rings-womens", label: "Women's Rings" }],
+    pooja: [{ id: "pooja-idols", label: "Idols (Murti)" }, { id: "pooja-utensils", label: "Utensils (Bartan)" }],
+    coins: [{ id: "coins-10g", label: "10g - 50g Coins" }, { id: "coins-100g", label: "100g+ Bars" }],
+  }
 };
 
 // Purity multipliers (fraction of 24K pure gold)
@@ -46,28 +67,58 @@ export const AddProductModal = ({
   onCreate,
   onUpdate,
   productToEdit,
+  activeCategory,
 }: Props) => {
   const [form, setForm] = useState<Product | Omit<Product, "id">>(EMPTY);
   const [priceOverridden, setPriceOverridden] = useState(false);
 
   const { data: goldRate } = useQuery({
-  queryKey: ["dashboard-gold-rate"],
-  queryFn: fetchGoldRate,
-  enabled: open,
-  staleTime: 1000 * 60 * 5,
-});
+    queryKey: ["dashboard-gold-rate"],
+    queryFn: fetchGoldRate,
+    enabled: open,
+    staleTime: 1000 * 60 * 5,
+  });
 
-  useEffect(() => {
+  // NEW: Fetch the silver rate independently
+  const { data: silverRate } = useQuery({
+    queryKey: ["dashboard-silver-rate"],
+    queryFn: fetchSilverRate,
+    enabled: open,
+    staleTime: 1000 * 60 * 5,
+  });
+
+ useEffect(() => {
     if (open) {
       if (productToEdit) {
         setForm(productToEdit);
-        setPriceOverridden(true); // editing existing — don't auto-calc
+        setPriceOverridden(true);
       } else {
-        setForm(EMPTY);
+        // Check if the sidebar is currently on a silver or gold category
+       // Extract all pieces from the activeCategory
+        const isSilver = activeCategory.startsWith("silver");
+        const categoryParts = activeCategory.split("-"); 
+        
+        // e.g., "silver-anklets-daily" -> "anklets"
+        const cleanMainCategory = categoryParts.length > 1 ? categoryParts[1] : activeCategory;
+        
+        // e.g., "silver-anklets-daily" -> "anklets-daily" (matching your DB format!)
+        const cleanSubCategory = categoryParts.length > 2 
+          ? `${categoryParts[1]}-${categoryParts[2]}` 
+          : "";
+
+        // Pre-configure the modal!
+        setForm({
+          ...EMPTY,
+          material: isSilver ? "Silver" : "Gold",
+          purity: isSilver ? "NA" : "22K", 
+          mainCategory: cleanMainCategory, 
+          subCategory: cleanSubCategory, // <--- THIS SAVES IT TO THE DB!
+        });
+        
         setPriceOverridden(false);
       }
     }
-  }, [open, productToEdit]);
+  }, [open, productToEdit, activeCategory]);
 
   // Auto-calculate price whenever weight, purity, or gold rate changes
   useEffect(() => {
@@ -85,12 +136,13 @@ export const AddProductModal = ({
     setForm((p) => ({ ...p, price: Math.round(goldValue + making) }));
 
   } else {
-    const silverValue = (goldRate.silverRatePerGram ?? 95) * weight;
+    const currentSilverRate = silverRate?.rate ?? 95;
+    const silverValue = currentSilverRate * weight;
     const making = silverValue * 0.08;
     setForm((p) => ({ ...p, price: Math.round(silverValue + making) }));
   }
 
-}, [form.baseWeight, form.purity, form.material, goldRate, priceOverridden]);
+}, [form.baseWeight, form.purity, form.material, goldRate, silverRate, priceOverridden]);
 
   if (!open) return null;
 
@@ -172,45 +224,98 @@ export const AddProductModal = ({
               />
             </div>
 
-            <div className="space-y-1.5">
+           <div className="space-y-1.5">
               <label className={fieldLabel}>Category</label>
               <select
                 className={fieldInput}
                 value={form.mainCategory}
-                onChange={(e) => update("mainCategory", e.target.value)}
+                onChange={(e) => {
+                  update("mainCategory", e.target.value);
+                  update("subCategory", ""); // FIX: Clear subcategory if main category changes!
+                }}
               >
-                <option value="rings">Rings</option>
-                <option value="necklaces">Necklaces</option>
-                <option value="earrings">Earrings</option>
-                <option value="bangles">Bangles</option>
-                <option value="bracelets">Bracelets</option>
+                {form.material?.toLowerCase() === "silver" ? (
+                  <>
+                    <option value="anklets">Anklets (Payal)</option>
+                    <option value="bracelets">Bracelets & Kadas</option>
+                    <option value="rings">Silver Rings</option>
+                    <option value="pooja">Pooja Items & Utensils</option>
+                    <option value="coins">Silver Coins & Bars</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="rings">Rings</option>
+                    <option value="necklaces">Necklaces</option>
+                    <option value="bangles">Bangles</option>
+                    <option value="earrings">Earrings</option>
+                    <option value="sets">Jewellery Sets</option>
+                    <option value="coins">Gold Coins & Bars</option>
+                  </>
+                )}
               </select>
             </div>
 
+            {/* NEW: The Dynamic Subcategory Dropdown! */}
             <div className="space-y-1.5">
-              <label className={fieldLabel}>Purity</label>
+              <label className={fieldLabel}>Subcategory</label>
               <select
                 className={fieldInput}
-                value={form.purity}
-                onChange={(e) => {
-                  update("purity", e.target.value);
-                  setPriceOverridden(false); // recalculate when purity changes
-                }}
+                value={form.subCategory || ""}
+                onChange={(e) => update("subCategory", e.target.value)}
               >
-                <option>18K</option>
-                <option>20K</option>
-                <option>22K</option>
-                <option>24K</option>
+                <option value="">None / General</option>
+                {/* Dynamically loads options based on Gold/Silver and Main Category */}
+                {(SUBCATEGORIES[form.material?.toLowerCase() || "gold"]?.[form.mainCategory] || []).map(
+                  (sub) => (
+                    <option key={sub.id} value={sub.id}>
+                      {sub.label}
+                    </option>
+                  )
+                )}
               </select>
             </div>
+
+            {form.material?.toLowerCase() === "gold" && (
+              <div className="space-y-1.5">
+                <label className={fieldLabel}>Purity</label>
+                <select
+                  className={fieldInput}
+                  value={form.purity}
+                  onChange={(e) => {
+                    update("purity", e.target.value);
+                    setPriceOverridden(false);
+                  }}
+                >
+                  <option value="18K">18K</option>
+                  <option value="20K">20K</option>
+                  <option value="22K">22K</option>
+                  <option value="24K">24K</option>
+                </select>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label className={fieldLabel}>Material</label>
-              <input
+              <select
                 className={fieldInput}
                 value={form.material}
-                onChange={(e) => update("material", e.target.value)}
-              />
+                onChange={(e) => {
+                  const selectedMaterial = e.target.value;
+                  update("material", selectedMaterial);
+                  
+                  // FIX: Send "NA" instead of an empty string to keep the database happy!
+                  if (selectedMaterial.toLowerCase() === "silver") {
+                    update("purity", "NA"); 
+                  } else {
+                    update("purity", "22K");
+                  }
+                  
+                  setPriceOverridden(false);
+                }}
+              >
+                <option value="Gold">Gold</option>
+                <option value="Silver">Silver</option>
+              </select>
             </div>
 
             <div className="space-y-1.5">
@@ -305,18 +410,19 @@ export const AddProductModal = ({
             </span>
           </div>
         </>
-      ) : (
+     ) : (
         <>
           <div className="flex justify-between">
-            <span>Silver value ({form.baseWeight}g × ₹{goldRate?.silverRatePerGram ?? 95}/g)</span>
+            {/* FIX: Swapped goldRate for silverRate in these 3 spots */}
+            <span>Silver value ({form.baseWeight}g × ₹{silverRate?.rate ?? 95}/g)</span>
             <span className="tabular-nums">
-              ₹{Math.round((goldRate?.silverRatePerGram ?? 95) * Number(form.baseWeight)).toLocaleString("en-IN")}
+              ₹{Math.round((silverRate?.rate ?? 95) * Number(form.baseWeight)).toLocaleString("en-IN")}
             </span>
           </div>
           <div className="flex justify-between">
             <span>Making charge (8%)</span>
             <span className="tabular-nums">
-              ₹{Math.round((goldRate?.silverRatePerGram ?? 95) * Number(form.baseWeight) * 0.08).toLocaleString("en-IN")}
+              ₹{Math.round((silverRate?.rate ?? 95) * Number(form.baseWeight) * 0.08).toLocaleString("en-IN")}
             </span>
           </div>
         </>

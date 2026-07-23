@@ -27,11 +27,5 @@ public class Goldrates {
     @Embedded
     private Rates rates;
 
-    public String getTimestamp() { return timestamp; }
-    public void setTimestamp(String timestamp) { this.timestamp = timestamp; }
-    public String getBase() { return base; }
-    public void setBase(String base) { this.base = base; }
-    public Rates getRates() { return rates; }
-    public void setRates(Rates rates) { this.rates = rates; }
-
+  
 }

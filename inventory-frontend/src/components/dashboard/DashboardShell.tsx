@@ -7,6 +7,10 @@ import { LoanIssueForm } from "./LoanIssueForm";
 import { SalesLedger } from "./SalesLedger";
 import { ExportButton } from "../ui/ExportButton";
 import { InventoryView } from "./InventoryView";
+import { RevenueOverview } from "./RevenueOverview";
+import { SalesByMaterial } from "./SalesByMaterial";
+import { WeeklySales } from "./WeeklySales";
+import { RecentSales } from "./RecentSales";
 
 export const DashboardShell = () => {
   const [activeView, setActiveView] = useState<string>("dashboard");
@@ -25,17 +29,22 @@ export const DashboardShell = () => {
   const renderView = () => {
     switch (activeView) {
       case "dashboard":
-        return (
-          <div className="space-y-6">
-            {/* placeholder — swap in your charts here */}
-            <div className="rounded-xl bg-surface border border-border/40 p-10 flex flex-col items-center justify-center gap-3 text-center">
-              <LayoutDashboard className="w-8 h-8 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">
-                Dashboard charts coming soon — add your analysis components here.
-              </p>
-            </div>
-          </div>
-        );
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2">
+        <RevenueOverview />
+      </div>
+      <div>
+        <SalesByMaterial />
+      </div>
+      <div className="lg:col-span-2">
+        <WeeklySales />
+      </div>
+      <div>
+        <RecentSales />
+      </div>
+    </div>
+  );
 
       case "loan-ledger":
         return <LoanLedger />;
