@@ -11,6 +11,7 @@ import { RevenueOverview } from "./RevenueOverview";
 import { SalesByMaterial } from "./SalesByMaterial";
 import { WeeklySales } from "./WeeklySales";
 import { RecentSales } from "./RecentSales";
+import { CustomOrderForm } from "./CustomOrderForm";
 
 export const DashboardShell = () => {
   const [activeView, setActiveView] = useState<string>("dashboard");
@@ -19,9 +20,10 @@ export const DashboardShell = () => {
     "dashboard":    "Dashboard",
     "loan-ledger":  "Active Loans Ledger",
     "issue-loan":   "Issue New Loan",
-    "sales-ledger": "Sales Ledger",
-    "settings":     "Settings",
-    "inventory":    "Inventory",
+    "sales-ledger":   "Sales Ledger",
+    "custom-order":   "Custom Orders",
+    "settings":       "Settings",
+    "inventory":      "Inventory",
   };
 
   const showStats = activeView === "dashboard";
@@ -54,6 +56,9 @@ export const DashboardShell = () => {
 
       case "sales-ledger":
         return <SalesLedger />;
+
+      case "custom-order":
+        return <CustomOrderForm />;
 
       case "settings":
         return (

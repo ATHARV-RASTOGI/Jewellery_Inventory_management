@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   ShoppingBag,
+  ClipboardList,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -120,7 +121,7 @@ export const Sidebar = ({ activeView, onViewChange }: Props) => {
   // Separate states for Gold and Silver dropdowns
   const [goldOpen, setGoldOpen] = useState(true);
   const [silverOpen, setSilverOpen] = useState(false);
-  
+  const [customOrder, setCustomOrder] = useState(false);
   const [expandedCat, setExpandedCat] = useState<string | null>("gold-rings");
 
   const itemClass = (active: boolean) =>
@@ -234,7 +235,7 @@ export const Sidebar = ({ activeView, onViewChange }: Props) => {
         <div>
           <p className={sectionLabel}>Inventory</p>
           <div className="space-y-2">
-            
+
             {/* GOLD INVENTORY TOGGLE */}
             <div>
               <button onClick={() => setGoldOpen((v) => !v)} className={itemClass(false)}>
@@ -255,7 +256,18 @@ export const Sidebar = ({ activeView, onViewChange }: Props) => {
               {silverOpen && <CategoryTree categories={SILVER_CATEGORIES} />}
             </div>
 
+            
+
           </div>
+        </div>
+
+        {/* Custom order */}
+         <div>
+          <p className={sectionLabel}>Orders</p>
+          <button onClick={() => onViewChange("custom-order")} className={itemClass(activeView === "custom-order")}>
+           <ClipboardList className="w-4 h-4 shrink-0" />
+           <span className="flex-1 text-left">Custom Orders</span>
+          </button>
         </div>
 
         <div>
@@ -272,7 +284,7 @@ export const Sidebar = ({ activeView, onViewChange }: Props) => {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-medium text-foreground truncate">Atharv Rastogi</p>
-          <p className="text-[11px] text-muted-foreground truncate">Lohai Road</p>
+          <p className="text-[11px] text-muted-foreground truncate">Nehru Road, Farrukhabad (U.P) </p>
         </div>
         <button className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sign out">
           <LogOut className="w-4 h-4" />

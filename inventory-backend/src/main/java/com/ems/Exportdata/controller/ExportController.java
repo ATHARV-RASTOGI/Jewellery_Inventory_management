@@ -27,9 +27,11 @@ public class ExportController {
         @RequestParam(defaultValue="true") boolean loans,
         @RequestParam(defaultValue="true") boolean inventory,
         @RequestParam(defaultValue="true") boolean sales,
-        @RequestParam(defaultValue="true") boolean summary) throws IOException{
+        @RequestParam(defaultValue="true") boolean summary,
+        @RequestParam(defaultValue="true") boolean gold,
+        @RequestParam(defaultValue="true") boolean silver) throws IOException{
 
-        byte[] excelBytes=service.exportToExcel(loans,inventory,sales,summary);
+        byte[] excelBytes = service.exportToExcel(loans, inventory, sales, summary, gold, silver);
 
         String filename = "KK.J"+ LocalDate.now()+".xlsx";
 

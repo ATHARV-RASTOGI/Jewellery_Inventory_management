@@ -8,13 +8,10 @@ export default defineConfig({
     host: "::",
     port: 5173,
     proxy: {
-      // This is the magic bridge!
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
-        // Make sure there is NO 'rewrite' line here, because your 
-        // Java backend expects the "/api" part in the URL!
       }
     }
   },

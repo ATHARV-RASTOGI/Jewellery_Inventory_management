@@ -9,37 +9,42 @@ import org.springframework.data.repository.query.Param;
 
 import com.ems.inventory.model.Product;
 
-
 public interface ProductRepository extends JpaRepository<Product, Long> {
-    
-    // --- THIS IS THE MAGIC LINE WE NEEDED TO ADD ---
-    List<Product> findByMainCategoryOrSubCategory(String mainCategory, String subCategory);
 
-    // Your existing methods:
-    List<Product> findByMainCategory(String mainCategory);
-    
-    List<Product> findByMainCategoryAndSubCategory(String mainCategory, String subCategory);
+        // --- THIS IS THE MAGIC LINE WE NEEDED TO ADD ---
+        List<Product> findByMainCategoryOrSubCategory(String mainCategory, String subCategory);
 
-    List<Product> findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(
-            String mainCategory, 
-            String subCategory, 
-            String purity, 
-            Double maxWeight
-    );
+        // Your existing methods:
+        List<Product> findByMainCategory(String mainCategory);
 
-   @Query("SELECT p FROM Product p WHERE " +
-           "LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(p.sku) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(p.mainCategory) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-    List<Product> searchProducts(@Param("keyword") String keyword);
+        List<Product> findByMainCategoryAndSubCategory(String mainCategory, String subCategory);
 
-    @Query("SELECT COALESCE(SUM(p.price * p.stockQuantity), 0.0) FROM Product p")
-    public Double getTotalvalue();
+        List<Product> findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(
+                        String mainCategory,
+                        String subCategory,
+                        String purity,
+                        Double maxWeight);
 
-    @Query("SELECT COALESCE(SUM(p.stockQuantity), 0) FROM Product p")
-    public Integer calculateTotalItemsInStock();
+        @Query("SELECT p FROM Product p WHERE " +
+                        "LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(p.sku) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+                        "LOWER(p.mainCategory) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+        List<Product> searchProducts(@Param("keyword") String keyword);
 
-    Integer countByStockQuantityLessThanEqual(Integer threshold);
+        @Query("SELECT COALESCE(SUM(p.price * p.stockQuantity), 0.0) FROM Product p")
+        public Double getTotalvalue();
+
+        @Query("SELECT COALESCE(SUM(p.stockQuantity), 0) FROM Product p")
+        public Integer calculateTotalItemsInStock();
+
+        Integer countByStockQuantityLessThanEqual(Integer threshold);
 
         Optional<Product> findBySku(String sku);
+
+        @Query("SELECT p FROM Product p WHERE p.material = 'Gold' ")
+        List<Product> findByMaterialGold();
+
+        @Query("SELECT p FROM Product p WHERE p.material = 'Silver' ")
+        List<Product> findByMaterialSilver();
+
 }

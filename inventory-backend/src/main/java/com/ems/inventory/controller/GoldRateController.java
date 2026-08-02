@@ -27,9 +27,9 @@ public class GoldRateController {
     public ResponseEntity<String> fetchNow() {
         try {
             System.out.println("=== MANUAL FETCH TRIGGERED ===");
-            // Tell the service to do the work
-            goldRateService.fetchAndSaveGoldRate(); 
-            return ResponseEntity.ok("Gold rate for 10g fetched and saved successfully!");
+            // Tell the service to do the work in the background
+            java.util.concurrent.CompletableFuture.runAsync(() -> goldRateService.fetchAndSaveGoldRate());
+            return ResponseEntity.ok("Gold rate fetch initiated in the background.");
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
         }

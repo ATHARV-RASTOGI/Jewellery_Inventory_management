@@ -34,13 +34,11 @@ public class InterestPayment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "loan_id", nullable = false)
-    @JsonIgnore  
+    @JsonIgnore
     private Loan loan;
 
-    
     @Transient
     public Long getLoanId() {
         return loan != null ? loan.getId() : null;
@@ -60,4 +58,7 @@ public class InterestPayment {
 
     @Column(name = "customer_name")
     private String customer_name;
+
+    @Column(name = "address")
+    private String address;
 }

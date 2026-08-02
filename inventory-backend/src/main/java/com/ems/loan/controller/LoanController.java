@@ -23,14 +23,14 @@ import com.ems.loan.service.LoanService;
 public class LoanController {
 
     private final LoanService loanService;
-   
-    public LoanController(LoanService service ) {
+
+    public LoanController(LoanService service) {
         this.loanService = service;
     }
 
     @GetMapping
     public ResponseEntity<List<Loan>> getAllLoans() {
-         List<Loan> loans = loanService.getAll();
+        List<Loan> loans = loanService.getAll();
         return new ResponseEntity<>(loans, HttpStatus.OK); // Fixed: Returning the actual ResponseEntity object
     }
 
@@ -38,42 +38,41 @@ public class LoanController {
     public ResponseEntity<Loan> createLoan(@RequestBody Loan loanData) {
         Loan savedLoan = loanService.saveLoan(loanData);
         System.out.println("DATA RECEIVED FROM REACT: " + loanData);
-        return new ResponseEntity<>(savedLoan, HttpStatus.CREATED); // Improved: Changed OK to CREATED (201)
+        return new ResponseEntity<>(savedLoan, HttpStatus.CREATED);
     }
 
-     @PatchMapping("/{id}/close")
-   
+    @PatchMapping("/{id}/close")
+
     public ResponseEntity<Loan> closeLoan(@PathVariable Long id, @RequestBody java.util.Map<String, Object> payload) {
-        
+
         String closeDate = (String) payload.get("closeDate");
-        
+
         Number amountNumber = (Number) payload.get("settlementAmount");
         Double settlementAmount = amountNumber != null ? amountNumber.doubleValue() : null;
         Loan closedLoan = loanService.closeLoan(id, closeDate, settlementAmount);
-        
+
         return ResponseEntity.ok(closedLoan);
     }
 
     @GetMapping("/{id}/interest-payments")
     public ResponseEntity<List<InterestPayment>> getInterestPayments(@PathVariable Long id) {
-    return ResponseEntity.ok(loanService.getInterestPayments(id));
-}
+        return ResponseEntity.ok(loanService.getInterestPayments(id));
+    }
 
     @PostMapping("/{id}/pay-interest")
     public ResponseEntity<InterestPayment> payInterest(
-        @PathVariable Long id,
-        @RequestBody java.util.Map<String, Object> payload) {
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, Object> payload) {
 
-    Number amount = (Number) payload.get("amountPaid");
-    InterestPayment payment = loanService.recordInterestPayment(id, amount.doubleValue());
-    return ResponseEntity.status(HttpStatus.CREATED).body(payment);
-}
+        Number amount = (Number) payload.get("amountPaid");
+        InterestPayment payment = loanService.recordInterestPayment(id, amount.doubleValue());
+        return ResponseEntity.status(HttpStatus.CREATED).body(payment);
+    }
 
-
-@GetMapping("/{id}/calculate-settlement")
-public ResponseEntity<Map<String, Object>> calculateSettlement(
-        @PathVariable Long id,
-        @RequestParam String closeDate) {
-    return ResponseEntity.ok(loanService.calculateSettlement(id, closeDate));
-}
+    @GetMapping("/{id}/calculate-settlement")
+    public ResponseEntity<Map<String, Object>> calculateSettlement(
+            @PathVariable Long id,
+            @RequestParam String closeDate) {
+        return ResponseEntity.ok(loanService.calculateSettlement(id, closeDate));
+    }
 }
