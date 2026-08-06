@@ -15,6 +15,12 @@ public interface SaleItemRepository extends JpaRepository<Saleitem, Long> {
 
     long countBySale_Id(Long saleId);
 
-    @Query("SELECT COALESCE(i.material,'Other'), SUM(i.lineTotal) FROM Saleitem i WHERE i.sale.saleDate BETWEEN :start AND :end GROUP BY COALESCE(i.material,'Other')")
-    List<Object[]> findMaterialTotalsBetween(@Param("start") LocalDate start, @Param("end") LocalDate end);
+    
+    @Query("SELECT COALESCE(s.material, 'Other'), SUM(s.lineTotal) FROM Saleitem s " +
+           "WHERE s.sale.saleDate BETWEEN :start AND :end " +
+           "GROUP BY COALESCE(s.material, 'Other')")
+    List<Object[]> findMaterialTotalsBetween(
+        @Param("start") LocalDate start,
+        @Param("end") LocalDate end
+    );
 }

@@ -16,37 +16,32 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   return data;
 }
 
-  export async function updateGoldRate(rate: number): Promise<void> {
+// POST /api/gold-rate/update
+export async function updateGoldRate(rate: number): Promise<void> {
   await apiClient.post("/gold-rate/update", { rate });
-  }
+}
 
+// POST /api/silver-rates/update
 export async function updateSilverRate(rate: number): Promise<void> {
   await apiClient.post("/silver-rates/update", { rate });
-  }
+}
 
-export const fetchSilverRate = async () => {
-    // FIX: Using apiClient ensures it hits the correct backend URL
-    const { data } = await apiClient.get("/silver-rates/latest");
-    return data; 
-  }; 
+// GET /api/silver-rates/latest
+export async function fetchSilverRate() {
+  const { data } = await apiClient.get("/silver-rates/latest");
+  return data;
+}
 
-
-// GET /api/dashboard/gold-rate
-export async function fetchGoldRate(): Promise<{ 
-  rate: number; 
+// GET /api/gold-rate/latest
+export async function fetchGoldRate(): Promise<{
+  rate: number;
   silverRatePerGram: number;
   updatedAt: string;
 }> {
   const { data } = await apiClient.get("/gold-rate/latest");
-  
-  console.log("rates object:", data.rates);
-  console.log("INR value:", data.rates?.INR);
-
   return {
-    rate: Number(data.rates?.INR ?? 0),  // force to number, safe fallback
+    rate: Number(data.rates?.INR ?? 0),
     silverRatePerGram: 95,
     updatedAt: data.timestamp,
   };
-
-
 }

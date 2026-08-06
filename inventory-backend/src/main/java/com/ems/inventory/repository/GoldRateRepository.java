@@ -11,4 +11,6 @@ public interface GoldRateRepository extends JpaRepository<Goldrates, Long> {
     
     @Query(value = "SELECT * FROM goldrates ORDER BY timestamp DESC LIMIT 1", nativeQuery = true)
     Goldrates getLatestGoldRate();
+
+   
 }

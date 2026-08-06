@@ -21,6 +21,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -38,6 +39,7 @@ public class Sales {
     private Long id;
 
     private String customerName;
+    @Size(min = 10, max = 10, message = "Mobile number must be 10 digits")
     private String customerPhoneNo;
     private String customerAddress;
 

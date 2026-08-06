@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,7 +43,6 @@ public class LoanController {
     }
 
     @PatchMapping("/{id}/close")
-
     public ResponseEntity<Loan> closeLoan(@PathVariable Long id, @RequestBody java.util.Map<String, Object> payload) {
 
         String closeDate = (String) payload.get("closeDate");
@@ -71,7 +71,7 @@ public class LoanController {
 
     @GetMapping("/{id}/calculate-settlement")
     public ResponseEntity<Map<String, Object>> calculateSettlement(
-            @PathVariable Long id,
+            @PathVariable("id")Long id,
             @RequestParam String closeDate) {
         return ResponseEntity.ok(loanService.calculateSettlement(id, closeDate));
     }

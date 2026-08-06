@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { Bell, Search, LayoutDashboard } from "lucide-react";
 import { Sidebar } from "./Sidebar";
-import { TopStats } from "./TopStats";
-import { LoanLedger } from "./LoanLedger";
-import { LoanIssueForm } from "./LoanIssueForm";
-import { SalesLedger } from "./SalesLedger";
-import { ExportButton } from "../ui/ExportButton";
-import { InventoryView } from "./InventoryView";
-import { RevenueOverview } from "./RevenueOverview";
-import { SalesByMaterial } from "./SalesByMaterial";
-import { WeeklySales } from "./WeeklySales";
-import { RecentSales } from "./RecentSales";
-import { CustomOrderForm } from "./CustomOrderForm";
+import { TopStats } from "../analytics/TopStats";
+import { LoanLedger } from "../loans/LoanLedger";
+import { LoanIssueForm } from "../loans/LoanIssueForm";
+import { SalesLedger } from "../sales/SalesLedger";
+import { ExportButton } from "../../ui/ExportButton";
+import { InventoryView } from "../inventory/InventoryView";
+import { RevenueOverview } from "../analytics/RevenueOverview";
+import { SalesByMaterial } from "../analytics/SalesByMaterial";
+import { WeeklySales } from "../analytics/WeeklySales";
+import { RecentSales } from "../analytics/RecentSales";
+import { CustomOrderForm } from "../orders/CustomOrderForm";
 
 export const DashboardShell = () => {
   const [activeView, setActiveView] = useState<string>("dashboard");

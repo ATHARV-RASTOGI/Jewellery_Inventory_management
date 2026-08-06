@@ -47,4 +47,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         @Query("SELECT p FROM Product p WHERE p.material = 'Silver' ")
         List<Product> findByMaterialSilver();
 
+       
 }

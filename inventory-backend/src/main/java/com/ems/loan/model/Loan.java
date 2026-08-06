@@ -25,6 +25,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import jakarta.validation.constraints.Size;
+
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -41,6 +43,7 @@ public class Loan {
 
     private String address;
 
+    @Size(min = 10, max = 10, message = "Mobile number must be 10 digits")  
     private String mobileNo;
 
     // Renamed from collateralKept -> jewelryDescription to match frontend

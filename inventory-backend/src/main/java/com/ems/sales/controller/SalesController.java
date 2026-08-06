@@ -67,7 +67,7 @@ public class SalesController {
     }
 
      @GetMapping("/analytics/recent")
-    public ResponseEntity<List<Sales>> getRecentSales(@RequestParam(defaultValue = "9") int limit) {
+    public ResponseEntity<List<Sales>> getRecentSales(@RequestParam(defaultValue = "10") int limit) {
         final int MAX_LIMIT = 100;
         if (limit < 1 || limit > MAX_LIMIT) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);

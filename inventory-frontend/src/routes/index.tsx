@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardShell } from "@/components/dashboard/layout/DashboardShell";
 
 export const Route = createFileRoute("/")({
   head: () => ({

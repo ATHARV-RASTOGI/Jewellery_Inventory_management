@@ -7,15 +7,13 @@ import axios, { type AxiosError } from "axios";
  * http://localhost:8080 (see vite.config.ts) to avoid CORS issues.
  * In production, set VITE_API_BASE_URL to the deployed Spring Boot URL.
  */
-export const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "/api";
-
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "/api",
   headers: { "Content-Type": "application/json" },
   timeout: 10_000,
 });
 
+// Attach auth token (if present) to every request
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("kk_token");
@@ -24,6 +22,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Log timeout errors for easier debugging
 apiClient.interceptors.response.use(
   (r) => r,
   (error: AxiosError) => {
