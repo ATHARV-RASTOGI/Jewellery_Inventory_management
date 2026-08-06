@@ -12,6 +12,8 @@ import com.ems.loan.model.Loan;
 import com.ems.loan.repository.InterestPaymentRepository;
 import com.ems.loan.repository.LoanRepository;
 
+import jakarta.transaction.Transactional;
+
 @Service
 public class LoanService {
 
@@ -58,6 +60,7 @@ public class LoanService {
         return interestPaymentRepository.findByLoan_IdOrderByPaymentDateAsc(loanId);
     }
 
+    @Transactional
     // ── Record an interest payment & reduce outstanding balance ───────────────
     public InterestPayment recordInterestPayment(Long loanId, Double amountPaid) {
         Loan loan = repository.findById(loanId)

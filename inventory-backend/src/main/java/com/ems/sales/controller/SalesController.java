@@ -18,9 +18,6 @@ import com.ems.sales.model.Saleitem;
 import com.ems.sales.model.Sales;
 import com.ems.sales.service.SalesService;
 
-    import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-
 @RestController
 @RequestMapping("/api/sales")
 public class SalesController {
@@ -81,15 +78,5 @@ public class SalesController {
     }
 
 
-@ExceptionHandler(RuntimeException.class)
-public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
-    if (ex.getMessage().contains("Insufficient stock")) {
-        // Return a 400 Bad Request with the specific error message
-        return ResponseEntity.badRequest().body(ex.getMessage()); 
-    }
-    // Fallback for other runtime exceptions
-    return ResponseEntity.internalServerError().body("An unexpected error occurred");
-}
-  
     
 }

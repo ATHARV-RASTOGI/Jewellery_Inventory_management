@@ -23,4 +23,7 @@ public interface SaleItemRepository extends JpaRepository<Saleitem, Long> {
         @Param("start") LocalDate start,
         @Param("end") LocalDate end
     );
+
+    @Query("SELECT s.sale.id, COUNT(s.id) FROM Saleitem s WHERE s.sale.id IN :saleIds GROUP BY s.sale.id")
+    List<Object[]> countItemsForSales(@Param("saleIds")  List<Long> saleIds);
 }

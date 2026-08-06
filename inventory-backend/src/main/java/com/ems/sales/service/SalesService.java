@@ -15,6 +15,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ems.Exception.Custom_Exception.InsufficientQuantity;
+import com.ems.Exception.Custom_Exception.ItemNotFountException;
 import com.ems.inventory.model.Product;
 import com.ems.inventory.repository.ProductRepository;
 import com.ems.sales.model.Saleitem;
@@ -43,7 +45,7 @@ public class SalesService {
         return saleItemRepository.findBySale_IdOrderById(saleId);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public Sales createsales(Sales sale, List<Map<String,Object>>items){
         Sales savedsale= saleRepository.save(sale);
 
@@ -55,12 +57,16 @@ public class SalesService {
             double pricePerPiece = ((Number) item.get("pricePerPiece")).doubleValue();
         
 
-        Product product= productRepository.findBySku(sku).orElseThrow(()-> new RuntimeException());
-        if (product.getStockQuantity() < quantity) {
-                throw new RuntimeException("Insufficient stock for: " + sku);
+        Product product= productRepository.findBySku(sku).orElseThrow(()-> new ItemNotFountException("Item not found for sku : " + sku));
+        if (product.getStockQuantity() < quantity || quantity < 0) {
+            if (quantity < 0) {
+                throw new IllegalArgumentException("Invalid Sales : Quantity Can't Be Negative !");
             }
+            throw new InsufficientQuantity("Insufficient stock for: " + sku);
+        }
 
-       
+
+            
         product.setStockQuantity(product.getStockQuantity() - quantity);
         productRepository.save(product);
 
@@ -140,16 +146,36 @@ public class SalesService {
     return result;
 }
 
-public List<Sales> getRecentSales(int limit){
+public List<Sales> getRecentSales(int limit) {
     int bounded = Math.max(0, limit);
     Page<Sales> page = saleRepository.findAllByOrderBySaleDateDesc(PageRequest.of(0, bounded));
     List<Sales> sales = page.getContent();
-    // populate item counts without initializing collections
-    for (Sales s : sales) {
-        s.setItemCount((int) saleItemRepository.countBySale_Id(s.getId()));
+
+    if (sales.isEmpty()) {
+        return sales;
     }
+
+    List<Long> salesId = new ArrayList<>();
+    for(Sales s : sales){
+        salesId.add(s.getId());
+    }
+
+    // 2. Fetch the item counts for ALL of these sales in exactly ONE query
+    List<Object[]> counts = saleItemRepository.countItemsForSales(salesId);
+
+    Map<Long, Integer> countMap = new HashMap<>();
+    for (Object[] row : counts) {
+        Long saleId = (Long) row[0];
+        Integer count = ((Number) row[1]).intValue();
+        countMap.put(saleId, count);
+    }
+    for (Sales s : sales) {
+        s.setItemCount(countMap.getOrDefault(s.getId(), 0));
+    }
+    
     return sales;
 }
+
 
 public List<Map<String, Object>> getWeeklySales() {
     LocalDate today = LocalDate.now();

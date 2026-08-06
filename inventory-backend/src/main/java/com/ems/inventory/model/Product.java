@@ -1,5 +1,7 @@
 package com.ems.inventory.model;
 
+import org.hibernate.annotations.DialectOverride.Version;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -14,6 +16,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Data
 @Table(name = "product")
+
 public class Product {
 
     @Id

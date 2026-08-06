@@ -60,3 +60,9 @@ Thumbs.db
 *.log
 logs/
 spring.log"application.properties" 
+
+# Environment variables
+.env
+**/.env
+.env.*
+**/.env.*
