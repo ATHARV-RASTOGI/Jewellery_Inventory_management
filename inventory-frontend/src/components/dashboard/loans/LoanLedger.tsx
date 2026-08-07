@@ -11,6 +11,7 @@ import {
   settleLoan,
   payInterest,
   fetchInterestPayments,
+  previewInterest,
   type Loan,
   type InterestPayment,
 } from "@/lib/api/loans";
@@ -51,6 +52,10 @@ export const LoanLedger = () => {
   const [interestTarget, setInterestTarget] = useState<Loan | null>(null);
   const [interestAmount, setInterestAmount] = useState(0);
   const [interestNote, setInterestNote] = useState("Interest payment");
+  const [interestFromDate, setInterestFromDate] = useState(todayIso());
+  const [interestToDate, setInterestToDate] = useState(todayIso());
+  const [interestRate, setInterestRate] = useState(2);
+  const [interestComputed, setInterestComputed] = useState<SettlementCalculation | null>(null);
 
   const { data: loans = [] } = useQuery({
     queryKey: queryKeys.loans,
@@ -117,9 +122,38 @@ export const LoanLedger = () => {
 
 const openInterest = (l: Loan) => {
   setInterestTarget(l);
-  const monthlyInterest = Math.round(l.loanAmount * FALLBACK_MONTHLY_INTEREST_RATE);
-  setInterestAmount(monthlyInterest);
+  setInterestAmount(0);
+  setInterestComputed(null);
+  setInterestFromDate(l.issueDate);
+  setInterestToDate(todayIso());
+  setInterestRate(2);
 };
+
+useEffect(() => {
+  if (interestPayment.length > 0 && interestTarget) {
+    setInterestFromDate(interestPayment[interestPayment.length - 1].paymentDate);
+  } else if (interestPayment.length === 0 && interestTarget) {
+    setInterestFromDate(interestTarget.issueDate);
+  }
+}, [interestPayment, interestTarget]);
+
+useEffect(() => {
+  if (!interestTarget) return;
+  const timer = setTimeout(async () => {
+    try {
+      if (new Date(interestToDate) < new Date(interestFromDate)) {
+        setInterestComputed(null);
+        return;
+      }
+      const result = await previewInterest(interestTarget.loanAmount, interestFromDate, interestToDate, interestRate);
+      setInterestComputed(result);
+    } catch (err) {
+      console.error("Interest calc failed:", err);
+      setInterestComputed(null);
+    }
+  }, 300);
+  return () => clearTimeout(timer);
+}, [interestTarget, interestFromDate, interestToDate, interestRate]);
 
 
   const filtered = useMemo(() => {
@@ -291,23 +325,63 @@ const openInterest = (l: Loan) => {
               </button>
             </div>
 
-            {/* Current balance */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-surface-2 px-3 py-2">
-                <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
-                  Current balance
-                </p>
-                <p className="text-[13px] font-semibold mt-0.5 tabular-nums text-foreground">
-                  {formatINR(interestTarget.loanAmount)}
-                </p>
+            {/* Dates & Rate inputs */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <label className="text-[10.5px] uppercase tracking-wider text-muted-foreground">From</label>
+                <input
+                  type="date"
+                  value={interestFromDate}
+                  readOnly
+                  className="w-full bg-surface-2 rounded-md py-1.5 px-2 text-[13px] opacity-70 cursor-not-allowed focus:outline-none"
+                />
               </div>
-              <div className="rounded-lg bg-surface-2 px-3 py-2">
-                <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
-                  Monthly interest ({FALLBACK_MONTHLY_INTEREST_RATE * 100}%)
-                </p>
-                <p className="text-[13px] font-medium mt-0.5 tabular-nums">
-                  {formatINR(Math.round(interestTarget.loanAmount * FALLBACK_MONTHLY_INTEREST_RATE))}
-                </p>
+              <div className="space-y-1">
+                <label className="text-[10.5px] uppercase tracking-wider text-muted-foreground">To</label>
+                <input
+                  type="date"
+                  value={interestToDate}
+                  min={interestFromDate}
+                  onChange={(e) => setInterestToDate(e.target.value)}
+                  className="w-full bg-surface-2 rounded-md py-1.5 px-2 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10.5px] uppercase tracking-wider text-muted-foreground">Rate (%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-surface-2 rounded-md py-1.5 px-2 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            </div>
+
+            {/* Live preview of new balance */}
+            <div className="rounded-lg bg-surface-2 px-4 py-3 space-y-1.5 text-[12.5px]">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Base amount</span>
+                <span className="tabular-nums">{formatINR(interestTarget.loanAmount)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Computed interest</span>
+                <span className="tabular-nums">{interestComputed ? formatINR(interestComputed.interestAmount) : "..."}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Total due</span>
+                <span className="tabular-nums">{interestComputed ? formatINR(interestComputed.totalAmount) : "..."}</span>
+              </div>
+              <div className="flex justify-between pt-1.5 border-t border-border-subtle">
+                <span className="font-medium">Payment</span>
+                <span className="tabular-nums text-amber-400 font-medium">− {formatINR(interestAmount)}</span>
+              </div>
+              <div className="flex justify-between font-medium text-foreground">
+                <span>New balance</span>
+                <span className="tabular-nums">
+                  {interestComputed ? formatINR(Math.max(0, interestComputed.totalAmount - interestAmount)) : "..."}
+                </span>
               </div>
             </div>
 
@@ -324,26 +398,6 @@ const openInterest = (l: Loan) => {
                 className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>
-
-            {/* Live preview of new balance */}
-            {interestAmount > 0 && (
-              <div className="rounded-lg bg-surface-2 px-4 py-3 space-y-1.5 text-[12.5px]">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Current balance</span>
-                  <span className="tabular-nums">{formatINR(interestTarget.loanAmount)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Payment</span>
-                  <span className="tabular-nums text-amber-400">− {formatINR(interestAmount)}</span>
-                </div>
-                <div className="flex justify-between pt-1.5 border-t border-border-subtle font-medium text-foreground">
-                  <span>New balance</span>
-                  <span className="tabular-nums">
-                    {formatINR(Math.max(0, interestTarget.loanAmount - interestAmount))}
-                  </span>
-                </div>
-              </div>
-            )}
 
             {/* Payment history */}
             {interestPayment.length > 0 && (
@@ -384,6 +438,9 @@ const openInterest = (l: Loan) => {
                   interestMutation.mutate({
                     id: interestTarget.id,
                     amountPaid: interestAmount,
+                    fromDate: interestFromDate,
+                    toDate: interestToDate,
+                    interestRate: interestRate
                   })
                 }
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60"

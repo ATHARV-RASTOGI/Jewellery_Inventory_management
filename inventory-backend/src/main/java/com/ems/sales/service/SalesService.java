@@ -57,7 +57,7 @@ public class SalesService {
             double pricePerPiece = ((Number) item.get("pricePerPiece")).doubleValue();
         
 
-        Product product= productRepository.findBySku(sku).orElseThrow(()-> new ItemNotFountException("Item not found for sku : " + sku));
+        Product product= productRepository.findBySkuForUpdate(sku).orElseThrow(()-> new ItemNotFountException("Item not found for sku : " + sku));
         if (product.getStockQuantity() < quantity || quantity < 0) {
             if (quantity < 0) {
                 throw new IllegalArgumentException("Invalid Sales : Quantity Can't Be Negative !");

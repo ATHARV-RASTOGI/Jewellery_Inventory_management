@@ -12,7 +12,7 @@ import com.ems.loan.model.Loan;
 import com.ems.loan.repository.InterestPaymentRepository;
 import com.ems.loan.repository.LoanRepository;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class LoanService {
@@ -62,7 +62,7 @@ public class LoanService {
 
     @Transactional
     // ── Record an interest payment & reduce outstanding balance ───────────────
-    public InterestPayment recordInterestPayment(Long loanId, Double amountPaid) {
+    public InterestPayment recordInterestPayment(Long loanId, Double amountPaid, String fromDateStr, String toDateStr, Double interestRate) {
         Loan loan = repository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan " + loanId + " not found"));
 
@@ -70,20 +70,11 @@ public class LoanService {
             throw new RuntimeException("Cannot pay interest on a closed loan");
         }
 
-        LocalDate today = LocalDate.now();
-        List<InterestPayment> payments = interestPaymentRepository.findByLoan_IdOrderByPaymentDateAsc(loanId);
-        LocalDate startDate = loan.getIssueDate();
-        if (payments != null && !payments.isEmpty()) {
-            startDate = payments.get(payments.size() - 1).getPaymentDate();
-        }
+        LocalDate fromDate = LocalDate.parse(fromDateStr);
+        LocalDate toDate = LocalDate.parse(toDateStr);
 
-        long days = java.time.temporal.ChronoUnit.DAYS.between(startDate, today);
-        if (days < 0)
-            days = 0;
-        double months = Math.max(1, days / 30.44);
-
-        // Calculate accrued interest since last payment (or issue date)
-        double totalWithInterest = loan.getLoanAmount() * Math.pow(1 + MONTHLY_INTEREST_RATE, months);
+        Map<String, Object> calc = calculateInterestData(loan.getLoanAmount(), interestRate, fromDate, toDate);
+        double totalWithInterest = ((Number) calc.get("totalAmount")).doubleValue();
 
         // Apply payment against total amount
         double newBalance = totalWithInterest - amountPaid;
@@ -99,7 +90,7 @@ public class LoanService {
         payment.setAddress(loan.getAddress());
         payment.setLoan(loan);
         payment.setAmountPaid(amountPaid);
-        payment.setPaymentDate(today);
+        payment.setPaymentDate(toDate); // future calculations will anchor to this date
         payment.setBalanceAfter(newBalance);
 
         return interestPaymentRepository.save(payment);
@@ -121,23 +112,72 @@ public class LoanService {
             startDate = payments.get(payments.size() - 1).getPaymentDate();
         }
 
-        long days = java.time.temporal.ChronoUnit.DAYS.between(startDate, closeDate);
-        if (days < 0)
-            days = 0;
-        double months = Math.max(1, days / 30.44);
-        int monthsCeil = (int) Math.ceil(months);
-
-        double totalAmount = loan.getLoanAmount() * Math.pow(1 + MONTHLY_INTEREST_RATE, months);
-        double interestAmount = totalAmount - loan.getLoanAmount();
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("principal", loan.getLoanAmount());
-        result.put("months", monthsCeil);
-        result.put("interestAmount", Math.round(interestAmount));
-        result.put("totalAmount", Math.round(totalAmount));
-        result.put("monthlyInterest", Math.round(loan.getLoanAmount() * MONTHLY_INTEREST_RATE));
+        Map<String, Object> result = calculateInterestData(loan.getLoanAmount(), MONTHLY_INTEREST_RATE, startDate, closeDate);
+        result.put("months", result.get("totalMonths")); // for backwards compatibility with frontend
         return result;
-
     }
+
+    public Map<String, Object> calculateInterestPreviewOnly(Double principal, String fromDateStr, String toDateStr, Double interestRate) {
+        LocalDate fromDate = LocalDate.parse(fromDateStr);
+        LocalDate toDate = LocalDate.parse(toDateStr);        
+        return calculateInterestData(principal, interestRate, fromDate, toDate);
+    }
+
+    public Map<String, Object> calculateInterestData(double principal, double monthlyInterestRatePercent, LocalDate fromDate, LocalDate toDate) {
+    if (principal < 0 || monthlyInterestRatePercent < 0) {
+        throw new IllegalArgumentException("Principal and interest rate must be positive");
+    }
+    if (toDate.isBefore(fromDate)) {
+        throw new IllegalArgumentException("To date cannot be before from date");
+    }
+
+    // caller passes the rate as typed by the user, e.g. 2 for "2%" —
+    // conversion to decimal happens here, in exactly one place
+    double monthlyInterestRate = monthlyInterestRatePercent / 100.0;
+
+    int d1 = fromDate.getDayOfMonth();
+    int m1 = fromDate.getMonthValue();
+    int y1 = fromDate.getYear();
+
+    int d2 = toDate.getDayOfMonth();
+    int m2 = toDate.getMonthValue();
+    int y2 = toDate.getYear();
+
+    if (d1 == 31) d1 = 30;
+    if (d2 == 31) d2 = 30;
+
+    if (d2 < d1) {
+        d2 += 30;
+        m2 -= 1;
+    }
+    if (m2 < m1) {
+        m2 += 12;
+        y2 -= 1;
+    }
+
+    long fullYears = y2 - y1;
+    long remainderWholeMonths = m2 - m1;
+    long remainderDays = d2 - d1;
+    long totalMonths = fullYears * 12 + remainderWholeMonths;
+
+    double remainderMonths = remainderWholeMonths + (remainderDays / 30.0);
+
+    double amount = principal;
+    for (int i = 0; i < fullYears; i++) {
+        amount = amount * (1 + monthlyInterestRate * 12);
+    }
+    amount = amount * (1 + monthlyInterestRate * remainderMonths);
+
+    double interestAmount = amount - principal;
+
+    Map<String, Object> result = new HashMap<>();
+    result.put("principal", principal);
+    result.put("totalMonths", totalMonths);
+    result.put("remainderDays", remainderDays);
+    result.put("interestAmount", Math.round(interestAmount));
+    result.put("totalAmount", Math.round(amount));
+    result.put("monthlyInterest", Math.round(principal * monthlyInterestRate));
+    return result;
+}
 
 }

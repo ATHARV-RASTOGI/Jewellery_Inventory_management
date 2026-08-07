@@ -206,6 +206,10 @@ const NewSaleModal = ({
       toast.error("Add at least one item");
       return;
     }
+    if (customer.customerPhone.length !== 10 || !/^\d+$/.test(customer.customerPhone)) {
+      toast.error("Mobile no should be exactly 10 digits");
+      return;
+    }
     mutation.mutate({
       ...customer,
       items: cart.map(({ sku, quantity, pricePerPiece }) => ({

@@ -1,12 +1,11 @@
 package com.ems.inventory.model;
 
-import org.hibernate.annotations.DialectOverride.Version;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,4 +34,7 @@ public class Product {
 
     private Integer stockQuantity;
     private Double price;
+
+    @Version
+    private Long version;
 }

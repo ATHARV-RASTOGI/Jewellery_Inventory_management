@@ -6,7 +6,6 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -65,8 +64,27 @@ public class LoanController {
             @RequestBody java.util.Map<String, Object> payload) {
 
         Number amount = (Number) payload.get("amountPaid");
-        InterestPayment payment = loanService.recordInterestPayment(id, amount.doubleValue());
+        String fromDate = (String) payload.get("fromDate");
+        String toDate = (String) payload.get("toDate");
+        Number interestRate = (Number) payload.get("interestRate");
+
+        InterestPayment payment = loanService.recordInterestPayment(
+                id, 
+                amount.doubleValue(),
+                fromDate,
+                toDate,
+                interestRate != null ? interestRate.doubleValue() : 2.0
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(payment);
+    }
+
+    @GetMapping("/calculate-interest")
+    public ResponseEntity<Map<String, Object>> calculateInterest(
+            @RequestParam Double principal,
+            @RequestParam String fromDate,
+            @RequestParam String toDate,
+            @RequestParam Double rate) {
+        return ResponseEntity.ok(loanService.calculateInterestPreviewOnly(principal, fromDate, toDate, rate));
     }
 
     @GetMapping("/{id}/calculate-settlement")

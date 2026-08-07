@@ -33,7 +33,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Table(name = "sales")
 public class Sales {
-
+ 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -72,6 +72,5 @@ public class Sales {
     public void prePersist() {
         if (this.saleDate == null) this.saleDate = LocalDate.now();
     }
-
     
 }

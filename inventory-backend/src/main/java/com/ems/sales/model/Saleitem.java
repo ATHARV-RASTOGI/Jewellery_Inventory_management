@@ -10,7 +10,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -42,7 +41,6 @@ public class Saleitem {
     private String material;
 
     
-    @Size(max=3)
     private String purity;
 
     

@@ -11,6 +11,7 @@ import com.ems.inventory.repository.GoldRateRepository;
 import com.ems.inventory.repository.ProductRepository;
 import com.ems.inventory.repository.SilverRateRepository;
 
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -27,6 +28,8 @@ public class ProductService {
         return productRepository.save(newproduct);
     }
 
+    
+    @Transactional
     public Product updateProduct(long id, Product updatedDetails) {
        Product existingProduct= productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
 

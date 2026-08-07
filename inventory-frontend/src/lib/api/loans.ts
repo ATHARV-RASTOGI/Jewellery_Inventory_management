@@ -61,10 +61,24 @@ export async function closeLoan(id: string): Promise<void> {
 }
 
 // POST /api/loans/{id}/pay-interest
-export async function payInterest(input: { id: string; amountPaid: number }): Promise<InterestPayment> {
+export async function payInterest(input: { id: string; amountPaid: number; fromDate: string; toDate: string; interestRate: number }): Promise<InterestPayment> {
   const { data } = await apiClient.post<InterestPayment>(
     `/loans/${input.id}/pay-interest`,
-    { amountPaid: input.amountPaid },
+    { 
+      amountPaid: input.amountPaid,
+      fromDate: input.fromDate,
+      toDate: input.toDate,
+      interestRate: input.interestRate
+    },
+  );
+  return data;
+}
+
+// GET /api/loans/calculate-interest
+export async function previewInterest(principal: number, fromDate: string, toDate: string, rate: number): Promise<SettlementCalculation> {
+  const { data } = await apiClient.get<SettlementCalculation>(
+    `/loans/calculate-interest`,
+    { params: { principal, fromDate, toDate, rate } },
   );
   return data;
 }

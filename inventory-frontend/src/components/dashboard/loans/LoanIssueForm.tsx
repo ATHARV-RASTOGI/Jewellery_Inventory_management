@@ -64,6 +64,10 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.phoneNumber.length !== 10 || !/^\d+$/.test(form.phoneNumber)) {
+      toast.error("Mobile no should be exactly 10 digits");
+      return;
+    }
     mutation.mutate();
   };
 

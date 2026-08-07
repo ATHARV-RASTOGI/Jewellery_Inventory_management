@@ -14,10 +14,6 @@ import jakarta.persistence.LockModeType;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-        // --- THIS IS THE MAGIC LINE WE NEEDED TO ADD ---
-        List<Product> findByMainCategoryOrSubCategory(String mainCategory, String subCategory);
-
-        // Your existing methods:
         List<Product> findByMainCategory(String mainCategory);
 
         List<Product> findByMainCategoryAndSubCategory(String mainCategory, String subCategory);
@@ -43,7 +39,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         Integer countByStockQuantityLessThanEqual(Integer threshold);
 
         @Lock(LockModeType.PESSIMISTIC_WRITE)
-        Optional<Product> findBySku(String sku);
+        @Query("SELECT p FROM Product p WHERE p.sku = :sku")
+        Optional<Product> findBySkuForUpdate(@Param("sku") String sku);
+
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT p FROM Product p WHERE p.id = :id")
+        Optional<Product> findByIdForUpdate(@Param("id") Long id);
 
         @Query("SELECT p FROM Product p WHERE p.material = 'Gold' ")
         List<Product> findByMaterialGold();

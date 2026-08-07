@@ -4,8 +4,12 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.ems.Exception.Custom_Exception.CustomOrderNotFoundException;
 import com.ems.custom_order.model.CustomOrder;
 import com.ems.custom_order.repository.CustomOrderRepository;
+
+
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Service
@@ -31,8 +35,9 @@ public class CustomOrderService {
         return customRepository.findById(id).get();
     }
 
+    @Transactional
     public CustomOrder updateCustomOrder(Long id , CustomOrder customOrder) {
-        CustomOrder exorder = customRepository.findById(id).get();
+        CustomOrder exorder = customRepository.findByIdForUpdate(id).orElseThrow(() -> new CustomOrderNotFoundException (id));
         exorder.setAdvanceAmount(customOrder.getAdvanceAmount());
         exorder.setItemName(customOrder.getItemName());
         exorder.setStatus(customOrder.getStatus());

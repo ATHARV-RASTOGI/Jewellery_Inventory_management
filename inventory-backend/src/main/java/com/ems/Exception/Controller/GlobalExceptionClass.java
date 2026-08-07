@@ -44,4 +44,13 @@ public class GlobalExceptionClass {
         return new ResponseEntity<>(error, HttpStatus.NOT_ACCEPTABLE);
     }
 
+    @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
+    public ResponseEntity<ErrorMessage> handleConstraintViolation(jakarta.validation.ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .map(jakarta.validation.ConstraintViolation::getMessage)
+                .collect(java.util.stream.Collectors.joining(", "));
+        
+        ErrorMessage em = new ErrorMessage(message, "Validation Failed", LocalDateTime.now());
+        return new ResponseEntity<>(em, HttpStatus.BAD_REQUEST);
+    }
 }
