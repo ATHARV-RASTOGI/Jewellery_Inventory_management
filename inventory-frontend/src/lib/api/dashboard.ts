@@ -1,7 +1,7 @@
 import { apiClient } from "./client";
 
 export type DashboardStats = {
-  totalInventoryValue: number;
+  silverRatePerGram: number;
   totalItemsInStock: number;
   activeLoansCount: number;
   totalOutstandingAmount: number;

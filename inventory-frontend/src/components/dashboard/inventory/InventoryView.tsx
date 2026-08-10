@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { formatINR, formatWeight, getStockStatus } from "@/lib/utils";
 import { createProduct, fetchProducts, Product, updateProduct } from "@/lib/api/inventory";
-import { queryKeys } from "@/lib/api/query-keys";
+
 import { AddProductModal } from "./AddProductModal";
 import { ProductDrawer } from "./ProductDrawer";
 

@@ -1,5 +1,6 @@
 package com.ems.sales.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,13 +40,19 @@ public class Sales {
     private Long id;
 
     private String customerName;
+    
     @Size(min = 10, max = 10, message = "Mobile number must be 10 digits")
     private String customerPhoneNo;
     private String customerAddress;
 
-    private Double subtotal;
-    private Double gstAmount;
-    private Double grandTotal;
+    @Column(precision = 12, scale = 2)
+    private BigDecimal subtotal;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal gstAmount;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal grandTotal;
 
     @Column(name = "sale_date")
     @JsonDeserialize(using = LocalDateDeserializer.class)
@@ -60,13 +67,7 @@ public class Sales {
     @Transient
     private Integer itemCount;
 
-    public Integer getItemCount() {
-        return itemCount;
-    }
 
-    public void setItemCount(Integer itemCount) {
-        this.itemCount = itemCount;
-    }
 
     @PrePersist
     public void prePersist() {

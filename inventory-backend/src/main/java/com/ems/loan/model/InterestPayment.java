@@ -1,5 +1,6 @@
 package com.ems.loan.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -44,8 +45,8 @@ public class InterestPayment {
         return loan != null ? loan.getId() : null;
     }
 
-    @Column(name = "amount_paid", nullable = false)
-    private Double amountPaid;
+    @Column(name = "amount_paid", nullable = false, precision = 15, scale = 2)
+    private BigDecimal amountPaid;
 
     @Column(name = "payment_date", nullable = false)
     @JsonDeserialize(using = LocalDateDeserializer.class)
@@ -53,12 +54,13 @@ public class InterestPayment {
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate paymentDate;
 
-    @Column(name = "balance_after")
-    private Double balanceAfter;
+    @Column(name = "balance_after", precision = 15, scale = 2)
+    private BigDecimal balanceAfter;
 
     @Column(name = "customer_name")
     private String customer_name;
 
     @Column(name = "address")
     private String address;
+
 }

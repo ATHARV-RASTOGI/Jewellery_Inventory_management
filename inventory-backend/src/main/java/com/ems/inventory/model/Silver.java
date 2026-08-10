@@ -1,5 +1,8 @@
 package com.ems.inventory.model;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -20,7 +23,7 @@ public class Silver {
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;
 
-    private String timestamp;
+    private LocalDateTime timestamp;
     private String base;
     @Embedded
     private Rates rates;

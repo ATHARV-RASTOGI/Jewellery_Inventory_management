@@ -1,5 +1,7 @@
 package com.ems.inventory.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +19,9 @@ import com.ems.inventory.model.Silver;
 import com.ems.inventory.repository.SilverRateRepository;
 
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 public class SilverRateService {
      
@@ -25,10 +29,9 @@ public class SilverRateService {
     private String apiKey;
 
     private final SilverRateRepository silverRateRepository;
+    private final RestTemplate restTemplate;
 
-    private final RestTemplate restTemplate = new RestTemplate();
-
-    // We use XAU/INR directly to get the most accurate currency conversion
+    // We use XAG/INR directly to get the most accurate currency conversion
     private final static String SILVER_API_URL = "https://www.goldapi.io/api/XAG/INR/";
     
 
@@ -36,20 +39,21 @@ public class SilverRateService {
 
     private static final double INDIAN_MARKET_MULTIPLIER = 1.18;
 
-    SilverRateService(SilverRateRepository silverRateRepository) {
+    SilverRateService(SilverRateRepository silverRateRepository, RestTemplate restTemplate) {
         this.silverRateRepository = silverRateRepository;
+        this.restTemplate = restTemplate;
     }
 
     @PostConstruct
     public void fetchOnStartup(){
-        System.out.println("=== SERVER STARTED: TRIGGERING INITIAL SILVER RATE FETCH ===");
+        log.info("Server started: triggering initial silver rate fetch");
         fetchAndSaveSilverRate();
     }
     
    @Scheduled(cron = "0 0 11 * * ? ", zone = "Asia/Kolkata")
     public void fetchAndSaveSilverRate(){
         try{
-            System.out.println("=== FETCHING LIVE SILVER RATE FROM API ===");
+            log.info("Fetching live silver rate from API");
             HttpHeaders headers = new HttpHeaders();
             headers.set("x-access-token", apiKey);
             headers.set("Content-Type", "application/json");
@@ -65,45 +69,45 @@ public class SilverRateService {
 
             if(response.getBody() != null && response.getBody().containsKey("price")){
                 double liveprice= Double.parseDouble(response.getBody().get("price").toString());
-                 System.out.println("API Success! Live Spot Silver Price (1 Ounce INR): ₹" + liveprice);
+                log.info("API success! Live spot silver price (1 ounce INR): ₹{}", liveprice);
                 
                 updatesilverrate(liveprice);
             }
             else{
-                 System.err.println("API responded, but silver 'price' data was missing.");
+                log.warn("API responded, but silver 'price' data was missing");
             }
              } catch (NumberFormatException | RestClientException e) {
-            System.err.println("API FETCH ERROR: " + e.getMessage());
+            log.error("API fetch error: {}", e.getMessage());
         }
     }
     private void updatesilverrate(double liveprice) {
         try {
             Silver silver= new Silver();
-            silver.setTimestamp(java.time.LocalDateTime.now().toString());
+            silver.setTimestamp(LocalDateTime.now());
             silver.setBase("INR");
 
             Rates rate= new Rates();
             double raw10gPriceInr = ( liveprice/ OUNCE_TO_GRAMS) * 10;
             
           
-            double mcxAdjusted10gPrice = raw10gPriceInr * INDIAN_MARKET_MULTIPLIER;
+            BigDecimal mcxAdjusted10gPrice = BigDecimal.valueOf(raw10gPriceInr * INDIAN_MARKET_MULTIPLIER);
             rate.setInr(mcxAdjusted10gPrice);
            
             silver.setRates(rate);
             silverRateRepository.save(silver);
 
         } catch (Exception e) {
-             System.err.println("SAVE ERROR: " + e.getMessage());
+            log.error("Save error: {}", e.getMessage(), e);
         }
     }
     public Silver getLatestSilverRate() {
         return silverRateRepository.getLatestsilver();
     }   
 
-    public void updateManualSilverRate(double perGramRate) {
+    public void updateManualSilverRate(BigDecimal perGramRate) {
     Silver silver = new Silver();
     Rates rates= new Rates();
-    silver.setTimestamp(java.time.LocalDateTime.now().toString());
+    silver.setTimestamp(LocalDateTime.now());
     silver.setBase("INR");
 
 
@@ -111,6 +115,6 @@ public class SilverRateService {
     silver.setRates(rates);
 
     silverRateRepository.save(silver);
-    System.out.println("Manual silver rate updated: ₹" + perGramRate + " per  10 gram");
+    log.info("Manual silver rate updated: ₹{} per 10 gram", perGramRate);
 }
 }

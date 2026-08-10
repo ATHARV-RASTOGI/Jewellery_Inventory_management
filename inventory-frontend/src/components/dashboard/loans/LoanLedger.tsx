@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, MoreHorizontal, X, CheckCircle2, IndianRupee } from "lucide-react";
+import { Search, MoreHorizontal, X, CheckCircle2, IndianRupee, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { calculateSettlement, type SettlementCalculation } from "@/lib/api/loans";
 
@@ -11,17 +11,20 @@ import {
   settleLoan,
   payInterest,
   fetchInterestPayments,
-  previewInterest,
+  previewInterestForLoan,
+  fetchPendingDisbursements,
+  addDisbursement,
   type Loan,
   type InterestPayment,
+  type PendingDisbursement,
 } from "@/lib/api/loans";
 import { queryKeys } from "@/lib/api/query-keys";
 
-type LoanStatus = "active" | "closed";
+type LoanStatus = "ACTIVE" | "CLOSED";
 
 const statusStyle: Record<string, string> = {
-  active: "bg-success/10 text-success",
-  closed: "bg-muted text-muted-foreground",
+  ACTIVE: "bg-success/10 text-success",
+  CLOSED: "bg-muted text-muted-foreground",
 };
 
 const fmtDate = (iso: string) =>
@@ -57,6 +60,11 @@ export const LoanLedger = () => {
   const [interestRate, setInterestRate] = useState(2);
   const [interestComputed, setInterestComputed] = useState<SettlementCalculation | null>(null);
 
+  // disbursement state
+  const [disburseTarget, setDisburseTarget] = useState<Loan | null>(null);
+  const [disburseAmount, setDisburseAmount] = useState(0);
+  const [disburseDate, setDisburseDate] = useState(todayIso());
+
   const { data: loans = [] } = useQuery({
     queryKey: queryKeys.loans,
     queryFn: fetchLoans,
@@ -66,6 +74,13 @@ export const LoanLedger = () => {
   const { data: interestPayment = [] } = useQuery<InterestPayment[]>({
     queryKey: ["payments", interestTarget?.id],
     queryFn: () => fetchInterestPayments(interestTarget!.id),
+    enabled: !!interestTarget,
+  });
+
+  // fetch pending disbursements when dialog opens
+  const { data: pendingDisbursements = [] } = useQuery<PendingDisbursement[]>({
+    queryKey: ["pending-disbursements", interestTarget?.id],
+    queryFn: () => fetchPendingDisbursements(interestTarget!.id),
     enabled: !!interestTarget,
   });
 
@@ -94,66 +109,85 @@ export const LoanLedger = () => {
       setInterestTarget(null);
       qc.invalidateQueries({ queryKey: queryKeys.loans });
       qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["pending-disbursements"] });
     },
     onError: () => toast.error("Failed to record payment"),
   });
 
+  const disburseMutation = useMutation({
+    mutationFn: (d: { id: string; amount: number; date: string }) =>
+      addDisbursement(d.id, d.amount, d.date),
+    onSuccess: () => {
+      toast.success("Disbursement added");
+      setDisburseTarget(null);
+      qc.invalidateQueries({ queryKey: queryKeys.loans });
+      qc.invalidateQueries({ queryKey: ["pending-disbursements"] });
+    },
+    onError: () => toast.error("Failed to add disbursement"),
+  });
+
 
   useEffect(() => {
-  if (!settleTarget) return;
-  const timer = setTimeout(async () => {
-    try {
-      const result = await calculateSettlement(settleTarget.id, closeDate);
-      setComputed(result);
-      setSettlementAmount(result.totalAmount);
-    } catch (err) {
-      console.error("Settlement calc failed:", err);
-    }
-  }, 300);
-  return () => clearTimeout(timer);
-}, [settleTarget, closeDate]);
+    if (!settleTarget) return;
+    const timer = setTimeout(async () => {
+      try {
+        const result = await calculateSettlement(settleTarget.id, closeDate);
+        setComputed(result);
+        setSettlementAmount(result.totalAmount);
+      } catch (err) {
+        console.error("Settlement calc failed:", err);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [settleTarget, closeDate]);
 
   const openSettle = (l: Loan) => {
-  setSettleTarget(l);
-  setComputed(null);
-  const today = todayIso();
-  setCloseDate(today);
-};
+    setSettleTarget(l);
+    setComputed(null);
+    const today = todayIso();
+    setCloseDate(today);
+  };
 
-const openInterest = (l: Loan) => {
-  setInterestTarget(l);
-  setInterestAmount(0);
-  setInterestComputed(null);
-  setInterestFromDate(l.issueDate);
-  setInterestToDate(todayIso());
-  setInterestRate(2);
-};
+  const openInterest = (l: Loan) => {
+    setInterestTarget(l);
+    setInterestAmount(0);
+    setInterestComputed(null);
+    setInterestFromDate(l.issueDate);
+    setInterestToDate(todayIso());
+    setInterestRate(2);
+  };
 
-useEffect(() => {
-  if (interestPayment.length > 0 && interestTarget) {
-    setInterestFromDate(interestPayment[interestPayment.length - 1].paymentDate);
-  } else if (interestPayment.length === 0 && interestTarget) {
-    setInterestFromDate(interestTarget.issueDate);
-  }
-}, [interestPayment, interestTarget]);
+  const openDisburse = (l: Loan) => {
+    setDisburseTarget(l);
+    setDisburseAmount(0);
+    setDisburseDate(todayIso());
+  };
 
-useEffect(() => {
-  if (!interestTarget) return;
-  const timer = setTimeout(async () => {
-    try {
-      if (new Date(interestToDate) < new Date(interestFromDate)) {
-        setInterestComputed(null);
-        return;
-      }
-      const result = await previewInterest(interestTarget.loanAmount, interestFromDate, interestToDate, interestRate);
-      setInterestComputed(result);
-    } catch (err) {
-      console.error("Interest calc failed:", err);
-      setInterestComputed(null);
+  useEffect(() => {
+    if (interestPayment.length > 0 && interestTarget) {
+      setInterestFromDate(interestPayment[interestPayment.length - 1].paymentDate);
+    } else if (interestPayment.length === 0 && interestTarget) {
+      setInterestFromDate(interestTarget.issueDate);
     }
-  }, 300);
-  return () => clearTimeout(timer);
-}, [interestTarget, interestFromDate, interestToDate, interestRate]);
+  }, [interestPayment, interestTarget]);
+
+  useEffect(() => {
+    if (!interestTarget) return;
+    const timer = setTimeout(async () => {
+      try {
+        if (new Date(interestToDate) < new Date(interestFromDate)) {
+          setInterestComputed(null);
+          return;
+        }
+        const result = await previewInterestForLoan(interestTarget.id, interestFromDate, interestToDate, interestRate);
+        setInterestComputed(result);
+      } catch (err) {
+        console.error("Interest calc failed:", err);
+        setInterestComputed(null);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [interestTarget, interestFromDate, interestToDate, interestRate, pendingDisbursements]);
 
 
   const filtered = useMemo(() => {
@@ -170,7 +204,7 @@ useEffect(() => {
   }, [loans, search, tab]);
 
   const totals = useMemo(() => {
-    const activeLoans = filtered.filter((l) => l.status === "active");
+    const activeLoans = filtered.filter((l) => l.status === "ACTIVE");
     return { outstanding: activeLoans.reduce((s, l) => s + l.loanAmount, 0) };
   }, [filtered]);
 
@@ -188,7 +222,7 @@ useEffect(() => {
           />
         </div>
         <div className="flex gap-1">
-          {(["all", "active", "closed"] as const).map((t) => (
+          {(["all", "ACTIVE", "CLOSED"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -199,7 +233,7 @@ useEffect(() => {
                   : "text-muted-foreground hover:bg-surface-2",
               )}
             >
-              {t}
+              {t.toLowerCase()}
             </button>
           ))}
         </div>
@@ -251,8 +285,17 @@ useEffect(() => {
                 </td>
                 <td className="px-4 py-3.5">
                   <div className="flex items-center justify-end gap-1">
-                    {l.status === "active" && (
+                    {l.status === "ACTIVE" && (
                       <>
+                        {/* ── Add disbursement button ── */}
+                        <button
+                          title="Add disbursement"
+                          onClick={() => openDisburse(l)}
+                          className="p-1.5 rounded-md text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
+                        >
+                          <PlusCircle className="w-4 h-4" />
+                        </button>
+                        
                         {/* ── Pay Interest button ── */}
                         <button
                           title="Pay interest"
@@ -298,6 +341,86 @@ useEffect(() => {
           </tbody>
         </table>
       </div>
+
+      {/* DISBURSEMENT MODAL */}
+      {disburseTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm animate-in fade-in"
+          onClick={() => setDisburseTarget(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-surface p-6 space-y-5 animate-in zoom-in-95"
+            style={{ boxShadow: "var(--shadow-elevated)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-semibold">Add Disbursement</h3>
+                <p className="text-[12px] text-muted-foreground mt-0.5">
+                  Loan #{disburseTarget.id} · {disburseTarget.name}
+                </p>
+              </div>
+              <button
+                onClick={() => setDisburseTarget(null)}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
+                  Amount to disburse (₹)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={disburseAmount || ""}
+                  onChange={(e) => setDisburseAmount(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
+                  Disbursed Date
+                </label>
+                <input
+                  type="date"
+                  value={disburseDate}
+                  max={todayIso()}
+                  onChange={(e) => setDisburseDate(e.target.value)}
+                  className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                onClick={() => setDisburseTarget(null)}
+                className="px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={disburseMutation.isPending || disburseAmount <= 0}
+                onClick={() =>
+                  disburseMutation.mutate({
+                    id: disburseTarget.id,
+                    amount: disburseAmount,
+                    date: disburseDate,
+                  })
+                }
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+              >
+                <PlusCircle className="w-4 h-4" />
+                {disburseMutation.isPending ? "Saving…" : "Add funds"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {interestTarget && (
         <div
@@ -361,9 +484,15 @@ useEffect(() => {
 
             {/* Live preview of new balance */}
             <div className="rounded-lg bg-surface-2 px-4 py-3 space-y-1.5 text-[12.5px]">
+              {pendingDisbursements.map((d) => (
+                <div key={d.id} className="flex justify-between text-muted-foreground text-[11px] bg-amber-500/10 px-2 py-1 rounded">
+                  <span>Pending: disbursed {fmtDate(d.disbursedDate)}</span>
+                  <span className="tabular-nums">+ {formatINR(d.amount)}</span>
+                </div>
+              ))}
               <div className="flex justify-between text-muted-foreground">
                 <span>Base amount</span>
-                <span className="tabular-nums">{formatINR(interestTarget.loanAmount)}</span>
+                <span className="tabular-nums">{interestComputed ? formatINR(interestComputed.principal) : formatINR(interestTarget.loanAmount)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
                 <span>Computed interest</span>

@@ -1,5 +1,7 @@
 package com.ems.inventory.controller;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,7 +18,9 @@ import com.ems.inventory.service.SilverRateService;
 import com.ems.loan.service.LoanService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
@@ -27,39 +31,31 @@ public class DashboardController {
     private final LoanService loanService;
     private final GoldRateService goldRateService;
 
-    // DashboardController(SilverRateService silverRateService) {
-    //     this.silverRateService = silverRateService;
-    // } 
-
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getDashboardStats() {
         
         Goldrates latestRate = goldRateService.getLatestGoldRate();
-        double goldRatePerGram = 0.0;
+        BigDecimal goldRatePerGram = BigDecimal.ZERO;
 
         Silver latestRatesilver = silverRateService.getLatestSilverRate();
-        double SilverRatePerGram = 0.0;
-        
+        BigDecimal silverRatePerGram = BigDecimal.ZERO;
 
-         if (latestRatesilver != null && latestRatesilver.getRates() != null) {
-            SilverRatePerGram = latestRatesilver.getRates().getInr();
+        if (latestRatesilver != null && latestRatesilver.getRates() != null) {
+            silverRatePerGram = latestRatesilver.getRates().getInr();
         }
 
-        
         if (latestRate != null && latestRate.getRates() != null) {
             goldRatePerGram = latestRate.getRates().getInr();
         }
 
         Map<String, Object> stats = new HashMap<>();
         
-        stats.put("totalInventoryValue",    Math.round(SilverRatePerGram));
+        stats.put("silverRatePerGram",       silverRatePerGram.setScale(0, RoundingMode.HALF_UP).longValue());
         stats.put("totalItemsInStock",       productService.getTotalItems());
         stats.put("activeLoansCount",        loanService.countActiveLoans());
         stats.put("totalOutstandingAmount",  loanService.getTotalLoanAmount());
-        
-        // 3. Send the properly calculated math rounded to a clean number
-        stats.put("goldRatePerGram",         Math.round(goldRatePerGram)); 
-        
+        stats.put("goldRatePerGram",         goldRatePerGram.setScale(0, RoundingMode.HALF_UP).longValue());
+        stats.put("totalInventoryValue",     productService.getTotalvalue());
         stats.put("lowStockItemsCount",      productService.getCountOfItemsWithLowStock());
         stats.put("inventoryChangePercent",  0.0);
         

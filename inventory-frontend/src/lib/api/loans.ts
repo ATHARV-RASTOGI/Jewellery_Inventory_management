@@ -8,7 +8,7 @@ export type Loan = {
   metal: "Gold" | "Silver";
   loanAmount: number;
   issueDate: string;
-  status: "active" | "closed";
+  status: "ACTIVE" | "CLOSED";
   description?: string;
   weight: number;
 };
@@ -19,6 +19,12 @@ export type InterestPayment = {
   amountPaid: number;
   paymentDate: string;
   balanceAfter: number;
+};
+
+export type PendingDisbursement = {
+  id: number;
+  amount: number;
+  disbursedDate: string;
 };
 
 export type SettleLoanInput = {
@@ -74,7 +80,18 @@ export async function payInterest(input: { id: string; amountPaid: number; fromD
   return data;
 }
 
-// GET /api/loans/calculate-interest
+// GET /api/loans/{id}/preview-interest
+export async function previewInterestForLoan(loanId: string, fromDate: string, toDate: string, rate: number): Promise<SettlementCalculation> {
+  const params: Record<string, any> = { toDate, interestRate: rate };
+  if (fromDate) params.fromDate = fromDate;
+  const { data } = await apiClient.get<SettlementCalculation>(
+    `/loans/${loanId}/preview-interest`,
+    { params },
+  );
+  return data;
+}
+
+// GET /api/loans/calculate-interest (keep the generic one if it's used elsewhere, but we'll use previewInterestForLoan for the modal)
 export async function previewInterest(principal: number, fromDate: string, toDate: string, rate: number): Promise<SettlementCalculation> {
   const { data } = await apiClient.get<SettlementCalculation>(
     `/loans/calculate-interest`,
@@ -96,4 +113,20 @@ export async function calculateSettlement(loanId: string, closeDate: string): Pr
     { params: { closeDate } },
   );
   return data;
+}
+
+// GET /api/loans/{id}/pending-disbursements
+export async function fetchPendingDisbursements(loanId: string): Promise<PendingDisbursement[]> {
+  const { data } = await apiClient.get<PendingDisbursement[]>(`/loans/${loanId}/pending-disbursements`);
+  return data;
+}
+
+// POST /api/loans/{id}/disbursements
+export async function addDisbursement(loanId: string, amount: number, disbursedDate: string): Promise<void> {
+  await apiClient.post(`/loans/${loanId}/disbursements`, { amount, disbursedDate });
+}
+
+// DELETE /api/loans/{id}/disbursements/{disbursementId}
+export async function deleteDisbursement(loanId: string, disbursementId: number): Promise<void> {
+  await apiClient.delete(`/loans/${loanId}/disbursements/${disbursementId}`);
 }

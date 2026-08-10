@@ -1,5 +1,6 @@
 package com.ems.custom_order.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -10,6 +11,8 @@ import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateSerializer;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -60,13 +63,14 @@ public class CustomOrder {
 
 
     @Column(name = "Advance")
-    private String advanceAmount;
+    private BigDecimal advanceAmount;
 
     @Column(name = "Total")
-    private String totalAmount;
+    private BigDecimal totalAmount;
 
     
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;
 
     
     private String linkedSaleId;

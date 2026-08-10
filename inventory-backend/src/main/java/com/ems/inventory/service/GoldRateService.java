@@ -1,5 +1,7 @@
 package com.ems.inventory.service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -17,9 +19,9 @@ import com.ems.inventory.model.Rates;
 import com.ems.inventory.repository.GoldRateRepository;
 
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-@RequiredArgsConstructor
+@Slf4j
 @Service
 public class GoldRateService {
 
@@ -27,8 +29,7 @@ public class GoldRateService {
     private String apiKey;
 
     private final GoldRateRepository goldRateRepository;
-
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     // We use XAU/INR directly to get the most accurate currency conversion
     private final static String GOLD_API_URL = "https://www.goldapi.io/api/XAU/INR/";
@@ -39,17 +40,22 @@ public class GoldRateService {
     // Adjust this multiplier (e.g., 1.18 = +18%) to match today's MCX price exactly.
     private static final double INDIAN_MARKET_MULTIPLIER = 1.18;
 
+    public GoldRateService(GoldRateRepository goldRateRepository, RestTemplate restTemplate) {
+        this.goldRateRepository = goldRateRepository;
+        this.restTemplate = restTemplate;
+    }
+
     @PostConstruct
     public void fetchOnStartup() {
-        System.out.println("=== SERVER STARTED: TRIGGERING INITIAL GOLD RATE FETCH ===");
+        log.info("Server started: triggering initial gold rate fetch");
         fetchAndSaveGoldRate();
     }
 
-    // Runs every hour exactly on the hour (e.g., 1:00, 2:00, 3:00)
+    // Runs once daily at 11:00 AM IST
     @Scheduled(cron = "0 0 11 * * ? ", zone = "Asia/Kolkata")
     public void fetchAndSaveGoldRate() {
         try {
-            System.out.println("=== FETCHING LIVE GOLD RATE FROM API ===");
+            log.info("Fetching live gold rate from API");
 
            
             HttpHeaders headers = new HttpHeaders();
@@ -69,23 +75,23 @@ public class GoldRateService {
             if (response.getBody() != null && response.getBody().containsKey("price")) {
                 
                 double livePricePerOunceInr = Double.parseDouble(response.getBody().get("price").toString());
-                System.out.println("API Success! Live Spot Price (1 Ounce INR): ₹" + livePricePerOunceInr);
+                log.info("API success! Live spot price (1 ounce INR): ₹{}", livePricePerOunceInr);
                 
                 updateLocalGoldRate(livePricePerOunceInr);
             } else {
-                System.err.println("API responded, but 'price' data was missing.");
+                log.warn("API responded, but 'price' data was missing");
             }
 
         } catch (NumberFormatException | RestClientException e) {
-            System.err.println("API FETCH ERROR: " + e.getMessage());
+            log.error("API fetch error: {}", e.getMessage());
         }
     }
 
     private void updateLocalGoldRate(double currentPricePerOunceInr) {
         try {
-            System.out.println("=== SAVING LIVE GOLD RATE TO DATABASE ===");
+            log.info("Saving live gold rate to database");
             Goldrates goldRate = new Goldrates();
-            goldRate.setTimestamp(java.time.LocalDateTime.now().toString());
+            goldRate.setTimestamp(LocalDate.now());
             goldRate.setBase("INR");
 
             Rates rates = new Rates();
@@ -94,18 +100,18 @@ public class GoldRateService {
             double raw10gPriceInr = (currentPricePerOunceInr / OUNCE_TO_GRAMS) * 10;
             
           
-            double mcxAdjusted10gPrice = raw10gPriceInr * INDIAN_MARKET_MULTIPLIER;
+            BigDecimal mcxAdjusted10gPrice = BigDecimal.valueOf(raw10gPriceInr * INDIAN_MARKET_MULTIPLIER);
 
             rates.setInr(mcxAdjusted10gPrice);
             
 
             goldRate.setRates(rates);
 
-            Goldrates saved = goldRateRepository.save(goldRate);
-            System.out.println("SAVED successfully! LIVE 10g MCX-Adjusted INR: ₹" + Math.round(mcxAdjusted10gPrice));
+            goldRateRepository.save(goldRate);
+            log.info("Saved successfully! Live 10g MCX-adjusted INR: ₹{}", mcxAdjusted10gPrice.setScale(0, java.math.RoundingMode.HALF_UP).longValue());
 
         } catch (Exception e) {
-            System.err.println("SAVE ERROR: " + e.getMessage());
+            log.error("Save error: {}", e.getMessage(), e);
         }
     }
 
@@ -119,15 +125,15 @@ public class GoldRateService {
 
     Goldrates goldRate = new Goldrates();
     
-    goldRate.setTimestamp(java.time.LocalDateTime.now().toString());
+    goldRate.setTimestamp(LocalDate.now());
     goldRate.setBase("INR");
 
     Rates rates = new Rates();
-    rates.setInr(per10gRate);  // store as-is, already per 10g
+    rates.setInr(BigDecimal.valueOf(per10gRate));  // store as-is, already per 10g
     goldRate.setRates(rates);
 
     goldRateRepository.save(goldRate);
-    System.out.println("Manual gold rate updated: ₹" + per10gRate + " per 10g");
+    log.info("Manual gold rate updated: ₹{} per 10g", per10gRate);
 }
 
     

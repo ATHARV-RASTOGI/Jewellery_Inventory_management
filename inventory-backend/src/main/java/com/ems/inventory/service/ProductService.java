@@ -1,5 +1,6 @@
 package com.ems.inventory.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -20,7 +21,7 @@ public class ProductService {
   
     private final ProductRepository productRepository;
     
-    private final GoldRateRepository GoldRateRepository;
+    private final GoldRateRepository goldRateRepository;
 
     private final SilverRateRepository silverRateRepository;
 
@@ -39,7 +40,7 @@ public class ProductService {
     existingProduct.setSubCategory(updatedDetails.getSubCategory());
     existingProduct.setPurity(updatedDetails.getPurity());
     existingProduct.setBaseWeight(updatedDetails.getBaseWeight());
-    existingProduct.setStockQuantity(updatedDetails.getStockQuantity());
+    // Deliberately NOT updating stockQuantity here to avoid clobbering concurrent sale deductions
     existingProduct.setPrice(updatedDetails.getPrice());
 
 
@@ -75,24 +76,25 @@ public class ProductService {
         return total != null ? total : 0.0;
     }
 
-    public Integer  getTotalItems() {
-        return productRepository.calculateTotalItemsInStock();
+    public Integer getTotalItems() {
+        Integer total = productRepository.calculateTotalItemsInStock();
+        return total != null ? total : 0;
     }
 
-    public Double getliveGoldRate() {
-    Goldrates latestRate = GoldRateRepository.getLatestGoldRate();
+    public BigDecimal getliveGoldRate() {
+    Goldrates latestRate = goldRateRepository.getLatestGoldRate();
     if (latestRate != null && latestRate.getRates() != null) {
         return latestRate.getRates().getInr();
     }
-    return 0.0; // Default if no rate found
+    return java.math.BigDecimal.ZERO; // Default if no rate found
     }
 
-    public Double getlivesilverDouble() {
+    public BigDecimal getlivesilverDouble() {
     Silver latestRate = silverRateRepository.getLatestsilver();
     if (latestRate != null && latestRate.getRates() != null) {
         return latestRate.getRates().getInr();
     }
-    return 0.0; // Default if no rate found
+    return java.math.BigDecimal.ZERO; // Default if no rate found
     }
 
 

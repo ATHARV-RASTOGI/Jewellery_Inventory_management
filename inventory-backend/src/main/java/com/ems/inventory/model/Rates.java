@@ -1,5 +1,7 @@
 package com.ems.inventory.model;
 
+import java.math.BigDecimal;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.persistence.Embeddable;
@@ -8,13 +10,13 @@ import jakarta.persistence.Embeddable;
 public class Rates {
 
     @JsonProperty("INR")
-    private double inr;
+    private BigDecimal inr;
 
-    public double getInr() {
+    public BigDecimal getInr() {
         return inr;
     }
 
-    public void setInr(double inr) {
+    public void setInr(BigDecimal inr) {
         this.inr = inr;
     }
 }

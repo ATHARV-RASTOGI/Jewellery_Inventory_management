@@ -1,5 +1,6 @@
 package com.ems.sales.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.format.TextStyle;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.Exception.Custom_Exception.InsufficientQuantity;
-import com.ems.Exception.Custom_Exception.ItemNotFountException;
+import com.ems.Exception.Custom_Exception.ItemNotFoundException;
 import com.ems.inventory.model.Product;
 import com.ems.inventory.repository.ProductRepository;
 import com.ems.sales.model.Saleitem;
@@ -49,19 +50,21 @@ public class SalesService {
     public Sales createsales(Sales sale, List<Map<String,Object>>items){
         Sales savedsale= saleRepository.save(sale);
 
-        double subtotal=0.0;
+        BigDecimal subtotal=BigDecimal.valueOf(0.0);
 
         for(Map<String, Object> item : items){
             String sku= (String)item.get("sku");
             int quantity = ((Number) item.get("quantity")).intValue();
-            double pricePerPiece = ((Number) item.get("pricePerPiece")).doubleValue();
-        
-
-        Product product= productRepository.findBySkuForUpdate(sku).orElseThrow(()-> new ItemNotFountException("Item not found for sku : " + sku));
-        if (product.getStockQuantity() < quantity || quantity < 0) {
-            if (quantity < 0) {
-                throw new IllegalArgumentException("Invalid Sales : Quantity Can't Be Negative !");
+            
+            Product product = productRepository.findBySkuForUpdate(sku).orElseThrow(() -> new ItemNotFoundException("Item not found for sku : " + sku));
+            BigDecimal pricePerPiece = product.getPrice();
+            if (pricePerPiece == null) {
+                pricePerPiece = BigDecimal.ZERO;
             }
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Invalid Sales: Quantity must be greater than zero!");
+        }
+        if (product.getStockQuantity() < quantity) {
             throw new InsufficientQuantity("Insufficient stock for: " + sku);
         }
 
@@ -80,18 +83,18 @@ public class SalesService {
         saleitem.setWeight(product.getBaseWeight());
         saleitem.setQuantity(quantity);
         saleitem.setPricePerPiece(pricePerPiece);
-        saleitem.setLineTotal(pricePerPiece * quantity);
+        saleitem.setLineTotal(pricePerPiece.multiply(BigDecimal.valueOf(quantity)));
         saleItemRepository.save(saleitem);
         // keep both sides of the relationship in sync
         savedsale.getItems().add(saleitem);
 
-        subtotal += pricePerPiece * quantity;
+        subtotal = subtotal.add(pricePerPiece.multiply(BigDecimal.valueOf(quantity)));
         }
 
-        double gst = subtotal * 0.03;
+        BigDecimal gst = subtotal.multiply(BigDecimal.valueOf(0.03));
         savedsale.setSubtotal(subtotal);
         savedsale.setGstAmount(gst);
-        savedsale.setGrandTotal(subtotal + gst);
+        savedsale.setGrandTotal(subtotal.add(gst));
 
         Sales finalSale = saleRepository.save(savedsale);
         // populate transient itemCount without loading the collection

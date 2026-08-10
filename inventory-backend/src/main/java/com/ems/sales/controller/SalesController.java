@@ -4,6 +4,7 @@ package com.ems.sales.controller;
 import java.util.List;
 import java.util.Map;
 
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ems.sales.model.Saleitem;
 import com.ems.sales.model.Sales;
 import com.ems.sales.service.SalesService;
+
+
 
 @RestController
 @RequestMapping("/api/sales")
@@ -48,6 +51,10 @@ public class SalesController {
      @SuppressWarnings("unchecked")
         List<Map<String, Object>> items =
             (List<Map<String, Object>>) payload.get("items");
+
+        if (items == null || items.isEmpty()) {
+            throw new IllegalArgumentException("Sale must contain at least one item");
+        }
 
         Sales created = salesService.createsales(sale, items);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);

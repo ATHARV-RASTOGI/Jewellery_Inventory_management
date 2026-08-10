@@ -2,6 +2,7 @@ package com.ems.Exportdata.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
@@ -21,6 +22,7 @@ import com.ems.inventory.model.Product;
 import com.ems.inventory.repository.ProductRepository;
 import com.ems.loan.model.InterestPayment;
 import com.ems.loan.model.Loan;
+import com.ems.loan.model.LoanStatus;
 import com.ems.loan.repository.InterestPaymentRepository;
 import com.ems.loan.repository.LoanRepository;
 import com.ems.sales.model.Saleitem;
@@ -103,13 +105,13 @@ public class ExportService {
             row.createCell(3).setCellValue(nullSafe(l.getAddress()));
             row.createCell(4).setCellValue(nullSafe(l.getJewelryDescription()));
             row.createCell(5).setCellValue(nullSafe(l.getMetal()));
-            row.createCell(6).setCellValue(l.getWeight() != null ? l.getWeight() : 0.0);
+            row.createCell(6).setCellValue(l.getWeight() != null ? l.getWeight().doubleValue() : 0.0);
             setCurrency(row, 7, l.getLoanAmount(), currencyStyle);
             row.createCell(8).setCellValue(
                     l.getIssueDate() != null ? l.getIssueDate().toString() : "");
-            row.createCell(9).setCellValue(nullSafe(l.getCloseDate()));
+            row.createCell(9).setCellValue(l.getCloseDate() != null ? l.getCloseDate().toString() : "");
             setCurrency(row, 10, l.getSettlementAmount(), currencyStyle);
-            row.createCell(11).setCellValue(nullSafe(l.getStatus()));
+            row.createCell(11).setCellValue(nullSafe(l.getStatus() != null ? l.getStatus().name() : null));
             row.createCell(12).setCellValue(nullSafe(l.getDescription()));
         }
         autoSize(loanSheet, loanCols.length);
@@ -162,7 +164,7 @@ public class ExportService {
             row.createCell(4).setCellValue(nullSafe(p.getSubCategory()));
             row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
             row.createCell(6).setCellValue(nullSafe(p.getPurity()));
-            row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight() : 0.0);
+            row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
             row.createCell(8).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
             setCurrency(row, 9, p.getPrice(), currencyStyle);
         }
@@ -190,7 +192,7 @@ public class ExportService {
             row.createCell(4).setCellValue(nullSafe(p.getSubCategory()));
             row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
             row.createCell(6).setCellValue(nullSafe(p.getPurity()));
-            row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight() : 0.0);
+            row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
             row.createCell(8).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
             setCurrency(row, 9, p.getPrice(), currencyStyle);
         }
@@ -217,7 +219,7 @@ public class ExportService {
             row.createCell(3).setCellValue(nullSafe(p.getMainCategory()));
             row.createCell(4).setCellValue(nullSafe(p.getSubCategory()));
             row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
-            row.createCell(6).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight() : 0.0);
+            row.createCell(6).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
             row.createCell(7).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
             setCurrency(row, 8, p.getPrice(), currencyStyle);
         }
@@ -275,7 +277,7 @@ public class ExportService {
             row.createCell(3).setCellValue(nullSafe(item.getProductName()));
             row.createCell(4).setCellValue(nullSafe(item.getMaterial()));
             row.createCell(5).setCellValue(nullSafe(item.getPurity()));
-            row.createCell(6).setCellValue(item.getWeight() != null ? item.getWeight() : 0.0);
+            row.createCell(6).setCellValue(item.getWeight() != null ? item.getWeight().doubleValue() : 0.0);
             row.createCell(7).setCellValue(item.getQuantity() != null ? item.getQuantity() : 0);
             setCurrency(row, 8, item.getPricePerPiece(), currencyStyle);
             setCurrency(row, 9, item.getLineTotal(), currencyStyle);
@@ -302,16 +304,16 @@ public class ExportService {
             List<InterestPayment> payments = interestPaymentRepo.findAll();
 
             double totalLoanAmount = loans.stream()
-                    .mapToDouble(l -> l.getLoanAmount() != null ? l.getLoanAmount() : 0.0).sum();
+                    .mapToDouble(l -> l.getLoanAmount() != null ? l.getLoanAmount().doubleValue() : 0.0).sum();
             double totalSettlement = loans.stream()
                     .filter(l -> l.getSettlementAmount() != null)
-                    .mapToDouble(Loan::getSettlementAmount).sum();
+                    .mapToDouble(l -> l.getSettlementAmount().doubleValue()).sum();
             double totalInterestPaid = payments.stream()
-                    .mapToDouble(p -> p.getAmountPaid() != null ? p.getAmountPaid() : 0.0).sum();
+                    .mapToDouble(p -> p.getAmountPaid() != null ? p.getAmountPaid().doubleValue() : 0.0).sum();
             long activeLoans = loans.stream()
-                    .filter(l -> "Active".equalsIgnoreCase(l.getStatus())).count();
+                    .filter(l -> l.getStatus() == LoanStatus.ACTIVE).count();
             long closedLoans = loans.stream()
-                    .filter(l -> "Closed".equalsIgnoreCase(l.getStatus())).count();
+                    .filter(l -> l.getStatus() == LoanStatus.CLOSED).count();
 
             ri = addSummaryRow(sheet, ri, "Loans", "Total Loans", loans.size());
             ri = addSummaryRow(sheet, ri, "Loans", "Active Loans", activeLoans);
@@ -328,7 +330,7 @@ public class ExportService {
 
             double totalStockValue = products.stream()
                     .mapToDouble(p -> {
-                        double price = p.getPrice() != null ? p.getPrice() : 0.0;
+                        double price = p.getPrice() != null ? p.getPrice().doubleValue() : 0.0;
                         int qty = p.getStockQuantity() != null ? p.getStockQuantity() : 0;
                         return price * qty;
                     }).sum();
@@ -346,11 +348,11 @@ public class ExportService {
             List<Saleitem> items = saleItemRepo.findAll();
 
             double totalRevenue = sales.stream()
-                    .mapToDouble(s -> s.getGrandTotal() != null ? s.getGrandTotal() : 0.0).sum();
+                    .mapToDouble(s -> s.getGrandTotal() != null ? s.getGrandTotal().doubleValue() : 0.0).sum();
             double totalGst = sales.stream()
-                    .mapToDouble(s -> s.getGstAmount() != null ? s.getGstAmount() : 0.0).sum();
+                    .mapToDouble(s -> s.getGstAmount() != null ? s.getGstAmount().doubleValue() : 0.0).sum();
             double totalSubtotal = sales.stream()
-                    .mapToDouble(s -> s.getSubtotal() != null ? s.getSubtotal() : 0.0).sum();
+                    .mapToDouble(s -> s.getSubtotal() != null ? s.getSubtotal().doubleValue() : 0.0).sum();
             int totalItemsSold = items.stream()
                     .mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum();
 
@@ -385,9 +387,9 @@ public class ExportService {
         return rowIndex + 1;
     }
 
-    private void setCurrency(Row row, int col, Double value, CellStyle style) {
+    private void setCurrency(Row row, int col, Number value, CellStyle style) {
         Cell cell = row.createCell(col);
-        cell.setCellValue(value != null ? value : 0.0);
+        cell.setCellValue(value != null ? value.doubleValue() : 0.0);
         cell.setCellStyle(style);
     }
 

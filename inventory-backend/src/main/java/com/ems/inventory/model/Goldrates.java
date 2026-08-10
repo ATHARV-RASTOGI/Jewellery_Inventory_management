@@ -1,5 +1,7 @@
 package com.ems.inventory.model;
 
+import java.time.LocalDate;
+
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -22,7 +24,7 @@ public class Goldrates {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String timestamp;
+    private LocalDate timestamp;
     private String base;
     @Embedded
     private Rates rates;

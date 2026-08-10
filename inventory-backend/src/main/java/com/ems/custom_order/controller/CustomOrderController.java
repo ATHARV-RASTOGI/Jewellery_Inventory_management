@@ -15,11 +15,12 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ems.custom_order.model.CustomOrder;
 import com.ems.custom_order.service.CustomOrderService;
 
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/custom-order")
 public class CustomOrderController {
-
 
     private final CustomOrderService customOrderService;
     
@@ -29,11 +30,9 @@ public class CustomOrderController {
     
     @PostMapping("/create-new-order")
     public ResponseEntity<CustomOrder> createNewOrder(@RequestBody CustomOrder order) {
-    
-        System.out.println("Data Recived from React: "+order);
         CustomOrder newOrder = customOrderService.saveCustomOrder(order);
+        log.info("Custom order created with id: {}", newOrder.getOrderId());
         return new ResponseEntity<>(newOrder, HttpStatus.CREATED);
-
     }
 
     @GetMapping("/get-all-orders")
@@ -42,15 +41,10 @@ public class CustomOrderController {
         return new ResponseEntity<>(orders, HttpStatus.OK);
     }
 
-    @GetMapping("/get-all-ordedrd/{id}")
+    @GetMapping("/get-all-orders/{id}")
     public ResponseEntity<CustomOrder> getById(@PathVariable Long id){
-        List<CustomOrder> orders = customOrderService.getAllCustomOrder();
-        for(CustomOrder order : orders) {
-            if(order.getOrderId().equals(id)) {
-                return ResponseEntity.ok(order);
-            }
-        }
-        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        CustomOrder order = customOrderService.getCustomOrderById(id);
+        return ResponseEntity.ok(order);
     }
 
     @PutMapping("/update-order/{id}")
@@ -64,13 +58,4 @@ public class CustomOrderController {
         customOrderService.deleteCustomOrder(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
-
-
-    
-
-
-
-
-
-
 }

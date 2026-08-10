@@ -1,4 +1,6 @@
 package com.ems.sales.model;
+import java.math.BigDecimal;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Entity;
@@ -44,8 +46,12 @@ public class Saleitem {
     private String purity;
 
     
-    private Double weight;
+    private BigDecimal weight;
     private Integer quantity;
-    private Double pricePerPiece;
-    private Double lineTotal;
-}
+
+
+    private BigDecimal pricePerPiece;
+
+
+    private BigDecimal lineTotal;
+}   

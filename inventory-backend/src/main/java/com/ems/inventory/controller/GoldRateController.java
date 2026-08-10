@@ -14,7 +14,9 @@ import com.ems.inventory.service.GoldRateService;
 import com.ems.inventory.service.SilverRateService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/gold-rate")
 @RequiredArgsConstructor
@@ -26,7 +28,7 @@ public class GoldRateController {
     @GetMapping("/fetch-now")
     public ResponseEntity<String> fetchNow() {
         try {
-            System.out.println("=== MANUAL FETCH TRIGGERED ===");
+            log.info("Manual gold rate fetch triggered");
             // Tell the service to do the work in the background
             java.util.concurrent.CompletableFuture.runAsync(() -> goldRateService.fetchAndSaveGoldRate());
             return ResponseEntity.ok("Gold rate fetch initiated in the background.");
@@ -51,15 +53,14 @@ public class GoldRateController {
     }
 
     @PostMapping("/update")
-public ResponseEntity<String> updateGoldRate(@RequestBody Map<String, Object> payload) {
-    try {
-        Number rate = (Number) payload.get("rate"); // per 10g
+    public ResponseEntity<String> updateGoldRate(@RequestBody Map<String, Object> payload) {
+        Number rate = (Number) payload.get("rate");
+        if (rate == null) {
+            throw new IllegalArgumentException("rate is required");
+        }
         goldRateService.updateManualGoldRate(rate.doubleValue());
         return ResponseEntity.ok("Gold rate updated successfully");
-    } catch (Exception e) {
-        return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
     }
-}
 
  
 }

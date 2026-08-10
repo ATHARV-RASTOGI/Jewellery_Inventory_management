@@ -1,5 +1,8 @@
 package com.ems.inventory.model;
 
+import java.math.BigDecimal;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -29,11 +32,15 @@ public class Product {
     private String subCategory;
     private String material;
 
-    private Double baseWeight;
+    @Column(precision = 10, scale = 3)
+    private BigDecimal baseWeight;
+
     private String purity;
 
     private Integer stockQuantity;
-    private Double price;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal price;
 
     @Version
     private Long version;

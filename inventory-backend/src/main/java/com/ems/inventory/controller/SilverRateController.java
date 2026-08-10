@@ -14,12 +14,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SilverRateController {
 
-    public final SilverRateService silverrateservice;
+    private final SilverRateService silverRateService;
 
     @GetMapping("/latest")
     public ResponseEntity <Map<String,Object>> getLatestSilverRate(){
         try{
-            Silver latestsilver = silverrateservice.getLatestSilverRate();
+            Silver latestsilver = silverRateService.getLatestSilverRate();
             
             if (latestsilver== null){
                 return ResponseEntity.notFound().build();
@@ -34,13 +34,12 @@ public class SilverRateController {
     }
     @PostMapping("/update")
     public ResponseEntity<String> updateSilverRate(@RequestBody Map<String, Object> payload) {
-        try {
-            Number rate = (Number) payload.get("rate");
-            silverrateservice.updateManualSilverRate(rate.doubleValue());
-            return ResponseEntity.ok("Silver rate updated successfully");
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
+        Number rate = (Number) payload.get("rate");
+        if (rate == null) {
+            throw new IllegalArgumentException("rate is required");
         }
+        silverRateService.updateManualSilverRate(java.math.BigDecimal.valueOf(rate.doubleValue()));
+        return ResponseEntity.ok("Silver rate updated successfully");
     }
 
 

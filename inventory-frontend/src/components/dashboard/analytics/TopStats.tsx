@@ -18,7 +18,7 @@ type Stat = {
 const buildStats = (s: DashboardStats): Stat[] => [
   {
     title: "Today's Silver Rate",
-    value: `${formatINR(s.totalInventoryValue)} / 10 g`,
+    value: `${formatINR(s.silverRatePerGram)} / 10 g`,
     icon: TrendingUp,
     trend: "Silver Rate",
     trendPositive: true,
@@ -47,7 +47,7 @@ const buildStats = (s: DashboardStats): Stat[] => [
 ];
 
 const EMPTY_STATS: DashboardStats = {
-  totalInventoryValue: 0,
+  silverRatePerGram: 0,
   totalItemsInStock: 0,
   activeLoansCount: 0,
   totalOutstandingAmount: 0,
@@ -129,7 +129,7 @@ export const TopStats = () => {
         open={rateModalOpen}
         onClose={() => setRateModalOpen(false)}
         currentGold={data?.goldRatePerGram ? data.goldRatePerGram * 10 : 0}
-        currentSilver={data?.totalInventoryValue ?? 0}
+        currentSilver={data?.silverRatePerGram ?? 0}
       />
     </>
   );
