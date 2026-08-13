@@ -4,6 +4,7 @@ import { X, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type Product } from "@/lib/api/inventory";
 import { fetchGoldRate, fetchSilverRate } from "@/lib/api/dashboard";
+import { useCategories } from "@/lib/categories";
 
 type Props = {
   open: boolean;
@@ -26,25 +27,6 @@ const EMPTY: Omit<Product, "id"> = {
   price: 0,
 };
 
-// Put this near the top of AddProductModal.tsx, under your EMPTY object
-
-const SUBCATEGORIES: Record<string, Record<string, { id: string, label: string }[]>> = {
-  gold: {
-    rings: [{ id: "rings-gents", label: "Gents Rings" }, { id: "rings-womens", label: "Women's Rings" }, { id: "rings-couple", label: "Couple Bands" }],
-    necklaces: [{ id: "necklaces-short", label: "Short Necklaces" }, { id: "necklaces-long", label: "Long Necklaces" }, { id: "necklaces-choker", label: "Chokers" }],
-    bangles: [{ id: "bangles-daily", label: "Daily Wear" }, { id: "bangles-bridal", label: "Bridal Bangles" }],
-    earrings: [{ id: "earrings-studs", label: "Studs" }, { id: "earrings-drops", label: "Drops & Danglers" }],
-    sets: [{ id: "sets-bridal", label: "Bridal Sets" }, { id: "sets-light", label: "Lightweight Sets" }],
-    coins: [{ id: "coins-1g", label: "1g - 5g Coins" }, { id: "coins-10g", label: "10g+ Coins & Bars" }],
-  },
-  silver: {
-    anklets: [{ id: "anklets-daily", label: "Daily Wear" }, { id: "anklets-bridal", label: "Bridal Heavy" }],
-    bracelets: [{ id: "bracelets-mens", label: "Men's Kadas" }, { id: "bracelets-womens", label: "Women's Bracelets" }],
-    rings: [{ id: "rings-mens", label: "Men's Rings" }, { id: "rings-womens", label: "Women's Rings" }],
-    pooja: [{ id: "pooja-idols", label: "Idols (Murti)" }, { id: "pooja-utensils", label: "Utensils (Bartan)" }],
-    coins: [{ id: "coins-10g", label: "10g - 50g Coins" }, { id: "coins-100g", label: "100g+ Bars" }],
-  }
-};
 
 // Purity multipliers (fraction of 24K pure gold)
 const PURITY_MULTIPLIER: Record<string, number> = {
@@ -71,6 +53,12 @@ export const AddProductModal = ({
 }: Props) => {
   const [form, setForm] = useState<Product | Omit<Product, "id">>(EMPTY);
   const [priceOverridden, setPriceOverridden] = useState(false);
+  const { gold: goldCategories, silver: silverCategories } = useCategories();
+
+  // Derive category list based on selected material
+  const currentCategories = form.material?.toLowerCase() === "silver" ? silverCategories : goldCategories;
+  const currentMainCat = currentCategories.find((c) => c.id === form.mainCategory);
+  const currentSubcategories = currentMainCat?.subcategories ?? [];
 
   const { data: goldRate } = useQuery({
     queryKey: ["dashboard-gold-rate"],
@@ -231,27 +219,12 @@ export const AddProductModal = ({
                 value={form.mainCategory}
                 onChange={(e) => {
                   update("mainCategory", e.target.value);
-                  update("subCategory", ""); // FIX: Clear subcategory if main category changes!
+                  update("subCategory", "");
                 }}
               >
-                {form.material?.toLowerCase() === "silver" ? (
-                  <>
-                    <option value="anklets">Anklets (Payal)</option>
-                    <option value="bracelets">Bracelets & Kadas</option>
-                    <option value="rings">Silver Rings</option>
-                    <option value="pooja">Pooja Items & Utensils</option>
-                    <option value="coins">Silver Coins & Bars</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="rings">Rings</option>
-                    <option value="necklaces">Necklaces</option>
-                    <option value="bangles">Bangles</option>
-                    <option value="earrings">Earrings</option>
-                    <option value="sets">Jewellery Sets</option>
-                    <option value="coins">Gold Coins & Bars</option>
-                  </>
-                )}
+                {currentCategories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.label}</option>
+                ))}
               </select>
             </div>
 
@@ -264,14 +237,11 @@ export const AddProductModal = ({
                 onChange={(e) => update("subCategory", e.target.value)}
               >
                 <option value="">None / General</option>
-                {/* Dynamically loads options based on Gold/Silver and Main Category */}
-                {(SUBCATEGORIES[form.material?.toLowerCase() || "gold"]?.[form.mainCategory] || []).map(
-                  (sub) => (
-                    <option key={sub.id} value={sub.id}>
-                      {sub.label}
-                    </option>
-                  )
-                )}
+                {currentSubcategories.map((sub) => (
+                  <option key={sub.id} value={sub.id}>
+                    {sub.label}
+                  </option>
+                ))}
               </select>
             </div>
 

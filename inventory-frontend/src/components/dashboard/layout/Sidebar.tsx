@@ -13,104 +13,8 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { getSidebarCategories } from "@/lib/categories";
 
-// Split into separate Gold and Silver definitions.
-// Notice the IDs are prefixed with the metal type!
-const GOLD_CATEGORIES = [
-  {
-    id: "gold-rings",
-    label: "Rings",
-    subcategories: [
-      { id: "gold-rings-gents", label: "Gents Rings" },
-      { id: "gold-rings-womens", label: "Women's Rings" },
-      { id: "gold-rings-couple", label: "Couple Bands" },
-    ],
-  },
-  {
-    id: "gold-necklaces",
-    label: "Necklaces",
-    subcategories: [
-      { id: "gold-necklaces-short", label: "Short Necklaces" },
-      { id: "gold-necklaces-long", label: "Long Necklaces" },
-      { id: "gold-necklaces-choker", label: "Chokers" },
-    ],
-  },
-  {
-    id: "gold-bangles",
-    label: "Bangles",
-    subcategories: [
-      { id: "gold-bangles-daily", label: "Daily Wear" },
-      { id: "gold-bangles-bridal", label: "Bridal Bangles" },
-    ],
-  },
-  {
-    id: "gold-earrings",
-    label: "Earrings",
-    subcategories: [
-      { id: "gold-earrings-studs", label: "Studs" },
-      { id: "gold-earrings-drops", label: "Drops & Danglers" },
-    ],
-  },
-  {
-    id: "gold-sets",
-    label: "Jewellery Sets",
-    subcategories: [
-      { id: "gold-sets-bridal", label: "Bridal Sets" },
-      { id: "gold-sets-light", label: "Lightweight Sets" },
-    ],
-  },
-  {
-    id: "gold-coins",
-    label: "Gold Coins & Bars",
-    subcategories: [
-      { id: "gold-coins-1g", label: "1g - 5g Coins" },
-      { id: "gold-coins-10g", label: "10g+ Coins & Bars" },
-    ],
-  },
-];
-
-const SILVER_CATEGORIES = [
-  {
-    id: "silver-anklets",
-    label: "Anklets (Payal)",
-    subcategories: [
-      { id: "silver-anklets-daily", label: "Daily Wear" },
-      { id: "silver-anklets-bridal", label: "Bridal Heavy" },
-    ],
-  },
-  {
-    id: "silver-bracelets",
-    label: "Bracelets & Kadas",
-    subcategories: [
-      { id: "silver-bracelets-mens", label: "Men's Kadas" },
-      { id: "silver-bracelets-womens", label: "Women's Bracelets" },
-    ],
-  },
-  {
-    id: "silver-rings",
-    label: "Silver Rings",
-    subcategories: [
-      { id: "silver-rings-mens", label: "Men's Rings" },
-      { id: "silver-rings-womens", label: "Women's Rings" },
-    ],
-  },
-  {
-    id: "silver-pooja",
-    label: "Pooja Items & Utensils",
-    subcategories: [
-      { id: "silver-pooja-idols", label: "Idols (Murti)" },
-      { id: "silver-pooja-utensils", label: "Utensils (Bartan)" },
-    ],
-  },
-  {
-    id: "silver-coins",
-    label: "Silver Coins & Bars",
-    subcategories: [
-      { id: "silver-coins-10g", label: "10g - 50g Coins" },
-      { id: "silver-coins-100g", label: "100g+ Bars" },
-    ],
-  },
-];
 
 type Props = {
   activeView: string;
@@ -243,7 +147,7 @@ export const Sidebar = ({ activeView, onViewChange }: Props) => {
                 <span className="flex-1 text-left">Gold Inventory</span>
                 <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", goldOpen && "rotate-180")} />
               </button>
-              {goldOpen && <CategoryTree categories={GOLD_CATEGORIES} />}
+              {goldOpen && <CategoryTree categories={getSidebarCategories("gold")} />}
             </div>
 
             {/* SILVER INVENTORY TOGGLE */}
@@ -253,7 +157,7 @@ export const Sidebar = ({ activeView, onViewChange }: Props) => {
                 <span className="flex-1 text-left">Silver Inventory</span>
                 <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", silverOpen && "rotate-180")} />
               </button>
-              {silverOpen && <CategoryTree categories={SILVER_CATEGORIES} />}
+              {silverOpen && <CategoryTree categories={getSidebarCategories("silver")} />}
             </div>
 
             

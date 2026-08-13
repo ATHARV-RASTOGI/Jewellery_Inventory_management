@@ -12,6 +12,7 @@ import { SalesByMaterial } from "../analytics/SalesByMaterial";
 import { WeeklySales } from "../analytics/WeeklySales";
 import { RecentSales } from "../analytics/RecentSales";
 import { CustomOrderForm } from "../orders/CustomOrderForm";
+import { SettingsPage } from "../settings/SettingsPage";
 
 export const DashboardShell = () => {
   const [activeView, setActiveView] = useState<string>("dashboard");
@@ -61,19 +62,7 @@ export const DashboardShell = () => {
         return <CustomOrderForm />;
 
       case "settings":
-        return (
-          <div className="space-y-6 max-w-2xl animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="rounded-xl bg-surface p-6 border border-border/40">
-              <h2 className="text-sm font-medium tracking-tight mb-1 text-foreground">
-                Data Backup & Reports
-              </h2>
-              <p className="text-[12px] text-muted-foreground mb-4">
-                Export your loans, inventory, and sales data as an Excel file.
-              </p>
-              <ExportButton />
-            </div>
-          </div>
-        );
+        return <SettingsPage />;
 
       default:
         // All inventory sub-views (inventory, inventory-add, etc.) fall here

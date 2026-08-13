@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -25,18 +26,18 @@ import com.ems.sales.model.Sales;
 import com.ems.sales.repository.SaleItemRepository;
 import com.ems.sales.repository.SalesRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class SalesService {
 
     private final ProductRepository productRepository;
-     private final SalesRepository saleRepository;
+    private final SalesRepository saleRepository;
     private final SaleItemRepository saleItemRepository;
+    private final ModelMapper modelMapper;
 
-    public SalesService(ProductRepository productRepository, SalesRepository saleRepository ,SaleItemRepository saleItemRepository){
-        this.productRepository=productRepository;
-        this.saleItemRepository=saleItemRepository;
-        this.saleRepository = saleRepository;
-    }
+   
 
     public List<Sales> getAllSales(){
         return saleRepository.findAllByOrderBySaleDateDesc();
