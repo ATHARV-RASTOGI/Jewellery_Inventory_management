@@ -25,4 +25,10 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
 
     @Query("SELECT COUNT(l) FROM Loan l WHERE l.status = com.ems.loan.model.LoanStatus.ACTIVE")
     long countActiveLoans();
+
+    Optional<Loan> findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseOrderByIdDesc(String name, String fatherName);
+
+    Optional<Loan> findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseAndAddressIgnoreCaseOrderByIdDesc(String name, String fatherName, String address);
+
+   
 }

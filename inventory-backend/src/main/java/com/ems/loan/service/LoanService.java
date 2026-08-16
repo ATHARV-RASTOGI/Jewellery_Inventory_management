@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,36 +70,58 @@ public class LoanService {
     @Transactional
     public Loan closeLoan(Long id, LocalDate closeDate, BigDecimal settlementAmount) {
         Loan existingLoan = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Loan with ID " + id + " not found!"));
+                .orElseThrow(() -> new LoanNotFoundException("Loan with ID " + id + " not found!"));
 
-        existingLoan.setStatus(com.ems.loan.model.LoanStatus.CLOSED);
+        existingLoan.setStatus(LoanStatus.CLOSED);
         existingLoan.setCloseDate(closeDate);
         existingLoan.setSettlementAmount(settlementAmount);
 
         return repository.save(existingLoan);
     }
 
+    @Transactional
     // ── Add money to an existing loan mid-cycle, on its own interest clock ────
     public PendingDisbursement addDisbursement(Long loanId, BigDecimal amount, LocalDate date) {
-    Loan loan = repository.findById(loanId)
-            .orElseThrow(() -> new LoanNotFoundException ("Loan " + loanId + " not found"));
+        Loan loan = repository.findByIdForUpdate(loanId)
+                .orElseThrow(() -> new LoanNotFoundException("Loan " + loanId + " not found"));
 
-    PendingDisbursement d = new PendingDisbursement();
-    d.setLoan(loan);
-    d.setAmount(amount);
-    d.setDisbursedDate(date);
-    return pendingDisbursementRepository.save(d);
-}
+        if (loan.getStatus() != LoanStatus.ACTIVE) {
+            throw new IllegalArgumentException("Cannot add disbursement to a closed loan");
+        }
+
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Disbursement amount must be greater than zero");
+        }
+
+        List<InterestPayment> payments = interestPaymentRepository.findByLoan_IdOrderByPaymentDateAsc(loanId);
+        LocalDate minAllowedDate = loan.getIssueDate();
+        if (payments != null && !payments.isEmpty()) {
+            minAllowedDate = payments.get(payments.size() - 1).getPaymentDate();
+        }
+
+        if (date.isBefore(minAllowedDate)) {
+            String reason = (payments != null && !payments.isEmpty())
+                    ? "the last interest payment date (" + minAllowedDate + ")"
+                    : "the loan issue date (" + minAllowedDate + ")";
+            throw new IllegalArgumentException("Disbursement date (" + date + ") cannot be earlier than " + reason);
+        }
+
+        PendingDisbursement d = new PendingDisbursement();
+        d.setLoan(loan);
+        d.setAmount(amount);
+        d.setDisbursedDate(date);
+        return pendingDisbursementRepository.save(d);
+    }
 
     @Transactional
     // ── Record an interest payment, folding in any pending disbursements ──────
     public InterestPayment recordInterestPayment(Long loanId, BigDecimal amountPaid,
             LocalDate fromDate, LocalDate toDate, BigDecimal interestRate) {
 
-        Loan loan = repository.findById(loanId)
+        Loan loan = repository.findByIdForUpdate(loanId)
                 .orElseThrow(() -> new RuntimeException("Loan " + loanId + " not found"));
 
-        if (loan.getStatus() != com.ems.loan.model.LoanStatus.ACTIVE) {
+        if (loan.getStatus() != LoanStatus.ACTIVE) {
             throw new RuntimeException("Cannot pay interest on a closed loan");
         }
 
@@ -138,11 +161,12 @@ public class LoanService {
         return pendingDisbursementRepository.findByLoanId(loanId);
     }
 
+    @Transactional
     public void deletePendingDisbursement(Long loanId, Long disbursementId) {
         PendingDisbursement pd = pendingDisbursementRepository.findById(disbursementId)
-                .orElseThrow(() -> new RuntimeException("Disbursement " + disbursementId + " not found"));
+                .orElseThrow(() -> new LoanNotFoundException("Disbursement " + disbursementId + " not found"));
         if (!pd.getLoan().getId().equals(loanId)) {
-            throw new RuntimeException("Disbursement does not belong to loan " + loanId);
+            throw new IllegalArgumentException("Disbursement does not belong to loan " + loanId);
         }
         pendingDisbursementRepository.delete(pd);
     }
@@ -150,7 +174,7 @@ public class LoanService {
     // ── Preview shown in the modal BEFORE a payment is recorded ───────────────
     public Map<String, Object> previewInterestForLoan(Long loanId, LocalDate fromDate, LocalDate toDate, BigDecimal interestRate) {
         Loan loan = repository.findById(loanId)
-                .orElseThrow(() -> new RuntimeException("Loan " + loanId + " not found"));
+                .orElseThrow(() -> new LoanNotFoundException("Loan " + loanId + " not found"));
 
         if (fromDate == null) {
             List<InterestPayment> payments = interestPaymentRepository.findByLoan_IdOrderByPaymentDateAsc(loanId);
@@ -244,4 +268,14 @@ public class LoanService {
         result.put("monthlyInterest", monthlyInterest);
         return result;
     }
+
+    public Optional<Loan> findByNameAndFatherNameAndAddress(String name, String fathername, String address) {
+        return repository.findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseAndAddressIgnoreCaseOrderByIdDesc(name, fathername, address);
+    }
+
+    public Optional<Loan> findByNameAndFatherName(String name, String fathername) {
+        return repository.findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseOrderByIdDesc(name, fathername);
+    }
+
+   
 }

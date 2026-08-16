@@ -18,7 +18,7 @@ public class SilverRateController {
 
     @GetMapping("/latest")
     public ResponseEntity <Map<String,Object>> getLatestSilverRate(){
-        try{
+        
             Silver latestsilver = silverRateService.getLatestSilverRate();
             
             if (latestsilver== null){
@@ -28,10 +28,7 @@ public class SilverRateController {
             response.put("rate",latestsilver.getRates().getInr());
             return ResponseEntity.ok(response);
         }
-        catch(Exception e){
-            return ResponseEntity.internalServerError().build();
-        }
-    }
+
     @PostMapping("/update")
     public ResponseEntity<String> updateSilverRate(@RequestBody Map<String, Object> payload) {
         Number rate = (Number) payload.get("rate");

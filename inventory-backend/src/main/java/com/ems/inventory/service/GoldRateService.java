@@ -9,6 +9,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
@@ -46,7 +47,8 @@ public class GoldRateService {
     }
 
     @PostConstruct
-    public void fetchOnStartup() {
+    @Async
+    public void fetchOnStartupAsync() {
         log.info("Server started: triggering initial gold rate fetch");
         fetchAndSaveGoldRate();
     }
@@ -116,7 +118,7 @@ public class GoldRateService {
     }
 
     public Goldrates getLatestGoldRate() {
-        return goldRateRepository.getLatestGoldRate();
+        return goldRateRepository.findFirstByOrderByTimestampDesc().orElse(null);
  
  
     }  

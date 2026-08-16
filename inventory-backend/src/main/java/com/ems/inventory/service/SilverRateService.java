@@ -101,7 +101,7 @@ public class SilverRateService {
         }
     }
     public Silver getLatestSilverRate() {
-        return silverRateRepository.getLatestsilver();
+        return silverRateRepository.findFirstByOrderByTimestampDesc().orElse(null);
     }   
 
     public void updateManualSilverRate(BigDecimal perGramRate) {

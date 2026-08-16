@@ -15,6 +15,6 @@ import com.ems.custom_order.model.CustomOrder;
 public interface CustomOrderRepository extends JpaRepository<CustomOrder, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT c FROM CustomOrder c WHERE c.id = :id")
-    Optional<CustomOrder> findByIdForUpdate(@Param("id") Long id); 
+    @Query("SELECT c FROM CustomOrder c WHERE c.orderId = :orderId")
+    Optional<CustomOrder> findByIdForUpdate(@Param("orderId") Long orderId); 
 }       

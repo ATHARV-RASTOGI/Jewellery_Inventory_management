@@ -42,6 +42,8 @@ public class Loan {
 
     private String name;
 
+    private String fatherName;
+
     private String address;
 
     @Size(min = 10, max = 10, message = "Mobile number must be 10 digits")

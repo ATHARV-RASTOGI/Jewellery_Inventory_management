@@ -27,33 +27,36 @@ public class CustomOrderController {
     public CustomOrderController(CustomOrderService customOrderService) {
         this.customOrderService = customOrderService;
     }
-    
-    @PostMapping("/create-new-order")
+
+    // ── Create a new custom order ────
+    @PostMapping
     public ResponseEntity<CustomOrder> createNewOrder(@RequestBody CustomOrder order) {
         CustomOrder newOrder = customOrderService.saveCustomOrder(order);
         log.info("Custom order created with id: {}", newOrder.getOrderId());
         return new ResponseEntity<>(newOrder, HttpStatus.CREATED);
     }
 
-    @GetMapping("/get-all-orders")
+
+    @GetMapping
     public ResponseEntity<List<CustomOrder>> getAllOrders() {
         List<CustomOrder> orders = customOrderService.getAllCustomOrder();
         return new ResponseEntity<>(orders, HttpStatus.OK);
     }
-
-    @GetMapping("/get-all-orders/{id}")
+    
+    @GetMapping("{id}")
     public ResponseEntity<CustomOrder> getById(@PathVariable Long id){
         CustomOrder order = customOrderService.getCustomOrderById(id);
         return ResponseEntity.ok(order);
     }
 
-    @PutMapping("/update-order/{id}")
+    @PutMapping("{id}")
     public ResponseEntity<CustomOrder> updateOrder(@PathVariable Long id, @RequestBody CustomOrder order) {
         CustomOrder updated = customOrderService.updateCustomOrder(id, order);
         return new ResponseEntity<>(updated, HttpStatus.OK);
     }
 
-    @DeleteMapping("/delete-order/{id}")
+    
+    @DeleteMapping("{id}")
     public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
         customOrderService.deleteCustomOrder(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);

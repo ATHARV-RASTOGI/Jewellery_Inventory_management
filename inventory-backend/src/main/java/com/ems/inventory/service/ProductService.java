@@ -3,8 +3,10 @@ package com.ems.inventory.service;
 import java.math.BigDecimal;
 import java.util.List;
 
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
+import com.ems.Exception.Custom_Exception.ItemNotFoundException;
 import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.model.Product;
 import com.ems.inventory.model.Silver;
@@ -25,14 +27,21 @@ public class ProductService {
 
     private final SilverRateRepository silverRateRepository;
 
+
+
+    @Transactional
     public Product saveProduct(Product newproduct) {
+        // Ensure stock is never negative, default to 0 if null
+        if (newproduct.getStockQuantity() == null || newproduct.getStockQuantity() < 0) {
+            newproduct.setStockQuantity(0);
+        }
         return productRepository.save(newproduct);
     }
 
     
     @Transactional
     public Product updateProduct(long id, Product updatedDetails) {
-       Product existingProduct= productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+       Product existingProduct= productRepository.findById(id).orElseThrow(() -> new ItemNotFoundException("Product not found with id: " + id));
 
     existingProduct.setName(updatedDetails.getName());
     existingProduct.setSku(updatedDetails.getSku());
@@ -67,13 +76,17 @@ public class ProductService {
         return productRepository.searchProducts(keyword);
     }
 
+    @Transactional
     public void deleteProduct(Long id) {
+        if(!productRepository.existsById(id)){
+            throw new ItemNotFoundException("Product not found with id: " + id);
+        }
             productRepository.deleteById(id);
     }
 
-    public Double getTotalvalue() {
-        Double total = productRepository.getTotalvalue();
-        return total != null ? total : 0.0;
+    public BigDecimal getTotalvalue() {
+        BigDecimal total = productRepository.getTotalvalue();
+        return total != null ? total : BigDecimal.ZERO;
     }
 
     public Integer getTotalItems() {
@@ -82,17 +95,23 @@ public class ProductService {
     }
 
     public BigDecimal getliveGoldRate() {
-    Goldrates latestRate = goldRateRepository.getLatestGoldRate();
-    if (latestRate != null && latestRate.getRates() != null) {
-        return latestRate.getRates().getInr();
+    Optional<Goldrates> goldOptional = goldRateRepository.findFirstByOrderByTimestampDesc();
+    if (goldOptional.isPresent()) {
+        Goldrates latestRate = goldOptional.get();
+        if (latestRate.getRates() != null) {
+            return latestRate.getRates().getInr();
+        }
     }
     return java.math.BigDecimal.ZERO; // Default if no rate found
     }
 
     public BigDecimal getlivesilverDouble() {
-    Silver latestRate = silverRateRepository.getLatestsilver();
-    if (latestRate != null && latestRate.getRates() != null) {
-        return latestRate.getRates().getInr();
+    Optional<Silver> silverOptional = silverRateRepository.findFirstByOrderByTimestampDesc();
+    if (silverOptional.isPresent()) {
+        Silver latestRate = silverOptional.get();
+        if (latestRate.getRates() != null) {
+            return latestRate.getRates().getInr();
+        }
     }
     return java.math.BigDecimal.ZERO; // Default if no rate found
     }

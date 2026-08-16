@@ -2,7 +2,6 @@ package com.ems.Exportdata.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.List;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
@@ -15,7 +14,8 @@ import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 import com.ems.inventory.model.Product;
@@ -51,80 +51,95 @@ public class ExportService {
             boolean includeGold,
             boolean includeSilver) throws IOException {
 
-        try (Workbook wb = new XSSFWorkbook();
+        // Streaming workbook with row window of 100 to prevent heap memory exhaustion
+        try (SXSSFWorkbook wb = new SXSSFWorkbook(100);
                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+
+            wb.setCompressTempFiles(true);
 
             CellStyle headerStyle = buildHeaderStyle(wb);
             CellStyle currencyStyle = buildCurrencyStyle(wb);
             CellStyle dateStyle = buildDateStyle(wb);
 
-            if (includeLoan)
-                writeLoanSheet(wb, headerStyle, currencyStyle, dateStyle);
-            if (includeInventory)
-                writeInventorySheet(wb, headerStyle, currencyStyle);
-            if (includeSales)
-                writeSalesSheet(wb, headerStyle, currencyStyle, dateStyle);
-            if (includeSummary)
-                writeSummarySheet(wb, headerStyle, currencyStyle,
-                        includeLoan, includeInventory, includeSales);
+            // Single-pass data query reuse across specific sheets and summary sheet
+            List<Loan> loans = (includeLoan || includeSummary) ? loanRepo.findAll() : null;
+            List<InterestPayment> payments = (includeLoan || includeSummary) ? interestPaymentRepo.findAll() : null;
+            List<Product> products = (includeInventory || includeSummary) ? proRepo.findAll() : null;
+            List<Sales> allSales = (includeSales || includeSummary) ? salesRepo.findAllByOrderBySaleDateDesc() : null;
+            List<Saleitem> allItems = (includeSales || includeSummary) ? saleItemRepo.findAll() : null;
+
+            if (includeLoan && loans != null && payments != null) {
+                writeLoanSheet(wb, loans, payments, headerStyle, currencyStyle, dateStyle);
+            }
+            if (includeInventory && products != null) {
+                writeInventorySheet(wb, products, headerStyle, currencyStyle);
+            }
+            if (includeSales && allSales != null && allItems != null) {
+                writeSalesSheet(wb, allSales, allItems, headerStyle, currencyStyle, dateStyle);
+            }
+            if (includeSummary) {
+                writeSummarySheet(wb, loans, payments, products, allSales, allItems,
+                        headerStyle, currencyStyle, includeLoan, includeInventory, includeSales);
+            }
             if (includeGold) {
-                writeGoldData(wb, headerStyle, currencyStyle);
+                List<Product> goldProducts = proRepo.findByMaterialGold();
+                writeGoldData(wb, goldProducts, headerStyle, currencyStyle);
             }
             if (includeSilver) {
-                writeSilverData(wb, headerStyle, currencyStyle);
+                List<Product> silverProducts = proRepo.findByMaterialSilver();
+                writeSilverData(wb, silverProducts, headerStyle, currencyStyle);
             }
+
             wb.write(out);
+            wb.dispose(); // Clean up streaming temporary files on disk
             return out.toByteArray();
         }
     }
 
     // ─── Loan sheet ───────────────────────────────────────────────────────────
-    // Sheet 1: Loans — one row per Loan record
-    // Sheet 2: Interest Payments — one row per InterestPayment record
 
-    private void writeLoanSheet(Workbook wb, CellStyle headerStyle,
-            CellStyle currencyStyle, CellStyle dateStyle) {
+    private void writeLoanSheet(Workbook wb, List<Loan> loans, List<InterestPayment> payments,
+            CellStyle headerStyle, CellStyle currencyStyle, CellStyle dateStyle) {
 
         // ── Loans ──
-        Sheet loanSheet = wb.createSheet("Loans");
+        Sheet loanSheet = createTrackedSheet(wb, "Loans");
         String[] loanCols = {
-                "Loan ID", "Customer Name", "Mobile No", "Address",
+                "Loan ID", "Customer Name", "Father's Name", "Mobile No", "Address",
                 "Jewelry Description", "Metal", "Weight (g)",
                 "Loan Amount (₹)", "Issue Date", "Close Date",
                 "Settlement Amount (₹)", "Status", "Description"
         };
         writeHeader(loanSheet, loanCols, headerStyle);
 
-        List<Loan> loans = loanRepo.findAll();
         int rowIdx = 1;
         for (Loan l : loans) {
             Row row = loanSheet.createRow(rowIdx++);
             row.createCell(0).setCellValue(l.getId() != null ? l.getId() : 0L);
             row.createCell(1).setCellValue(nullSafe(l.getName()));
-            row.createCell(2).setCellValue(nullSafe(l.getMobileNo()));
-            row.createCell(3).setCellValue(nullSafe(l.getAddress()));
-            row.createCell(4).setCellValue(nullSafe(l.getJewelryDescription()));
-            row.createCell(5).setCellValue(nullSafe(l.getMetal()));
-            row.createCell(6).setCellValue(l.getWeight() != null ? l.getWeight().doubleValue() : 0.0);
-            setCurrency(row, 7, l.getLoanAmount(), currencyStyle);
-            row.createCell(8).setCellValue(
+            row.createCell(2).setCellValue(nullSafe(l.getFatherName()));
+            row.createCell(3).setCellValue(nullSafe(l.getMobileNo()));
+            row.createCell(4).setCellValue(nullSafe(l.getAddress()));
+            row.createCell(5).setCellValue(nullSafe(l.getJewelryDescription()));
+            row.createCell(6).setCellValue(nullSafe(l.getMetal()));
+            row.createCell(7).setCellValue(l.getWeight() != null ? l.getWeight().doubleValue() : 0.0);
+            setCurrency(row, 8, l.getLoanAmount(), currencyStyle);
+            row.createCell(9).setCellValue(
                     l.getIssueDate() != null ? l.getIssueDate().toString() : "");
-            row.createCell(9).setCellValue(l.getCloseDate() != null ? l.getCloseDate().toString() : "");
-            setCurrency(row, 10, l.getSettlementAmount(), currencyStyle);
-            row.createCell(11).setCellValue(nullSafe(l.getStatus() != null ? l.getStatus().name() : null));
-            row.createCell(12).setCellValue(nullSafe(l.getDescription()));
+            row.createCell(10).setCellValue(l.getCloseDate() != null ? l.getCloseDate().toString() : "");
+            setCurrency(row, 11, l.getSettlementAmount(), currencyStyle);
+            row.createCell(12).setCellValue(nullSafe(l.getStatus() != null ? l.getStatus().name() : null));
+            row.createCell(13).setCellValue(nullSafe(l.getDescription()));
         }
         autoSize(loanSheet, loanCols.length);
 
         // ── Interest Payments ──
-        Sheet paySheet = wb.createSheet("Interest Payments");
+        Sheet paySheet = createTrackedSheet(wb, "Interest Payments");
         String[] payCols = {
                 "Payment ID", "Loan ID", "Customer Name", "Amount Paid (₹)",
                 "Payment Date", "Balance After (₹)"
         };
         writeHeader(paySheet, payCols, headerStyle);
 
-        List<InterestPayment> payments = interestPaymentRepo.findAll();
         int payIdx = 1;
         for (InterestPayment p : payments) {
             Row row = paySheet.createRow(payIdx++);
@@ -140,12 +155,11 @@ public class ExportService {
     }
 
     // ─── Inventory sheet ──────────────────────────────────────────────────────
-    // Sheet: Products — one row per Product record
 
-    private void writeInventorySheet(Workbook wb, CellStyle headerStyle,
-            CellStyle currencyStyle) {
+    private void writeInventorySheet(Workbook wb, List<Product> products,
+            CellStyle headerStyle, CellStyle currencyStyle) {
 
-        Sheet sheet = wb.createSheet("Inventory");
+        Sheet sheet = createTrackedSheet(wb, "Inventory");
         String[] cols = {
                 "Product ID", "Name", "SKU",
                 "Main Category", "Sub Category", "Material",
@@ -153,7 +167,6 @@ public class ExportService {
         };
         writeHeader(sheet, cols, headerStyle);
 
-        List<Product> products = proRepo.findAll();
         int rowIdx = 1;
         for (Product p : products) {
             Row row = sheet.createRow(rowIdx++);
@@ -171,9 +184,10 @@ public class ExportService {
         autoSize(sheet, cols.length);
     }
 
-    private void writeGoldData(Workbook wb, CellStyle headerStyle, CellStyle currencyStyle) {
+    private void writeGoldData(Workbook wb, List<Product> products,
+            CellStyle headerStyle, CellStyle currencyStyle) {
 
-        Sheet sheet = wb.createSheet("GoldProduct");
+        Sheet sheet = createTrackedSheet(wb, "GoldProduct");
         String[] cols = {
                 "Product ID", "Name", "SKU",
                 "Main Category", "Sub Category", "Material",
@@ -181,7 +195,6 @@ public class ExportService {
         };
         writeHeader(sheet, cols, headerStyle);
 
-        List<Product> products = proRepo.findByMaterialGold();
         int rowIdx = 1;
         for (Product p : products) {
             Row row = sheet.createRow(rowIdx++);
@@ -199,9 +212,10 @@ public class ExportService {
         autoSize(sheet, cols.length);
     }
 
-    private void writeSilverData(Workbook wb, CellStyle headerStyle, CellStyle currencyStyle) {
+    private void writeSilverData(Workbook wb, List<Product> products,
+            CellStyle headerStyle, CellStyle currencyStyle) {
 
-        Sheet sheet = wb.createSheet("SilverProduct");
+        Sheet sheet = createTrackedSheet(wb, "SilverProduct");
         String[] cols = {
                 "Product ID", "Name", "SKU",
                 "Main Category", "Sub Category", "Material",
@@ -209,7 +223,6 @@ public class ExportService {
         };
         writeHeader(sheet, cols, headerStyle);
 
-        List<Product> products = proRepo.findByMaterialSilver();
         int rowIdx = 1;
         for (Product p : products) {
             Row row = sheet.createRow(rowIdx++);
@@ -227,14 +240,12 @@ public class ExportService {
     }
 
     // ─── Sales sheet ──────────────────────────────────────────────────────────
-    // Sheet 1: Sales — one row per Sales invoice
-    // Sheet 2: Sale Items — one row per Saleitem line
 
-    private void writeSalesSheet(Workbook wb, CellStyle headerStyle,
-            CellStyle currencyStyle, CellStyle dateStyle) {
+    private void writeSalesSheet(Workbook wb, List<Sales> allSales, List<Saleitem> allItems,
+            CellStyle headerStyle, CellStyle currencyStyle, CellStyle dateStyle) {
 
         // ── Sales invoices ──
-        Sheet salesSheet = wb.createSheet("Sales");
+        Sheet salesSheet = createTrackedSheet(wb, "Sales");
         String[] salesCols = {
                 "Sale ID", "Sale Date", "Customer Name",
                 "Customer Phone", "Customer Address",
@@ -242,7 +253,6 @@ public class ExportService {
         };
         writeHeader(salesSheet, salesCols, headerStyle);
 
-        List<Sales> allSales = salesRepo.findAllByOrderBySaleDateDesc();
         int rowIdx = 1;
         for (Sales s : allSales) {
             Row row = salesSheet.createRow(rowIdx++);
@@ -259,7 +269,7 @@ public class ExportService {
         autoSize(salesSheet, salesCols.length);
 
         // ── Sale line items ──
-        Sheet itemSheet = wb.createSheet("Sale Items");
+        Sheet itemSheet = createTrackedSheet(wb, "Sale Items");
         String[] itemCols = {
                 "Item ID", "Sale ID", "SKU", "Product Name",
                 "Material", "Purity", "Weight (g)",
@@ -267,7 +277,6 @@ public class ExportService {
         };
         writeHeader(itemSheet, itemCols, headerStyle);
 
-        List<Saleitem> allItems = saleItemRepo.findAll();
         int itemRowIdx = 1;
         for (Saleitem item : allItems) {
             Row row = itemSheet.createRow(itemRowIdx++);
@@ -287,22 +296,25 @@ public class ExportService {
 
     // ─── Summary sheet ────────────────────────────────────────────────────────
 
-    private void writeSummarySheet(Workbook wb, CellStyle headerStyle,
+    private void writeSummarySheet(Workbook wb,
+            List<Loan> loans,
+            List<InterestPayment> payments,
+            List<Product> products,
+            List<Sales> sales,
+            List<Saleitem> items,
+            CellStyle headerStyle,
             CellStyle currencyStyle,
             boolean includeLoan,
             boolean includeInventory,
             boolean includeSales) {
 
-        Sheet sheet = wb.createSheet("Summary");
+        Sheet sheet = createTrackedSheet(wb, "Summary");
         writeHeader(sheet, new String[] { "Category", "Metric", "Value" }, headerStyle);
 
         int ri = 1;
 
         // ── Loan summary ──
-        if (includeLoan) {
-            List<Loan> loans = loanRepo.findAll();
-            List<InterestPayment> payments = interestPaymentRepo.findAll();
-
+        if (includeLoan && loans != null && payments != null) {
             double totalLoanAmount = loans.stream()
                     .mapToDouble(l -> l.getLoanAmount() != null ? l.getLoanAmount().doubleValue() : 0.0).sum();
             double totalSettlement = loans.stream()
@@ -325,9 +337,7 @@ public class ExportService {
         }
 
         // ── Inventory summary ──
-        if (includeInventory) {
-            List<Product> products = proRepo.findAll();
-
+        if (includeInventory && products != null) {
             double totalStockValue = products.stream()
                     .mapToDouble(p -> {
                         double price = p.getPrice() != null ? p.getPrice().doubleValue() : 0.0;
@@ -343,10 +353,7 @@ public class ExportService {
         }
 
         // ── Sales summary ──
-        if (includeSales) {
-            List<Sales> sales = salesRepo.findAll();
-            List<Saleitem> items = saleItemRepo.findAll();
-
+        if (includeSales && sales != null && items != null) {
             double totalRevenue = sales.stream()
                     .mapToDouble(s -> s.getGrandTotal() != null ? s.getGrandTotal().doubleValue() : 0.0).sum();
             double totalGst = sales.stream()
@@ -367,6 +374,14 @@ public class ExportService {
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    private Sheet createTrackedSheet(Workbook wb, String name) {
+        Sheet sheet = wb.createSheet(name);
+        if (sheet instanceof SXSSFSheet sxssfSheet) {
+            sxssfSheet.trackAllColumnsForAutoSizing();
+        }
+        return sheet;
+    }
 
     private void writeHeader(Sheet sheet, String[] cols, CellStyle style) {
         Row row = sheet.createRow(0);

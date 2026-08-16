@@ -1,6 +1,7 @@
 package com.ems.sales.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.format.TextStyle;
@@ -35,8 +36,9 @@ public class SalesService {
     private final ProductRepository productRepository;
     private final SalesRepository saleRepository;
     private final SaleItemRepository saleItemRepository;
-    private final ModelMapper modelMapper;
-
+   
+    private static final BigDecimal GST_RATE = new BigDecimal("0.03");
+    private static final int CURRENCY_SCALE = 2;
    
 
     public List<Sales> getAllSales(){
@@ -56,24 +58,25 @@ public class SalesService {
         for(Map<String, Object> item : items){
             String sku= (String)item.get("sku");
             int quantity = ((Number) item.get("quantity")).intValue();
+           
             
             Product product = productRepository.findBySkuForUpdate(sku).orElseThrow(() -> new ItemNotFoundException("Item not found for sku : " + sku));
             BigDecimal pricePerPiece = product.getPrice();
+            int availableStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
             if (pricePerPiece == null) {
                 pricePerPiece = BigDecimal.ZERO;
             }
         if (quantity <= 0) {
             throw new IllegalArgumentException("Invalid Sales: Quantity must be greater than zero!");
         }
-        if (product.getStockQuantity() < quantity) {
-            throw new InsufficientQuantity("Insufficient stock for: " + sku);
+        if (availableStock < quantity) {
+             throw new InsufficientQuantity("Insufficient stock for: " + sku + " (Available: " + availableStock + ")");
         }
 
-
-            
-        product.setStockQuantity(product.getStockQuantity() - quantity);
+        product.setStockQuantity(availableStock - quantity);
         productRepository.save(product);
-
+            
+  
         Saleitem saleitem = new Saleitem();
 
         saleitem.setSale(savedsale);
@@ -92,10 +95,11 @@ public class SalesService {
         subtotal = subtotal.add(pricePerPiece.multiply(BigDecimal.valueOf(quantity)));
         }
 
-        BigDecimal gst = subtotal.multiply(BigDecimal.valueOf(0.03));
+        BigDecimal gst = subtotal.multiply(GST_RATE).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
+        BigDecimal grandTotal = subtotal.add(gst).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
         savedsale.setSubtotal(subtotal);
         savedsale.setGstAmount(gst);
-        savedsale.setGrandTotal(subtotal.add(gst));
+        savedsale.setGrandTotal(grandTotal);
 
         Sales finalSale = saleRepository.save(savedsale);
         // populate transient itemCount without loading the collection

@@ -3,6 +3,7 @@ import { apiClient } from "./client";
 export type Loan = {
   id: string;
   name: string;
+  fatherName?: string;
   mobileNo: string;
   address?: string;
   metal: "Gold" | "Silver";
@@ -129,4 +130,30 @@ export async function addDisbursement(loanId: string, amount: number, disbursedD
 // DELETE /api/loans/{id}/disbursements/{disbursementId}
 export async function deleteDisbursement(loanId: string, disbursementId: number): Promise<void> {
   await apiClient.delete(`/loans/${loanId}/disbursements/${disbursementId}`);
+}
+
+// GET /api/loans/customer?name=...&fathername=...&address=...
+export async function findLoanByCustomer(
+  name: string,
+  fatherName: string,
+  address?: string
+): Promise<Loan | null> {
+  const cleanName = name.trim();
+  const cleanFather = fatherName.trim();
+  if (!cleanName || !cleanFather) return null;
+
+  try {
+    const params: Record<string, string> = {
+      name: cleanName,
+      fathername: cleanFather,
+    };
+    if (address && address.trim()) {
+      params.address = address.trim();
+    }
+    const { data } = await apiClient.get<Loan | null>("/loans/customer", { params });
+    return data || null;
+  } catch (error) {
+    console.error("Customer lookup failed:", error);
+    return null;
+  }
 }

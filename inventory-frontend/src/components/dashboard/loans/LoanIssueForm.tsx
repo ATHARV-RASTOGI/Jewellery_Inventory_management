@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Scale } from "lucide-react";
+import { Scale, UserCheck, Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
-import { issueLoan } from "@/lib/api/loans";
+import { issueLoan, findLoanByCustomer, type Loan } from "@/lib/api/loans";
 import { queryKeys } from "@/lib/api/query-keys";
+import { formatINR } from "@/lib/utils";
 
 const fieldLabel = "text-[11.5px] font-medium text-muted-foreground tracking-wide";
 const fieldInput =
@@ -14,6 +15,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 type FormState = {
   name: string;
+  fatherName: string;
   phoneNumber: string;
   address: string;
   metalType: "Gold" | "Silver";
@@ -25,6 +27,7 @@ type FormState = {
 
 const initialForm = (): FormState => ({
   name: "",
+  fatherName: "",
   phoneNumber: "",
   address: "",
   metalType: "Gold",
@@ -37,10 +40,49 @@ const initialForm = (): FormState => ({
 export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState>(initialForm());
+  const [existingCustomer, setExistingCustomer] = useState<Loan | null>(null);
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState(false);
+
+  // Live lookup of existing customer by Name & Father's Name
+  useEffect(() => {
+    const trimmedName = form.name.trim();
+    const trimmedFather = form.fatherName.trim();
+
+    if (trimmedName.length < 2 || trimmedFather.length < 2) {
+      setExistingCustomer(null);
+      setIsSearchingCustomer(false);
+      return;
+    }
+
+    setIsSearchingCustomer(true);
+    const timer = setTimeout(async () => {
+      try {
+        const found = await findLoanByCustomer(trimmedName, trimmedFather);
+        setExistingCustomer(found);
+      } catch (err) {
+        console.error("Customer search error:", err);
+      } finally {
+        setIsSearchingCustomer(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [form.name, form.fatherName]);
+
+  const handleAutofill = () => {
+    if (!existingCustomer) return;
+    setForm((prev) => ({
+      ...prev,
+      phoneNumber: existingCustomer.mobileNo || prev.phoneNumber,
+      address: existingCustomer.address || prev.address,
+    }));
+    toast.success("Phone & Address autofilled from existing record!");
+  };
 
   const mutation = useMutation({
     mutationFn: () => issueLoan({
       name: form.name,
+      fatherName: form.fatherName || undefined,
       mobileNo: form.phoneNumber,
       address: form.address,
       metal: form.metalType,
@@ -89,7 +131,10 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
             <button
               type="button"
               className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
-              onClick={() => setForm(initialForm())}
+              onClick={() => {
+                setForm(initialForm());
+                setExistingCustomer(null);
+              }}
             >
               Clear Form
             </button>
@@ -109,10 +154,16 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
           
           {/* Left Column: Customer Profile */}
           <section className="lg:col-span-5 space-y-5">
-            <div className="pb-2 border-b border-border/20">
+            <div className="flex items-center justify-between pb-2 border-b border-border/20">
               <h3 className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">
                 Customer Profile
               </h3>
+              {isSearchingCustomer && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Checking customer…</span>
+                </div>
+              )}
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-5">
@@ -126,6 +177,56 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
                   placeholder="e.g. Anjali Verma"
                 />
               </div>
+              <div className="space-y-1.5">
+                <label className={fieldLabel}>Father's / Husband's name</label>
+                <input
+                  className={fieldInput}
+                  value={form.fatherName}
+                  onChange={(e) => update("fatherName", e.target.value)}
+                  placeholder="e.g. Ramesh Verma"
+                />
+              </div>
+
+              {/* Existing Customer Detected Card */}
+              {existingCustomer && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-2.5 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1 rounded-md bg-primary/10 text-primary">
+                        <UserCheck className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">
+                          Existing Customer Found
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Previous Loan #{existingCustomer.id} · {existingCustomer.status === "ACTIVE" ? "Active" : "Closed"}
+                        </p>
+                      </div>
+                    </div>
+                    {existingCustomer.status === "ACTIVE" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                        <AlertCircle className="w-3 h-3" /> Active Loan ({formatINR(existingCustomer.loanAmount)})
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-[11.5px] text-muted-foreground space-y-0.5 pl-7">
+                    {existingCustomer.mobileNo && <p>📱 {existingCustomer.mobileNo}</p>}
+                    {existingCustomer.address && <p className="truncate">📍 {existingCustomer.address}</p>}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAutofill}
+                    className="w-full mt-1 inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Auto-fill Phone & Address
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <label className={fieldLabel}>Phone number</label>
                 <input

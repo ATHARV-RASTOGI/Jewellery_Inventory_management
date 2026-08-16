@@ -27,29 +27,21 @@ public class GoldRateController {
 
     @GetMapping("/fetch-now")
     public ResponseEntity<String> fetchNow() {
-        try {
-            log.info("Manual gold rate fetch triggered");
-            // Tell the service to do the work in the background
-            java.util.concurrent.CompletableFuture.runAsync(() -> goldRateService.fetchAndSaveGoldRate());
-            return ResponseEntity.ok("Gold rate fetch initiated in the background.");
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
-        }
+        log.info("Manual gold rate fetch triggered");
+        goldRateService.fetchOnStartupAsync();
+        return ResponseEntity.ok("Gold rate fetch initiated in the background.");
     }
 
     @GetMapping("/latest")
     public ResponseEntity<Goldrates> getLatestGoldRate() {
-        try {
-            // Ask the service for the latest rate
+       
             Goldrates latestRate = goldRateService.getLatestGoldRate();
             
             if (latestRate == null) {
                 return ResponseEntity.notFound().build();
             }
             return ResponseEntity.ok(latestRate);
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
+      
     }
 
     @PostMapping("/update")

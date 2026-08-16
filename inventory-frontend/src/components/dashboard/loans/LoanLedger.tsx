@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, MoreHorizontal, X, CheckCircle2, IndianRupee, PlusCircle } from "lucide-react";
+import { Search, MoreHorizontal, X, CheckCircle2, IndianRupee, PlusCircle, User, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { calculateSettlement, type SettlementCalculation } from "@/lib/api/loans";
 
@@ -40,7 +40,8 @@ const FALLBACK_MONTHLY_INTEREST_RATE = 0.02;
 
 export const LoanLedger = () => {
   const qc = useQueryClient();
-  const [search, setSearch] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [addressSearch, setAddressSearch] = useState("");
   const [tab, setTab] = useState<"all" | LoanStatus>("all");
   const [computed, setComputed] = useState<SettlementCalculation | null>(null);
 
@@ -70,12 +71,27 @@ export const LoanLedger = () => {
     queryFn: fetchLoans,
   });
 
-  // fetch payment history when dialog opens
+  // fetch payment history when interest dialog opens
   const { data: interestPayment = [] } = useQuery<InterestPayment[]>({
     queryKey: ["payments", interestTarget?.id],
     queryFn: () => fetchInterestPayments(interestTarget!.id),
     enabled: !!interestTarget,
   });
+
+  // fetch payment history when disbursement dialog opens
+  const { data: disbursePayments = [] } = useQuery<InterestPayment[]>({
+    queryKey: ["payments", disburseTarget?.id],
+    queryFn: () => fetchInterestPayments(disburseTarget!.id),
+    enabled: !!disburseTarget,
+  });
+
+  const minDisburseDate = useMemo(() => {
+    if (!disburseTarget) return todayIso();
+    if (disbursePayments.length > 0) {
+      return disbursePayments[disbursePayments.length - 1].paymentDate;
+    }
+    return disburseTarget.issueDate;
+  }, [disburseTarget, disbursePayments]);
 
   // fetch pending disbursements when dialog opens
   const { data: pendingDisbursements = [] } = useQuery<PendingDisbursement[]>({
@@ -123,7 +139,14 @@ export const LoanLedger = () => {
       qc.invalidateQueries({ queryKey: queryKeys.loans });
       qc.invalidateQueries({ queryKey: ["pending-disbursements"] });
     },
-    onError: () => toast.error("Failed to add disbursement"),
+    onError: (err: any) => {
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to add disbursement";
+      toast.error(msg);
+    },
   });
 
 
@@ -191,17 +214,35 @@ export const LoanLedger = () => {
 
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const cQuery = customerSearch.trim().toLowerCase();
+    const aQuery = addressSearch.trim().toLowerCase();
+
     return loans.filter((l: Loan) => {
       const tabMatch = tab === "all" || l.status === tab;
-      const qMatch =
-        !q ||
-        l.name.toLowerCase().includes(q) ||
-        l.id.toLowerCase().includes(q) ||
-        l.metal.toLowerCase().includes(q);
-      return tabMatch && qMatch;
+
+      const customerMatch =
+        !cQuery ||
+        (l.name ? l.name.toLowerCase().includes(cQuery) : false) ||
+        (l.fatherName ? l.fatherName.toLowerCase().includes(cQuery) : false) ||
+        String(l.id || "").toLowerCase().includes(cQuery);
+
+      const addressMatch =
+        !aQuery ||
+        (l.address ? l.address.toLowerCase().includes(aQuery) : false);
+
+      let searchMatch = true;
+      if (cQuery && aQuery) {
+        // Independent OR match as requested: matches either customer or address
+        searchMatch = customerMatch || addressMatch;
+      } else if (cQuery) {
+        searchMatch = customerMatch;
+      } else if (aQuery) {
+        searchMatch = addressMatch;
+      }
+
+      return tabMatch && searchMatch;
     });
-  }, [loans, search, tab]);
+  }, [loans, customerSearch, addressSearch, tab]);
 
   const totals = useMemo(() => {
     const activeLoans = filtered.filter((l) => l.status === "ACTIVE");
@@ -211,17 +252,51 @@ export const LoanLedger = () => {
   return (
     <div className="space-y-4">
       {/* ── toolbar ── */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search loans…"
-            className="w-full pl-9 pr-3 py-2 text-sm bg-surface-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
-          />
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
+          {/* Customer / Father Name Search */}
+          <div className="relative flex-1 max-w-sm">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              value={customerSearch}
+              onChange={(e) => setCustomerSearch(e.target.value)}
+              placeholder="Search name / father's name…"
+              className="w-full pl-9 pr-8 py-2 text-sm bg-surface-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {customerSearch && (
+              <button
+                type="button"
+                onClick={() => setCustomerSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Address Search */}
+          <div className="relative flex-1 max-w-sm">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              value={addressSearch}
+              onChange={(e) => setAddressSearch(e.target.value)}
+              placeholder="Search by address…"
+              className="w-full pl-9 pr-8 py-2 text-sm bg-surface-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {addressSearch && (
+              <button
+                type="button"
+                onClick={() => setAddressSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex gap-1">
+
+        {/* Status Tabs */}
+        <div className="flex gap-1 shrink-0">
           {(["all", "ACTIVE", "CLOSED"] as const).map((t) => (
             <button
               key={t}
@@ -244,14 +319,25 @@ export const LoanLedger = () => {
         <span className="font-semibold text-foreground">{formatINR(totals.outstanding)}</span>
       </p>
 
-      <div className="rounded-xl border border-border overflow-hidden">
+      <div className="rounded-xl border border-border overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-surface-2">
-              {["Loan ID", "Customer", "Collateral", "Issued", "Amount", "Status", ""].map((h) => (
+              {[
+                "Loan ID",
+                "Customer",
+                "Father's Name",
+                "Metal",
+                "Weight",
+                "Description",
+                "Issued",
+                "Amount",
+                "Status",
+                "",
+              ].map((h) => (
                 <th
                   key={h}
-                  className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+                  className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
                 >
                   {h}
                 </th>
@@ -261,19 +347,38 @@ export const LoanLedger = () => {
           <tbody className="divide-y divide-border">
             {filtered.map((l: Loan) => (
               <tr key={l.id} className="hover:bg-surface-2/50 transition-colors">
-                <td className="px-4 py-3.5 text-muted-foreground text-xs">{l.id}</td>
-                <td className="px-4 py-3.5">
+                <td className="px-4 py-3.5 text-muted-foreground text-xs font-mono">{l.id}</td>
+                <td className="px-4 py-3.5 whitespace-nowrap">
                   <p className="font-semibold text-[13px]">{l.name}</p>
                   <p className="text-[11px] text-muted-foreground">{l.mobileNo}</p>
                 </td>
-                <td className="px-4 py-3.5 font-medium">{l.metal}</td>
-                <td className="px-4 py-3.5 text-muted-foreground text-[13px]">
+                <td className="px-4 py-3.5 text-[13px] whitespace-nowrap">
+                  {l.fatherName ? (
+                    <span className="font-medium text-foreground/90">{l.fatherName}</span>
+                  ) : (
+                    <span className="text-muted-foreground/40">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3.5 font-medium text-[13px] whitespace-nowrap">{l.metal}</td>
+                <td className="px-4 py-3.5 text-[13px] tabular-nums font-medium whitespace-nowrap">
+                  {l.weight ? (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11.5px] font-medium bg-surface-2 text-foreground/90 border border-border/50">
+                      {l.weight} g
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground/40">—</span>
+                  )}
+                </td>
+                <td className="px-4 py-3.5 text-[12.5px] text-muted-foreground max-w-[200px] truncate" title={l.description || ""}>
+                  {l.description || <span className="text-muted-foreground/40">—</span>}
+                </td>
+                <td className="px-4 py-3.5 text-muted-foreground text-[13px] whitespace-nowrap">
                   {fmtDate(l.issueDate)}
                 </td>
-                <td className="px-4 py-3.5 font-semibold tabular-nums">
+                <td className="px-4 py-3.5 font-semibold tabular-nums whitespace-nowrap">
                   {formatINR(l.loanAmount)}
                 </td>
-                <td className="px-4 py-3.5">
+                <td className="px-4 py-3.5 whitespace-nowrap">
                   <span
                     className={cn(
                       "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium capitalize",
@@ -333,7 +438,7 @@ export const LoanLedger = () => {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={10} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   No loans found.
                 </td>
               </tr>
@@ -357,7 +462,8 @@ export const LoanLedger = () => {
               <div>
                 <h3 className="text-base font-semibold">Add Disbursement</h3>
                 <p className="text-[12px] text-muted-foreground mt-0.5">
-                  Loan #{disburseTarget.id} · {disburseTarget.name}
+                  Loan #{disburseTarget.id} · {disburseTarget.name} · {disburseTarget.metal}
+                  {disburseTarget.weight ? ` (${disburseTarget.weight}g)` : ""}
                 </p>
               </div>
               <button
@@ -389,10 +495,15 @@ export const LoanLedger = () => {
                 <input
                   type="date"
                   value={disburseDate}
+                  min={minDisburseDate}
                   max={todayIso()}
                   onChange={(e) => setDisburseDate(e.target.value)}
                   className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Earliest allowed date: <span className="font-medium text-foreground">{fmtDate(minDisburseDate)}</span>
+                  {disbursePayments.length > 0 ? " (last interest payment)" : " (loan origination)"}
+                </p>
               </div>
             </div>
 
@@ -404,14 +515,22 @@ export const LoanLedger = () => {
                 Cancel
               </button>
               <button
-                disabled={disburseMutation.isPending || disburseAmount <= 0}
-                onClick={() =>
+                disabled={
+                  disburseMutation.isPending ||
+                  disburseAmount <= 0 ||
+                  Boolean(disburseDate && disburseDate < minDisburseDate)
+                }
+                onClick={() => {
+                  if (disburseDate < minDisburseDate) {
+                    toast.error(`Disbursement date cannot be earlier than ${fmtDate(minDisburseDate)}`);
+                    return;
+                  }
                   disburseMutation.mutate({
                     id: disburseTarget.id,
                     amount: disburseAmount,
                     date: disburseDate,
-                  })
-                }
+                  });
+                }}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60"
               >
                 <PlusCircle className="w-4 h-4" />
@@ -437,7 +556,8 @@ export const LoanLedger = () => {
               <div>
                 <h3 className="text-base font-semibold">Pay Interest</h3>
                 <p className="text-[12px] text-muted-foreground mt-0.5">
-                  Loan #{interestTarget.id} · {interestTarget.name}
+                  Loan #{interestTarget.id} · {interestTarget.name} · {interestTarget.metal}
+                  {interestTarget.weight ? ` (${interestTarget.weight}g)` : ""}
                 </p>
               </div>
               <button
@@ -597,6 +717,7 @@ export const LoanLedger = () => {
                 <h3 className="text-base font-semibold">Close loan #{settleTarget.id}</h3>
                 <p className="text-[12px] text-muted-foreground mt-0.5">
                   {settleTarget.name} · {settleTarget.metal}
+                  {settleTarget.weight ? ` (${settleTarget.weight}g)` : ""}
                 </p>
               </div>
               <button
