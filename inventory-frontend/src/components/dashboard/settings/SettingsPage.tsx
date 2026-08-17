@@ -1,28 +1,55 @@
 import { ExportButton } from "../../ui/ExportButton";
 import { CategorySettings } from "./CategorySettings";
+import { ThemeSelector } from "@/components/settings/ThemeSelector";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export const SettingsPage = () => (
-  <div className="space-y-6 max-w-2xl animate-in fade-in slide-in-from-top-4 duration-300">
-    {/* ── Data Backup ─────────────────────────────────────── */}
-    <div className="rounded-xl bg-surface p-6 border border-border/40">
-      <h2 className="text-sm font-medium tracking-tight mb-1 text-foreground">
-        Data Backup &amp; Reports
-      </h2>
-      <p className="text-[12px] text-muted-foreground mb-4">
-        Export your loans, inventory, and sales data as an Excel file.
-      </p>
-      <ExportButton />
-    </div>
+  <div className="space-y-6 max-w-4xl animate-in fade-in duration-300">
+    <PageHeader
+      breadcrumbs={["Dashboard", "System", "Settings"]}
+      title="System Settings"
+      subtitle="Customize workspace theme appearance, export store database backups, and manage jewelry category trees."
+    />
 
-    {/* ── Category Management ─────────────────────────────── */}
-    <div className="rounded-xl bg-surface p-6 border border-border/40">
-      <h2 className="text-sm font-medium tracking-tight mb-1 text-foreground">
-        Categories &amp; Subcategories
-      </h2>
-      <p className="text-[12px] text-muted-foreground mb-4">
-        Manage the product categories shown in the sidebar and product forms.
-      </p>
-      <CategorySettings />
+    <div className="space-y-8 pt-2">
+      {/* ── Theme & Appearance ───────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="pb-2 border-b border-border/60">
+          <h2 className="text-[15px] font-bold tracking-tight text-foreground">
+            Theme &amp; Visual Appearance
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Select your preferred visual mode for counter POS and ledger management.
+          </p>
+        </div>
+        <ThemeSelector />
+      </div>
+
+      {/* ── Data Backup ─────────────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="pb-2 border-b border-border/60">
+          <h2 className="text-[15px] font-bold tracking-tight text-foreground">
+            Data Backup &amp; Master Export
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Generate an aggregated spreadsheet workbook containing loans, catalog items, and sales records.
+          </p>
+        </div>
+        <ExportButton />
+      </div>
+
+      {/* ── Category Management ─────────────────────────────── */}
+      <div className="space-y-4">
+        <div className="pb-2 border-b border-border/60">
+          <h2 className="text-[15px] font-bold tracking-tight text-foreground">
+            Categories &amp; Subcategories Management
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Organize product category trees displayed in the sidebar and catalog filters.
+          </p>
+        </div>
+        <CategorySettings />
+      </div>
     </div>
   </div>
 );

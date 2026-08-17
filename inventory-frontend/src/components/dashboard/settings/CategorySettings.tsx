@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
@@ -8,18 +8,21 @@ import {
   Trash2,
   Check,
   X,
-  AlertTriangle,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useCategories,
-  type CategoryConfig,
   type Category,
   type SubCategory,
 } from "@/lib/categories";
 import { fetchProducts } from "@/lib/api/inventory";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { fieldInput } from "@/lib/styles";
 
-/* ── Helpers ──────────────────────────────────────────────── */
 function slug(label: string): string {
   return label
     .toLowerCase()
@@ -27,38 +30,25 @@ function slug(label: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-const sectionBtn =
-  "px-4 py-2.5 text-sm font-medium rounded-lg transition-colors";
-
-const fieldInput =
-  "w-full bg-surface-2 border border-transparent rounded-lg py-2 px-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring transition-all";
-
 export const CategorySettings = () => {
   const { gold, silver, setGold, setSilver } = useCategories();
   const [metal, setMetal] = useState<"gold" | "silver">("gold");
   const categories = metal === "gold" ? gold : silver;
   const setCategories = metal === "gold" ? setGold : setSilver;
 
-  // Fetch products to check for orphans on delete
   const { data: allProducts = [] } = useQuery({
     queryKey: ["products", "all"],
     queryFn: () => fetchProducts("all"),
   });
 
-  // Which category is expanded in the editor
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  // Inline editing state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-
-  // Adding state
   const [addingCat, setAddingCat] = useState(false);
   const [newCatLabel, setNewCatLabel] = useState("");
   const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
   const [newSubLabel, setNewSubLabel] = useState("");
 
-  // Delete confirmation state
   const [deleteConfirm, setDeleteConfirm] = useState<{
     type: "category" | "subcategory";
     catId: string;
@@ -67,7 +57,6 @@ export const CategorySettings = () => {
     productCount: number;
   } | null>(null);
 
-  /* ── Product count helpers ──────────────────────────────── */
   const productCountForCategory = (catId: string) =>
     allProducts.filter(
       (p) =>
@@ -82,12 +71,11 @@ export const CategorySettings = () => {
         p.subCategory === subId
     ).length;
 
-  /* ── Mutations ──────────────────────────────────────────── */
   const addCategory = () => {
     const label = newCatLabel.trim();
     if (!label) return;
     const id = slug(label);
-    if (categories.some((c) => c.id === id)) return; // duplicate guard
+    if (categories.some((c) => c.id === id)) return;
     setCategories([...categories, { id, label, subcategories: [] }]);
     setNewCatLabel("");
     setAddingCat(false);
@@ -151,14 +139,16 @@ export const CategorySettings = () => {
     setCategories(
       categories.map((c) =>
         c.id === catId
-          ? { ...c, subcategories: c.subcategories.filter((s) => s.id !== subId) }
+          ? {
+              ...c,
+              subcategories: c.subcategories.filter((s) => s.id !== subId),
+            }
           : c
       )
     );
     setDeleteConfirm(null);
   };
 
-  /* ── Try delete with product-count warning ─────────────── */
   const tryDeleteCategory = (cat: Category) => {
     const count = productCountForCategory(cat.id);
     if (count > 0) {
@@ -189,51 +179,60 @@ export const CategorySettings = () => {
   };
 
   return (
-    <div className="space-y-5">
-      {/* ── Metal tabs ────────────────────────────────────── */}
-      <div className="flex gap-2">
+    <div className="space-y-4">
+      {/* Metal Switcher */}
+      <div className="flex items-center gap-2 p-1 bg-surface-2 border border-border/60 rounded-xl w-fit">
         <button
-          onClick={() => setMetal("gold")}
+          type="button"
+          onClick={() => {
+            setMetal("gold");
+            setExpandedId(null);
+          }}
           className={cn(
-            sectionBtn,
+            "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
             metal === "gold"
-              ? "bg-amber-500/15 text-amber-500 shadow-[0_0_0_1px_oklch(0.82_0.13_86/0.2)]"
-              : "text-muted-foreground hover:bg-surface-2"
+              ? "bg-surface text-amber-400 font-bold shadow-xs border border-border/80"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 mr-2" />
-          Gold
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          Gold Categories ({gold.length})
         </button>
+
         <button
-          onClick={() => setMetal("silver")}
+          type="button"
+          onClick={() => {
+            setMetal("silver");
+            setExpandedId(null);
+          }}
           className={cn(
-            sectionBtn,
+            "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
             metal === "silver"
-              ? "bg-slate-400/15 text-slate-300 shadow-[0_0_0_1px_oklch(0.7_0.01_250/0.2)]"
-              : "text-muted-foreground hover:bg-surface-2"
+              ? "bg-surface text-slate-300 font-bold shadow-xs border border-border/80"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-slate-300 mr-2" />
-          Silver
+          <span className="w-2 h-2 rounded-full bg-slate-300" />
+          Silver Categories ({silver.length})
         </button>
       </div>
 
-      {/* ── Category list ─────────────────────────────────── */}
-      <div className="space-y-1">
+      {/* Category Tree Items */}
+      <div className="rounded-xl border border-border/80 bg-surface divide-y divide-border/50 overflow-hidden shadow-xs">
         {categories.map((cat) => {
           const isExpanded = expandedId === cat.id;
-          const isEditingCat = editingId === `cat-${cat.id}`;
+          const isEditing = editingId === cat.id;
+          const prodCount = productCountForCategory(cat.id);
 
           return (
-            <div
-              key={cat.id}
-              className="rounded-xl border border-border/40 bg-surface overflow-hidden"
-            >
-              {/* Category row */}
-              <div className="flex items-center gap-2 px-4 py-3">
+            <div key={cat.id} className="p-3">
+              <div className="flex items-center gap-2.5">
                 <button
-                  onClick={() => setExpandedId(isExpanded ? null : cat.id)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  type="button"
+                  onClick={() =>
+                    setExpandedId(isExpanded ? null : cat.id)
+                  }
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
                 >
                   {isExpanded ? (
                     <ChevronDown className="w-4 h-4" />
@@ -242,11 +241,13 @@ export const CategorySettings = () => {
                   )}
                 </button>
 
-                {isEditingCat ? (
+                <Layers className="w-4 h-4 text-primary shrink-0" />
+
+                {isEditing ? (
                   <div className="flex items-center gap-2 flex-1">
                     <input
                       autoFocus
-                      className={fieldInput}
+                      className="bg-surface-2 border border-border rounded-lg py-1 px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       onKeyDown={(e) => {
@@ -254,61 +255,83 @@ export const CategorySettings = () => {
                         if (e.key === "Escape") setEditingId(null);
                       }}
                     />
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={() => renameCategory(cat.id, editValue)}
-                      className="p-1.5 rounded-md text-success hover:bg-success/10"
+                      className="h-7 px-2"
                     >
-                      <Check className="w-4 h-4" />
-                    </button>
-                    <button
+                      <Check className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setEditingId(null)}
-                      className="p-1.5 rounded-md text-muted-foreground hover:bg-surface-2"
+                      className="h-7 px-2"
                     >
-                      <X className="w-4 h-4" />
-                    </button>
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
                 ) : (
-                  <>
-                    <span className="flex-1 text-sm font-medium">{cat.label}</span>
-                    <span className="text-[11px] text-muted-foreground tabular-nums mr-2">
-                      {cat.subcategories.length} sub
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-sm font-semibold text-foreground">
+                      {cat.label}
                     </span>
-                    <button
-                      title="Rename"
+                    <span className="text-xs text-muted-foreground font-mono">
+                      ({cat.id})
+                    </span>
+                    {prodCount > 0 && (
+                      <StatusBadge variant="neutral">
+                        {prodCount} item{prodCount > 1 ? "s" : ""}
+                      </StatusBadge>
+                    )}
+                  </div>
+                )}
+
+                {!isEditing && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Rename category"
                       onClick={() => {
-                        setEditingId(`cat-${cat.id}`);
+                        setEditingId(cat.id);
                         setEditValue(cat.label);
                       }}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
+                      className="h-7 w-7"
                     >
                       <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       title="Delete category"
                       onClick={() => tryDeleteCategory(cat)}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      className="h-7 w-7 text-muted-foreground hover:text-danger"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </>
+                    </Button>
+                  </div>
                 )}
               </div>
 
-              {/* Subcategories */}
+              {/* Subcategories list */}
               {isExpanded && (
-                <div className="px-4 pb-3 ml-6 space-y-1">
+                <div className="ml-8 mt-3 pl-4 border-l border-border/60 space-y-2 animate-in fade-in duration-150">
                   {cat.subcategories.map((sub) => {
-                    const isEditingSub = editingId === `sub-${sub.id}`;
+                    const isSubEditing = editingId === sub.id;
+                    const subProdCount = productCountForSubcategory(sub.id);
+
                     return (
                       <div
                         key={sub.id}
-                        className="flex items-center gap-2 py-1.5 text-[13px]"
+                        className="flex items-center gap-2 text-xs py-1"
                       >
-                        {isEditingSub ? (
+                        {isSubEditing ? (
                           <div className="flex items-center gap-2 flex-1">
                             <input
                               autoFocus
-                              className={fieldInput}
+                              className="bg-surface-2 border border-border rounded py-1 px-2 text-xs text-foreground focus:ring-1 focus:ring-ring"
                               value={editValue}
                               onChange={(e) => setEditValue(e.target.value)}
                               onKeyDown={(e) => {
@@ -321,36 +344,41 @@ export const CategorySettings = () => {
                               onClick={() =>
                                 renameSubcategory(cat.id, sub.id, editValue)
                               }
-                              className="p-1 rounded-md text-success hover:bg-success/10"
+                              className="p-1 rounded text-success"
                             >
                               <Check className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setEditingId(null)}
-                              className="p-1 rounded-md text-muted-foreground hover:bg-surface-2"
+                              className="p-1 rounded text-muted-foreground"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ) : (
                           <>
-                            <span className="flex-1 text-muted-foreground">
+                            <span className="text-muted-foreground font-medium flex-1">
                               {sub.label}
                             </span>
+                            {subProdCount > 0 && (
+                              <span className="text-[10px] font-mono text-muted-foreground bg-surface-2 px-1.5 py-0.5 rounded">
+                                {subProdCount}
+                              </span>
+                            )}
                             <button
-                              title="Rename"
+                              title="Edit subcategory"
                               onClick={() => {
-                                setEditingId(`sub-${sub.id}`);
+                                setEditingId(sub.id);
                                 setEditValue(sub.label);
                               }}
-                              className="p-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-surface-2 transition-colors"
+                              className="p-1 rounded text-muted-foreground hover:text-foreground"
                             >
                               <Pencil className="w-3 h-3" />
                             </button>
                             <button
                               title="Delete subcategory"
                               onClick={() => tryDeleteSubcategory(cat.id, sub)}
-                              className="p-1 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              className="p-1 rounded text-muted-foreground hover:text-danger"
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -360,13 +388,13 @@ export const CategorySettings = () => {
                     );
                   })}
 
-                  {/* Add subcategory */}
+                  {/* Add Subcategory row */}
                   {addingSubFor === cat.id ? (
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-2">
                       <input
                         autoFocus
                         placeholder="Subcategory name…"
-                        className={fieldInput}
+                        className="bg-surface-2 border border-border/80 rounded-lg py-1 px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                         value={newSubLabel}
                         onChange={(e) => setNewSubLabel(e.target.value)}
                         onKeyDown={(e) => {
@@ -374,18 +402,22 @@ export const CategorySettings = () => {
                           if (e.key === "Escape") setAddingSubFor(null);
                         }}
                       />
-                      <button
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={() => addSubcategory(cat.id)}
-                        className="p-1.5 rounded-md text-success hover:bg-success/10"
+                        className="h-7 px-2"
                       >
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button
+                        <Check className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setAddingSubFor(null)}
-                        className="p-1.5 rounded-md text-muted-foreground hover:bg-surface-2"
+                        className="h-7 px-2"
                       >
-                        <X className="w-4 h-4" />
-                      </button>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   ) : (
                     <button
@@ -393,7 +425,7 @@ export const CategorySettings = () => {
                         setAddingSubFor(cat.id);
                         setNewSubLabel("");
                       }}
-                      className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground mt-1 py-1 transition-colors"
+                      className="flex items-center gap-1.5 text-xs text-primary font-medium hover:underline mt-2 pt-1"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add subcategory
@@ -406,13 +438,13 @@ export const CategorySettings = () => {
         })}
       </div>
 
-      {/* ── Add category ──────────────────────────────────── */}
+      {/* Add Category Trigger */}
       {addingCat ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 p-3 bg-surface border border-border/80 rounded-xl">
           <input
             autoFocus
-            placeholder="New category name…"
-            className={fieldInput}
+            placeholder="New category name (e.g. Bangles, Anklets)…"
+            className="flex-1 bg-surface-2 border border-border rounded-lg py-2 px-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             value={newCatLabel}
             onChange={(e) => setNewCatLabel(e.target.value)}
             onKeyDown={(e) => {
@@ -420,76 +452,54 @@ export const CategorySettings = () => {
               if (e.key === "Escape") setAddingCat(false);
             }}
           />
-          <button
-            onClick={addCategory}
-            className="p-2 rounded-lg text-success hover:bg-success/10 transition-colors"
-          >
-            <Check className="w-4 h-4" />
-          </button>
-          <button
+          <Button variant="primary" size="sm" onClick={addCategory}>
+            <Check className="w-4 h-4 mr-1" /> Add
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setAddingCat(false)}
-            className="p-2 rounded-lg text-muted-foreground hover:bg-surface-2 transition-colors"
           >
-            <X className="w-4 h-4" />
-          </button>
+            Cancel
+          </Button>
         </div>
       ) : (
-        <button
+        <Button
+          variant="secondary"
+          size="md"
           onClick={() => {
             setAddingCat(true);
             setNewCatLabel("");
           }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-border/60 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors w-full"
+          leftIcon={<Plus className="w-4 h-4" />}
+          className="w-full border-dashed"
         >
-          <Plus className="w-4 h-4" />
-          Add {metal === "gold" ? "gold" : "silver"} category
-        </button>
+          Add {metal === "gold" ? "Gold" : "Silver"} Category
+        </Button>
       )}
 
-      {/* ── Delete confirmation modal ─────────────────────── */}
+      {/* Delete Confirmation Modal */}
       {deleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setDeleteConfirm(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl bg-surface p-6 space-y-4 animate-in zoom-in-95"
-            style={{ boxShadow: "var(--shadow-elevated)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-warning" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold">Delete "{deleteConfirm.label}"?</h3>
-                <p className="text-[12px] text-muted-foreground mt-0.5">
-                  {deleteConfirm.productCount} product{deleteConfirm.productCount > 1 ? "s" : ""}{" "}
-                  currently use this {deleteConfirm.type}. They will remain in the database but
-                  won't appear in the sidebar navigation.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() =>
-                  deleteConfirm.type === "category"
-                    ? removeCategory(deleteConfirm.catId)
-                    : removeSubcategory(deleteConfirm.catId, deleteConfirm.subId!)
-                }
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-destructive text-destructive-foreground hover:opacity-90"
-              >
-                Delete anyway
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          open={!!deleteConfirm}
+          onClose={() => setDeleteConfirm(null)}
+          onConfirm={() =>
+            deleteConfirm.type === "category"
+              ? removeCategory(deleteConfirm.catId)
+              : removeSubcategory(deleteConfirm.catId, deleteConfirm.subId!)
+          }
+          title={`Delete "${deleteConfirm.label}"?`}
+          description={
+            <>
+              {deleteConfirm.productCount} product
+              {deleteConfirm.productCount > 1 ? "s" : ""} currently use this{" "}
+              {deleteConfirm.type}. They will remain in database records but will
+              no longer appear in sidebar filters.
+            </>
+          }
+          confirmText="Delete Category"
+          isDestructive={true}
+        />
       )}
     </div>
   );

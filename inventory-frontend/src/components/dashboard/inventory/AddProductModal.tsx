@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Zap, Plus, Save } from "lucide-react";
 import { type Product } from "@/lib/api/inventory";
 import { fetchGoldRate, fetchSilverRate } from "@/lib/api/dashboard";
 import { useCategories } from "@/lib/categories";
+import { Modal } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { fieldLabel, selectClass } from "@/lib/styles";
 
 type Props = {
   open: boolean;
@@ -12,7 +15,7 @@ type Props = {
   onCreate: (p: Product) => void;
   onUpdate?: (p: Product) => void;
   productToEdit?: Product | null;
-  activeCategory: string; // Add this!
+  activeCategory: string;
 };
 
 const EMPTY: Omit<Product, "id"> = {
@@ -27,21 +30,12 @@ const EMPTY: Omit<Product, "id"> = {
   price: 0,
 };
 
-
-// Purity multipliers (fraction of 24K pure gold)
 const PURITY_MULTIPLIER: Record<string, number> = {
   "24K": 1.0,
-  "20K": 20 / 24,   // 0.8333 
-  "22K": 22 / 24,   // 0.9167
-  "18K": 18 / 24,   // 0.75
+  "20K": 20 / 24,
+  "22K": 22 / 24,
+  "18K": 18 / 24,
 };
-
-// Making charge as % of gold value (adjust to your shop's rate)
-const MAKING_CHARGE_PERCENT = 0.12; // 12%
-
-const fieldLabel = "text-[11.5px] font-medium text-muted-foreground tracking-wide";
-const fieldInput =
-  "w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-ring transition-all";
 
 export const AddProductModal = ({
   open,
@@ -55,9 +49,13 @@ export const AddProductModal = ({
   const [priceOverridden, setPriceOverridden] = useState(false);
   const { gold: goldCategories, silver: silverCategories } = useCategories();
 
-  // Derive category list based on selected material
-  const currentCategories = form.material?.toLowerCase() === "silver" ? silverCategories : goldCategories;
-  const currentMainCat = currentCategories.find((c) => c.id === form.mainCategory);
+  const currentCategories =
+    form.material?.toLowerCase() === "silver"
+      ? silverCategories
+      : goldCategories;
+  const currentMainCat = currentCategories.find(
+    (c) => c.id === form.mainCategory
+  );
   const currentSubcategories = currentMainCat?.subcategories ?? [];
 
   const { data: goldRate } = useQuery({
@@ -67,7 +65,6 @@ export const AddProductModal = ({
     staleTime: 1000 * 60 * 5,
   });
 
-  // NEW: Fetch the silver rate independently
   const { data: silverRate } = useQuery({
     queryKey: ["dashboard-silver-rate"],
     queryFn: fetchSilverRate,
@@ -75,62 +72,61 @@ export const AddProductModal = ({
     staleTime: 1000 * 60 * 5,
   });
 
- useEffect(() => {
+  useEffect(() => {
     if (open) {
       if (productToEdit) {
         setForm(productToEdit);
         setPriceOverridden(true);
       } else {
-        // Check if the sidebar is currently on a silver or gold category
-       // Extract all pieces from the activeCategory
         const isSilver = activeCategory.startsWith("silver");
-        const categoryParts = activeCategory.split("-"); 
-        
-        // e.g., "silver-anklets-daily" -> "anklets"
-        const cleanMainCategory = categoryParts.length > 1 ? categoryParts[1] : activeCategory;
-        
-        // e.g., "silver-anklets-daily" -> "anklets-daily" (matching your DB format!)
-        const cleanSubCategory = categoryParts.length > 2 
-          ? `${categoryParts[1]}-${categoryParts[2]}` 
-          : "";
+        const categoryParts = activeCategory.split("-");
 
-        // Pre-configure the modal!
+        const cleanMainCategory =
+          categoryParts.length > 1 ? categoryParts[1] : activeCategory;
+        const cleanSubCategory =
+          categoryParts.length > 2
+            ? `${categoryParts[1]}-${categoryParts[2]}`
+            : "";
+
         setForm({
           ...EMPTY,
           material: isSilver ? "Silver" : "Gold",
-          purity: isSilver ? "NA" : "22K", 
-          mainCategory: cleanMainCategory, 
-          subCategory: cleanSubCategory, // <--- THIS SAVES IT TO THE DB!
+          purity: isSilver ? "NA" : "22K",
+          mainCategory: cleanMainCategory,
+          subCategory: cleanSubCategory,
         });
-        
+
         setPriceOverridden(false);
       }
     }
   }, [open, productToEdit, activeCategory]);
 
-  // Auto-calculate price whenever weight, purity, or gold rate changes
+  // Auto-calculate price whenever weight, purity, or live rates change
   useEffect(() => {
-  const weight = Number(form.baseWeight);
-  
-  console.log("calc check:", { priceOverridden, rate: goldRate?.rate, weight });
-  
-  if (priceOverridden || !goldRate?.rate || !weight) return;
+    const weight = Number(form.baseWeight);
+    if (priceOverridden || !weight) return;
 
-  if (form.material?.toLowerCase() === "gold") {
-    const perGram = goldRate.rate / 10;
-    const purityFactor = PURITY_MULTIPLIER[form.purity] ?? (22 / 24);
-    const goldValue = perGram * weight * purityFactor;
-    const making = goldValue * 0.12;
-    setForm((p) => ({ ...p, price: Math.round(goldValue + making) }));
-
-  } else {
-    const currentSilverRate = silverRate?.rate ?? 95;
-    const silverValue = currentSilverRate * weight;
-    const making = silverValue * 0.08;
-    setForm((p) => ({ ...p, price: Math.round(silverValue + making) }));
-  }
-
-}, [form.baseWeight, form.purity, form.material, goldRate, silverRate, priceOverridden]);
+    if (form.material?.toLowerCase() === "gold") {
+      if (!goldRate?.rate) return;
+      const perGram = goldRate.rate / 10;
+      const purityFactor = PURITY_MULTIPLIER[form.purity] ?? 22 / 24;
+      const goldValue = perGram * weight * purityFactor;
+      const making = goldValue * 0.12;
+      setForm((p) => ({ ...p, price: Math.round(goldValue + making) }));
+    } else {
+      const currentSilverRate = silverRate?.rate ?? 95;
+      const silverValue = currentSilverRate * weight;
+      const making = silverValue * 0.08;
+      setForm((p) => ({ ...p, price: Math.round(silverValue + making) }));
+    }
+  }, [
+    form.baseWeight,
+    form.purity,
+    form.material,
+    goldRate,
+    silverRate,
+    priceOverridden,
+  ]);
 
   if (!open) return null;
 
@@ -148,299 +144,193 @@ export const AddProductModal = ({
     onClose();
   };
 
-  // What the live rate works out to per gram for the selected purity
   const perGramForPurity = goldRate
     ? (goldRate.rate / 10) * (PURITY_MULTIPLIER[form.purity] ?? 1)
     : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/70 backdrop-blur-sm">
-      <div
-        className="w-full max-w-xl rounded-2xl bg-surface p-6"
-        style={{ boxShadow: "var(--shadow-elevated)" }}
-      >
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <h3 className="text-lg font-semibold tracking-tight">
-              {productToEdit ? "Edit product" : "Add new product"}
-            </h3>
-            <p className="text-[12.5px] text-muted-foreground mt-0.5">
-              {goldRate ? (
-                <span className="flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-amber-400" />
-                  Live gold rate: ₹{Math.round(goldRate.rate).toLocaleString("en-IN")}
-                  /10g · {form.purity} @ ₹
-                  {perGramForPurity
-                    ? Math.round(perGramForPurity).toLocaleString("en-IN")
-                    : "—"}
-                  /g
-                </span>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={productToEdit ? "Edit Jewelry Item" : "Add New Jewelry Item"}
+      subtitle={
+        goldRate ? (
+          <span className="flex items-center gap-1.5 text-warning font-medium">
+            <Zap className="w-3.5 h-3.5" />
+            Live Gold: ₹{Math.round(goldRate.rate).toLocaleString("en-IN")}/10g
+            · {form.purity} @ ₹
+            {perGramForPurity
+              ? Math.round(perGramForPurity).toLocaleString("en-IN")
+              : "—"}
+            /g
+          </span>
+        ) : (
+          "Record piece details into store inventory."
+        )
+      }
+      maxWidth="xl"
+      footer={
+        <>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="product-modal-form"
+            variant="primary"
+            size="sm"
+            leftIcon={
+              productToEdit ? (
+                <Save className="w-3.5 h-3.5" />
               ) : (
-                "Add an item to your shop inventory."
-              )}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
+                <Plus className="w-3.5 h-3.5" />
+              )
+            }
           >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+            {productToEdit ? "Save Changes" : "Create Item"}
+          </Button>
+        </>
+      }
+    >
+      <form id="product-modal-form" onSubmit={submit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <Input
+              label="Product Title"
+              required
+              placeholder="e.g. 22K Traditional Kundan Bangle"
+              value={form.name}
+              onChange={(e) => update("name", e.target.value)}
+            />
+          </div>
 
-        <form onSubmit={submit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 space-y-1.5">
-              <label className={fieldLabel}>Product name</label>
-              <input
-                className={fieldInput}
-                placeholder="e.g. Classic Solitaire Ring"
-                value={form.name}
-                onChange={(e) => update("name", e.target.value)}
-                required
-              />
-            </div>
+          <Input
+            label="SKU / Barcode ID"
+            required
+            placeholder="KK-R-001"
+            value={form.sku}
+            onChange={(e) => update("sku", e.target.value)}
+          />
 
+          <div className="space-y-1.5">
+            <label className={fieldLabel}>Material</label>
+            <select
+              className={selectClass}
+              value={form.material}
+              onChange={(e) => {
+                const selectedMaterial = e.target.value;
+                update("material", selectedMaterial);
+                if (selectedMaterial.toLowerCase() === "silver") {
+                  update("purity", "NA");
+                } else {
+                  update("purity", "22K");
+                }
+                setPriceOverridden(false);
+              }}
+            >
+              <option value="Gold">Gold</option>
+              <option value="Silver">Silver</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className={fieldLabel}>Primary Category</label>
+            <select
+              className={selectClass}
+              value={form.mainCategory}
+              onChange={(e) => {
+                update("mainCategory", e.target.value);
+                update("subCategory", "");
+              }}
+            >
+              {currentCategories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className={fieldLabel}>Subcategory</label>
+            <select
+              className={selectClass}
+              value={form.subCategory || ""}
+              onChange={(e) => update("subCategory", e.target.value)}
+            >
+              <option value="">None / General</option>
+              {currentSubcategories.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {form.material?.toLowerCase() === "gold" && (
             <div className="space-y-1.5">
-              <label className={fieldLabel}>SKU</label>
-              <input
-                className={fieldInput}
-                placeholder="KK-R-001"
-                value={form.sku}
-                onChange={(e) => update("sku", e.target.value)}
-                required
-              />
-            </div>
-
-           <div className="space-y-1.5">
-              <label className={fieldLabel}>Category</label>
+              <label className={fieldLabel}>Gold Purity</label>
               <select
-                className={fieldInput}
-                value={form.mainCategory}
+                className={selectClass}
+                value={form.purity}
                 onChange={(e) => {
-                  update("mainCategory", e.target.value);
-                  update("subCategory", "");
-                }}
-              >
-                {currentCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* NEW: The Dynamic Subcategory Dropdown! */}
-            <div className="space-y-1.5">
-              <label className={fieldLabel}>Subcategory</label>
-              <select
-                className={fieldInput}
-                value={form.subCategory || ""}
-                onChange={(e) => update("subCategory", e.target.value)}
-              >
-                <option value="">None / General</option>
-                {currentSubcategories.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {form.material?.toLowerCase() === "gold" && (
-              <div className="space-y-1.5">
-                <label className={fieldLabel}>Purity</label>
-                <select
-                  className={fieldInput}
-                  value={form.purity}
-                  onChange={(e) => {
-                    update("purity", e.target.value);
-                    setPriceOverridden(false);
-                  }}
-                >
-                  <option value="18K">18K</option>
-                  <option value="20K">20K</option>
-                  <option value="22K">22K</option>
-                  <option value="24K">24K</option>
-                </select>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className={fieldLabel}>Material</label>
-              <select
-                className={fieldInput}
-                value={form.material}
-                onChange={(e) => {
-                  const selectedMaterial = e.target.value;
-                  update("material", selectedMaterial);
-                  
-                  // FIX: Send "NA" instead of an empty string to keep the database happy!
-                  if (selectedMaterial.toLowerCase() === "silver") {
-                    update("purity", "NA"); 
-                  } else {
-                    update("purity", "22K");
-                  }
-                  
+                  update("purity", e.target.value);
                   setPriceOverridden(false);
                 }}
               >
-                <option value="Gold">Gold</option>
-                <option value="Silver">Silver</option>
+                <option value="18K">18K (75.0%)</option>
+                <option value="20K">20K (83.3%)</option>
+                <option value="22K">22K (91.6%)</option>
+                <option value="24K">24K (99.9%)</option>
               </select>
             </div>
+          )}
 
-            <div className="space-y-1.5">
-              <label className={fieldLabel}>Base weight (g)</label>
-              <input
-                type="number"
-                step="0.01"
-                className={fieldInput}
-                value={form.baseWeight || ""}
-                onChange={(e) => {
-  const val = parseFloat(e.target.value) || 0;
-  setPriceOverridden(false);   // ← must come first
-  update("baseWeight", val);
-}}
-              />
-            </div>
+          <Input
+            label="Base Weight (g)"
+            type="number"
+            step="0.01"
+            required
+            value={form.baseWeight || ""}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value) || 0;
+              setPriceOverridden(false);
+              update("baseWeight", val);
+            }}
+            placeholder="0.00"
+          />
 
-            <div className="space-y-1.5">
-              <label className={fieldLabel}>Stock quantity</label>
-              <input
-                type="number"
-                className={fieldInput}
-                value={form.stockQuantity || ""}
-                onChange={(e) =>
-                  update("stockQuantity", parseInt(e.target.value) || 0)
-                }
-              />
-            </div>
+          <Input
+            label="Stock Quantity (pcs)"
+            type="number"
+            min={0}
+            required
+            value={form.stockQuantity || ""}
+            onChange={(e) =>
+              update("stockQuantity", parseInt(e.target.value, 10) || 0)
+            }
+            placeholder="0"
+          />
 
-            {/* Price — auto-calculated but overridable */}
-            <div className="col-span-2 space-y-1.5">
-  <div className="flex items-center justify-between">
-    <label className={fieldLabel}>Price per piece (₹)</label>
-    {!priceOverridden && goldRate?.rate && form.baseWeight > 0 && (
-      <span className="text-[10.5px] text-amber-400 flex items-center gap-1">
-        <Zap className="w-3 h-3" />
-        Auto-calculated · gold value + {form.material?.toLowerCase() === "gold" ? "13" : "8"}% making
-      </span>
-    )}
-    {priceOverridden && !productToEdit && (
-      <button
-        type="button"
-        onClick={() => setPriceOverridden(false)}
-        className="text-[10.5px] text-primary hover:underline"
-      >
-        Reset to auto
-      </button>
-    )}
-  </div>
-  <input
-    type="number"
-    className={cn(
-      fieldInput,
-      !priceOverridden && goldRate?.rate && form.baseWeight > 0
-        ? "border-amber-500/30 ring-1 ring-amber-500/20"
-        : ""
-    )}
-    value={form.price || ""}
-    onChange={(e) => {
-      update("price", parseFloat(e.target.value) || 0);
-      setPriceOverridden(true);
-    }}
-  />
-
-  {/* Breakdown */}
-  {form.baseWeight > 0 && form.price > 0 && (
-    <div className="rounded-lg bg-surface-2 px-3 py-2 space-y-1 text-[11.5px] text-muted-foreground">
-      
-      {/* Per piece breakdown */}
-      {form.material?.toLowerCase() === "gold" && goldRate?.rate ? (
-        <>
-          <div className="flex justify-between">
-            <span>
-              Gold value ({form.baseWeight}g × ₹
-              {Math.round(
-                (goldRate.rate / 10) * (PURITY_MULTIPLIER[form.purity] ?? (22 / 24))
-              ).toLocaleString("en-IN")}/g)
-            </span>
-            <span className="tabular-nums">
-              ₹{Math.round(
-                (goldRate.rate / 10) * Number(form.baseWeight) * (PURITY_MULTIPLIER[form.purity] ?? (22 / 24))
-              ).toLocaleString("en-IN")}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Making charge (12%)</span>
-            <span className="tabular-nums">
-              ₹{Math.round(
-                (goldRate.rate / 10) * Number(form.baseWeight) *
-                (PURITY_MULTIPLIER[form.purity] ?? (22 / 24)) * 0.12
-              ).toLocaleString("en-IN")}
-            </span>
-          </div>
-        </>
-     ) : (
-        <>
-          <div className="flex justify-between">
-            {/* FIX: Swapped goldRate for silverRate in these 3 spots */}
-            <span>Silver value ({form.baseWeight}g × ₹{silverRate?.rate ?? 95}/g)</span>
-            <span className="tabular-nums">
-              ₹{Math.round((silverRate?.rate ?? 95) * Number(form.baseWeight)).toLocaleString("en-IN")}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span>Making charge (8%)</span>
-            <span className="tabular-nums">
-              ₹{Math.round((silverRate?.rate ?? 95) * Number(form.baseWeight) * 0.08).toLocaleString("en-IN")}
-            </span>
-          </div>
-        </>
-      )}
-
-      <div className="flex justify-between border-t border-border pt-1 mt-1">
-        <span className="font-medium text-foreground">Price per piece</span>
-        <span className="tabular-nums font-medium text-foreground">
-          ₹{form.price.toLocaleString("en-IN")}
-        </span>
-      </div>
-
-      {/* Stock total — the key addition */}
-      {form.stockQuantity > 0 && (
-        <div className="flex justify-between border-t border-border pt-1 mt-1">
-          <span className="font-semibold text-foreground">
-            Total value ({form.stockQuantity} × ₹{form.price.toLocaleString("en-IN")})
-          </span>
-          <span className="tabular-nums font-semibold text-amber-400 text-[13px]">
-            ₹{(form.price * form.stockQuantity).toLocaleString("en-IN")}
-          </span>
+          <Input
+            label="Estimated Unit Price (₹)"
+            type="number"
+            min={0}
+            required
+            value={form.price || ""}
+            onChange={(e) => {
+              setPriceOverridden(true);
+              update("price", parseFloat(e.target.value) || 0);
+            }}
+            placeholder="₹ 0"
+            helperText={
+              priceOverridden
+                ? "Manually customized price"
+                : "Auto-calculated from weight + live rate + 12% making charges"
+            }
+          />
         </div>
-      )}
-    </div>
-  )}
-</div>
-</div>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className={cn(
-                "px-4 py-2 rounded-lg text-sm font-semibold",
-                "bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
-              )}
-            >
-              {productToEdit ? "Update product" : "Add product"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };

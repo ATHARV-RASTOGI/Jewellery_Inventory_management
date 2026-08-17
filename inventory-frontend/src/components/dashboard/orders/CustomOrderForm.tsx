@@ -1,107 +1,211 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Plus, Printer, Trash2, ClipboardList, FileText,
-  ChevronDown, X, Search,
+  Plus,
+  Printer,
+  Trash2,
+  ClipboardList,
+  Search,
+  ShoppingCart,
+  CheckCircle2,
+  Calendar,
+  IndianRupee,
+  User,
+  Phone,
+  MapPin,
+  Gem,
+  Tag,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatINR } from "@/lib/utils";
 import {
-  fetchCustomOrders, createCustomOrder, markOrderPickedUp, deleteCustomOrder, updateCustomOrder,
-  type CustomOrder, type CreateCustomOrderInput, type MaterialType, type GoldCarat,
+  fetchCustomOrders,
+  createCustomOrder,
+  markOrderPickedUp,
+  deleteCustomOrder,
+  type CustomOrder,
+  type CreateCustomOrderInput,
+  type MaterialType,
+  type GoldCarat,
 } from "@/lib/api/customOrders";
-import {
-  fetchProducts, type Product,
-} from "@/lib/api/inventory";
+import { fetchProducts, type Product } from "@/lib/api/inventory";
 import { createSale, type Sale } from "@/lib/api/sales";
 import { GST_RATE } from "@/lib/constants";
-
-// ─── Shared style tokens (mirrors SalesLedger) ───────────────────────────────
-const fieldLabel = "text-[11.5px] font-medium text-muted-foreground tracking-wide";
-const fieldInput =
-  "w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/60";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { TableSkeleton } from "@/components/feedback/Skeleton";
+import { numberToIndianWords } from "@/lib/numberToWords";
+import { fieldLabel, fieldInput } from "@/lib/styles";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const fmtDate = (iso: string) =>
-  new Date(iso + "T00:00:00").toLocaleDateString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
+const fmtDate = (iso: string) => {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso.includes("T") ? iso : `${iso}T00:00:00`);
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+};
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-// ─── Order Slip (printable) ───────────────────────────────────────────────────
-const OrderSlip = ({ order }: { order: CustomOrder }) => (
-  <div className="font-mono text-[12px] text-black bg-white p-6 w-[320px]">
-    {/* Header */}
-    <div className="text-center mb-4">
-      <p className="text-[18px] font-bold">K.K Jewelers</p>
-      <p className="text-[11px]">Custom Order Slip</p>
-      <p className="text-[11px]">Order #{order.id} · {fmtDate(order.orderDate)}</p>
-    </div>
+// ─── Material Badge ──────────────────────────────────────────────────────────
+const MaterialBadge = ({ type }: { type: MaterialType }) => {
+  if (type === "GOLD") return <StatusBadge variant="gold">Gold</StatusBadge>;
+  if (type === "DIAMOND")
+    return <StatusBadge variant="info">Diamond</StatusBadge>;
+  return <StatusBadge variant="warning">Gold + Diamond</StatusBadge>;
+};
 
-    <div className="border-t border-dashed border-black my-2" />
+// ─── Official Printable Order Slip ────────────────────────────────────────────
+const OrderSlip = ({ order }: { order: CustomOrder }) => {
+  const balanceDue = Math.max(0, order.totalAmount - order.advanceAmount);
 
-    {/* Customer */}
-    <div className="mb-3 space-y-0.5">
-      <p><span className="font-bold">Name:</span> {order.customerName}</p>
-      <p><span className="font-bold">Phone:</span> {order.customerPhone}</p>
-      {order.customerAddress && (
-        <p><span className="font-bold">Address:</span> {order.customerAddress}</p>
-      )}
-    </div>
-
-    <div className="border-t border-dashed border-black my-2" />
-
-    {/* Item details */}
-    <div className="mb-3 space-y-0.5">
-      <p><span className="font-bold">Item:</span> {order.itemName}</p>
-      <p>
-        <span className="font-bold">Material:</span>{" "}
-        {order.materialType === "GOLD" ? "Gold" :
-         order.materialType === "DIAMOND" ? "Diamond" : "Gold + Diamond"}
-        {order.goldCarat ? ` (${order.goldCarat})` : ""}
-        {order.diamondCarat ? ` · Diamond ${order.diamondCarat}` : ""}
-      </p>
-      {order.remarks && (
-        <p><span className="font-bold">Remarks:</span> {order.remarks}</p>
-      )}
-    </div>
-
-    <div className="border-t border-dashed border-black my-2" />
-
-    {/* Dates & Amounts */}
-    <div className="mb-3 space-y-0.5">
-      <p><span className="font-bold">Order Date:</span> {fmtDate(order.orderDate)}</p>
-      <p><span className="font-bold">Pickup Date:</span> {fmtDate(order.pickupDate)}</p>
-    </div>
-
-    <div className="border-t border-dashed border-black my-2" />
-
-    <div className="space-y-1">
-      <div className="flex justify-between">
-        <span>Total Amount</span>
-        <span>{formatINR(order.totalAmount)}</span>
+  return (
+    <div className="font-sans text-black bg-white p-6 sm:p-8 max-w-[600px] w-full mx-auto border border-gray-300 rounded-lg shadow-sm print:border-none print:shadow-none print:p-2 print:max-w-none">
+      {/* Shop Header */}
+      <div className="text-center pb-4 border-b-2 border-black">
+        <h1 className="text-2xl font-extrabold tracking-tight uppercase">
+          K.K. JEWELLERS
+        </h1>
+        <p className="text-xs font-semibold text-gray-800 tracking-wide mt-0.5">
+          Gold, Silver &amp; Diamond Merchants · Bankers
+        </p>
+        <p className="text-xs text-gray-700 mt-0.5">
+          Nehru Road, Farrukhabad, U.P. — 209625
+        </p>
+        <p className="text-xs text-gray-600 font-medium">
+          Phone: +91 94151 88470 / 98380 12345
+        </p>
       </div>
-      <div className="flex justify-between">
-        <span>Advance Paid</span>
-        <span>{formatINR(order.advanceAmount)}</span>
+
+      {/* Slip Title & ID */}
+      <div className="flex items-center justify-between py-2.5 border-b border-gray-300 text-xs">
+        <span className="font-bold text-gray-800 uppercase tracking-wider">
+          Bespoke Custom Order Slip
+        </span>
+        <div>
+          <span className="font-bold">Order No: </span>
+          <span className="font-mono font-bold text-sm">#{order.id}</span>
+        </div>
       </div>
-      <div className="flex justify-between font-bold text-[14px] border-t border-black pt-1 mt-1">
-        <span>BALANCE DUE</span>
-        <span>{formatINR(Math.max(0, order.totalAmount - order.advanceAmount))}</span>
+
+      {/* Customer Information */}
+      <div className="grid grid-cols-2 gap-3 py-3 border-b border-gray-300 text-xs leading-relaxed">
+        <div className="space-y-0.5">
+          <p>
+            <span className="font-bold text-gray-700">Customer: </span>
+            <span className="font-bold text-black">{order.customerName}</span>
+          </p>
+          <p>
+            <span className="font-bold text-gray-700">Phone: </span>
+            <span className="font-mono">{order.customerPhone || "—"}</span>
+          </p>
+          {order.customerAddress && (
+            <p>
+              <span className="font-bold text-gray-700">Address: </span>
+              <span>{order.customerAddress}</span>
+            </p>
+          )}
+        </div>
+        <div className="space-y-0.5 sm:text-right">
+          <p>
+            <span className="font-bold text-gray-700">Order Date: </span>
+            <span>{fmtDate(order.orderDate)}</span>
+          </p>
+          <p>
+            <span className="font-bold text-gray-700">Estimated Delivery: </span>
+            <span className="font-bold">{fmtDate(order.pickupDate)}</span>
+          </p>
+          <p>
+            <span className="font-bold text-gray-700">Status: </span>
+            <span className="font-semibold uppercase text-[11px]">
+              {order.status === "PICKED_UP" ? "Delivered" : "In Progress"}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* Piece Specification */}
+      <div className="py-3 border-b border-gray-300 text-xs space-y-1.5">
+        <p className="font-bold uppercase tracking-wider text-gray-800">
+          Piece Specification
+        </p>
+        <div className="bg-gray-50 p-2.5 rounded border border-gray-200 space-y-1">
+          <p className="font-bold text-sm text-black">{order.itemName}</p>
+          <p className="text-gray-700">
+            <span className="font-semibold">Composition: </span>
+            {order.materialType === "GOLD"
+              ? "Gold"
+              : order.materialType === "DIAMOND"
+                ? "Diamond"
+                : "Gold + Diamond"}
+            {order.goldCarat ? ` (${order.goldCarat})` : ""}
+            {order.diamondCarat ? ` · Diamond: ${order.diamondCarat}` : ""}
+          </p>
+          {order.remarks && (
+            <p className="text-gray-600 italic">
+              <span className="font-semibold not-italic">Design Notes: </span>
+              {order.remarks}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Financial Breakdown */}
+      <div className="py-3 border-b border-gray-300 bg-gray-50/70 p-3 rounded my-2 border border-gray-200 space-y-1 text-xs">
+        <div className="flex justify-between">
+          <span className="text-gray-700 font-medium">Total Agreed Price:</span>
+          <span className="font-mono font-bold">{formatINR(order.totalAmount)}</span>
+        </div>
+        <div className="flex justify-between text-green-800">
+          <span className="font-medium">Advance Deposit Paid:</span>
+          <span className="font-mono font-bold">− {formatINR(order.advanceAmount)}</span>
+        </div>
+        <div className="flex justify-between items-baseline pt-2 border-t border-black text-black">
+          <span className="font-extrabold uppercase">Balance Due Upon Delivery:</span>
+          <span className="text-base font-extrabold font-mono">
+            {formatINR(balanceDue)}
+          </span>
+        </div>
+        <p className="text-[11px] font-medium text-gray-800 pt-1 italic">
+          Agreed Amount in words:{" "}
+          <span className="font-bold not-italic">
+            {numberToIndianWords(order.totalAmount)}
+          </span>
+        </p>
+      </div>
+
+      {/* Footer Notes & Dual Signatures */}
+      <div className="pt-2 text-[10.5px] text-gray-600 text-center space-y-0.5">
+        <p>Please present this voucher copy at the time of delivery.</p>
+        <p>Certified pure gold &amp; diamond craftsmanship guaranteed.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6 pt-6 mt-3 border-t border-black text-xs">
+        <div className="text-center space-y-1">
+          <div className="border-b border-black w-32 mx-auto mb-1 h-5" />
+          <p className="font-bold">Customer Signature</p>
+        </div>
+        <div className="text-center space-y-1">
+          <div className="border-b border-black w-32 mx-auto mb-1 h-5" />
+          <p className="font-bold">For K.K. JEWELLERS</p>
+        </div>
       </div>
     </div>
+  );
+};
 
-    <div className="border-t border-dashed border-black my-2" />
-
-    <div className="text-center text-[10px] mt-2 space-y-0.5">
-      <p>Thank you for your custom order!</p>
-      <p>Please bring this slip at pickup time.</p>
-    </div>
-  </div>
-);
-
-// ─── Material Selector ────────────────────────────────────────────────────────
+// ─── Material Selector (Variation A: Structured Segmented Control) ─────────────
 const GOLD_CARATS: GoldCarat[] = ["14K", "18K", "22K", "24K"];
 
 const MaterialSelector = ({
@@ -119,32 +223,28 @@ const MaterialSelector = ({
   onGoldCaratChange: (v: string) => void;
   onDiamondCaratChange: (v: string) => void;
 }) => {
-  const types: { value: MaterialType; label: string; color: string }[] = [
-    { value: "GOLD", label: "Gold", color: "amber" },
-    { value: "DIAMOND", label: "Diamond", color: "sky" },
-    { value: "GOLD_DIAMOND", label: "Gold + Diamond", color: "purple" },
+  const types: { value: MaterialType; label: string }[] = [
+    { value: "GOLD", label: "Gold" },
+    { value: "DIAMOND", label: "Diamond" },
+    { value: "GOLD_DIAMOND", label: "Gold + Diamond" },
   ];
 
   const showGold = value === "GOLD" || value === "GOLD_DIAMOND";
   const showDiamond = value === "DIAMOND" || value === "GOLD_DIAMOND";
 
   return (
-    <div className="space-y-3">
-      {/* Segmented control */}
-      <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-xl">
+    <div className="space-y-4">
+      {/* Metal Composition Segmented Control */}
+      <div className="inline-flex p-1 bg-surface-2 border border-border/70 rounded-lg w-full sm:w-auto">
         {types.map((t) => (
           <button
             key={t.value}
             type="button"
             onClick={() => onChange(t.value)}
             className={cn(
-              "py-2 px-2 rounded-lg text-[12px] font-semibold transition-all duration-200",
+              "px-4 py-1.5 rounded-md text-xs font-semibold transition-all duration-150 select-none",
               value === t.value
-                ? t.value === "GOLD"
-                  ? "bg-amber-500/20 text-amber-400 shadow-sm ring-1 ring-amber-500/30"
-                  : t.value === "DIAMOND"
-                  ? "bg-sky-500/20 text-sky-400 shadow-sm ring-1 ring-sky-500/30"
-                  : "bg-purple-500/20 text-purple-400 shadow-sm ring-1 ring-purple-500/30"
+                ? "bg-surface text-primary font-bold shadow-xs border border-border/80"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -153,55 +253,60 @@ const MaterialSelector = ({
         ))}
       </div>
 
-      {/* Conditional sub-fields */}
-      <div className="grid grid-cols-2 gap-3">
-        {showGold && (
-          <div className="space-y-1.5">
-            <label className={fieldLabel}>
-              Gold Carat <span className="text-muted-foreground/50">(optional)</span>
-            </label>
-            <div className="grid grid-cols-4 gap-1">
-              {GOLD_CARATS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => onGoldCaratChange(goldCarat === c ? "" : c)}
-                  className={cn(
-                    "py-1.5 rounded-md text-[12px] font-medium transition-all",
-                    goldCarat === c
-                      ? "bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30"
-                      : "bg-surface-2 text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {c}
-                </button>
-              ))}
+      {/* Gold Carat & Diamond Carat Selection Row */}
+      {(showGold || showDiamond) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+          {showGold && (
+            <div className="space-y-1.5">
+              <label className={fieldLabel}>
+                Gold Carat <span className="text-muted-foreground/60">(Optional)</span>
+              </label>
+              <div className="inline-flex gap-1.5 p-1 bg-surface-2 border border-border/60 rounded-lg w-full sm:w-auto">
+                {GOLD_CARATS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => onGoldCaratChange(goldCarat === c ? "" : c)}
+                    className={cn(
+                      "px-3 py-1 rounded-md text-xs font-medium transition-all select-none",
+                      goldCarat === c
+                        ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-surface-3/60"
+                    )}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {showDiamond && (
-          <div className="space-y-1.5">
-            <label className={fieldLabel}>
-              Diamond Carat <span className="text-muted-foreground/50">(optional)</span>
-            </label>
-            <input
-              className={fieldInput}
-              placeholder="e.g. 0.50 ct"
-              value={diamondCarat}
-              onChange={(e) => onDiamondCaratChange(e.target.value)}
-            />
-          </div>
-        )}
-      </div>
+          {showDiamond && (
+            <div className="space-y-1.5">
+              <Input
+                label="Diamond Carat (Optional)"
+                placeholder="e.g. 0.50 ct, VVS-EF"
+                value={diamondCarat}
+                onChange={(e) => onDiamondCaratChange(e.target.value)}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
-// ─── New Order Form ───────────────────────────────────────────────────────────
-const NewOrderForm = ({ onCreated }: { onCreated: (order: CustomOrder) => void }) => {
+// ─── Variation A: Single-Column Professional ERP Document Form ────────────────
+const NewOrderFormVariationA = ({
+  onCreated,
+}: {
+  onCreated: (order: CustomOrder) => void;
+}) => {
   const qc = useQueryClient();
-  const [form, setForm] = useState<Omit<CreateCustomOrderInput, "materialType" | "goldCarat" | "diamondCarat">>({
+  const [form, setForm] = useState<
+    Omit<CreateCustomOrderInput, "materialType" | "goldCarat" | "diamondCarat">
+  >({
     customerName: "",
     customerPhone: "",
     customerAddress: "",
@@ -216,166 +321,289 @@ const NewOrderForm = ({ onCreated }: { onCreated: (order: CustomOrder) => void }
   const [goldCarat, setGoldCarat] = useState("");
   const [diamondCarat, setDiamondCarat] = useState("");
 
-  const set = (key: keyof typeof form) =>
+  const set =
+    (key: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((p) => ({ ...p, [key]: e.target.value }));
 
   const mutation = useMutation({
     mutationFn: createCustomOrder,
     onSuccess: (order) => {
-      toast.success("Custom order created!");
+      toast.success(`Custom order #${order.id} created successfully!`);
       qc.invalidateQueries({ queryKey: ["custom-orders"] });
       onCreated(order);
-      // Reset form
       setForm({
-        customerName: "", customerPhone: "", customerAddress: "",
-        itemName: "", remarks: "", orderDate: today(), pickupDate: "",
-        advanceAmount: 0, totalAmount: 0,
+        customerName: "",
+        customerPhone: "",
+        customerAddress: "",
+        itemName: "",
+        remarks: "",
+        orderDate: today(),
+        pickupDate: "",
+        advanceAmount: 0,
+        totalAmount: 0,
       });
       setMaterialType("GOLD");
       setGoldCarat("");
       setDiamondCarat("");
     },
-    onError: (e: any) => toast.error(e.message ?? "Failed to create order"),
+    onError: (e: any) =>
+      toast.error(e.message ?? "Failed to create custom order"),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.pickupDate) { toast.error("Please set an estimated pickup date"); return; }
+    if (!form.pickupDate) {
+      toast.error("Please set an estimated delivery date");
+      return;
+    }
+    if (form.customerPhone.length !== 10 || !/^\d+$/.test(form.customerPhone)) {
+      toast.error("Customer phone number must be exactly 10 digits");
+      return;
+    }
     mutation.mutate({
       ...form,
       materialType,
-      goldCarat: goldCarat as GoldCarat || undefined,
+      goldCarat: (goldCarat as GoldCarat) || undefined,
       diamondCarat: diamondCarat || undefined,
-      advanceAmount: Number(form.advanceAmount),
-      totalAmount: Number(form.totalAmount),
+      advanceAmount: Number(form.advanceAmount) || 0,
+      totalAmount: Number(form.totalAmount) || 0,
     });
   };
 
+  const handleReset = () => {
+    setForm({
+      customerName: "",
+      customerPhone: "",
+      customerAddress: "",
+      itemName: "",
+      remarks: "",
+      orderDate: today(),
+      pickupDate: "",
+      advanceAmount: 0,
+      totalAmount: 0,
+    });
+    setMaterialType("GOLD");
+    setGoldCarat("");
+    setDiamondCarat("");
+  };
+
+  const totalAmountNum = Number(form.totalAmount) || 0;
+  const advanceAmountNum = Number(form.advanceAmount) || 0;
+  const balanceDue = Math.max(0, totalAmountNum - advanceAmountNum);
+  const paidPercent =
+    totalAmountNum > 0
+      ? Math.min(100, Math.round((advanceAmountNum / totalAmountNum) * 100))
+      : 0;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
-      {/* Section: Customer Details */}
-      <div className="rounded-xl bg-surface border border-border/40 p-5 space-y-4">
-        <h3 className="text-[13px] font-semibold text-foreground">Customer Details</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2 space-y-1.5">
-            <label className={fieldLabel}>Customer Name *</label>
-            <input required className={fieldInput} placeholder="e.g. Ramesh Kumar" value={form.customerName} onChange={set("customerName")} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={fieldLabel}>Phone Number *</label>
-            <input required className={fieldInput} placeholder="9876543210" type="tel" value={form.customerPhone} onChange={set("customerPhone")} />
-          </div>
-          <div className="space-y-1.5">
-            <label className={fieldLabel}>Address <span className="text-muted-foreground/50">(optional)</span></label>
-            <input className={fieldInput} placeholder="Street, City" value={form.customerAddress} onChange={set("customerAddress")} />
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-4xl space-y-8 pt-2"
+    >
+      {/* ── Section 1: Customer Information ── */}
+      <div className="space-y-4">
+        <div className="pb-2 border-b border-border/60">
+          <h3 className="text-[15px] font-bold tracking-tight text-foreground">
+            Customer Information
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Primary contact details and residence address for order tracking.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Customer Name"
+            required
+            placeholder="e.g. Ramesh Kumar"
+            leftIcon={<User className="w-4 h-4 text-muted-foreground" />}
+            value={form.customerName}
+            onChange={set("customerName")}
+          />
+
+          <Input
+            label="Phone Number"
+            required
+            placeholder="10-digit mobile number"
+            type="tel"
+            leftIcon={<Phone className="w-4 h-4 text-muted-foreground" />}
+            value={form.customerPhone}
+            onChange={set("customerPhone")}
+          />
+
+          <div className="sm:col-span-2">
+            <Input
+              label="Residence Address (Optional)"
+              placeholder="Street name, landmark, city, PIN code"
+              leftIcon={<MapPin className="w-4 h-4 text-muted-foreground" />}
+              value={form.customerAddress}
+              onChange={set("customerAddress")}
+            />
           </div>
         </div>
       </div>
 
-      {/* Section: Item Details */}
-      <div className="rounded-xl bg-surface border border-border/40 p-5 space-y-4">
-        <h3 className="text-[13px] font-semibold text-foreground">Item Details</h3>
-
-        <div className="space-y-1.5">
-          <label className={fieldLabel}>Item Name *</label>
-          <input required className={fieldInput} placeholder="e.g. Gents Gold Ring with Diamond Setting" value={form.itemName} onChange={set("itemName")} />
+      {/* ── Section 2: Jewellery Specification ── */}
+      <div className="space-y-4">
+        <div className="pb-2 border-b border-border/60">
+          <h3 className="text-[15px] font-bold tracking-tight text-foreground">
+            Jewellery Specification &amp; Design
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Precious metal, stone parameters, and custom craftsmanship requirements.
+          </p>
         </div>
 
-        <div className="space-y-1.5">
-          <label className={fieldLabel}>Material Composition *</label>
-          <MaterialSelector
-            value={materialType}
-            goldCarat={goldCarat}
-            diamondCarat={diamondCarat}
-            onChange={setMaterialType}
-            onGoldCaratChange={setGoldCarat}
-            onDiamondCaratChange={setDiamondCarat}
+        <div className="space-y-4">
+          <Input
+            label="Item Name / Design"
+            required
+            placeholder="e.g. 22K Solid Gold Bangles, Floral Solitaire Ring"
+            leftIcon={<Gem className="w-4 h-4 text-muted-foreground" />}
+            value={form.itemName}
+            onChange={set("itemName")}
           />
-        </div>
 
-        <div className="space-y-1.5">
-          <label className={fieldLabel}>Special Instructions / Remarks <span className="text-muted-foreground/50">(optional)</span></label>
-          <textarea
-            rows={3}
-            className={cn(fieldInput, "resize-none")}
-            placeholder="e.g. Size 18, engraving: 'AR', floral design on band…"
-            value={form.remarks}
-            onChange={set("remarks")}
-          />
+          <div className="space-y-1.5">
+            <label className={fieldLabel}>
+              Material Composition <span className="text-danger">*</span>
+            </label>
+            <MaterialSelector
+              value={materialType}
+              goldCarat={goldCarat}
+              diamondCarat={diamondCarat}
+              onChange={setMaterialType}
+              onGoldCaratChange={setGoldCarat}
+              onDiamondCaratChange={setDiamondCarat}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className={fieldLabel}>
+              Design Instructions &amp; Engraving{" "}
+              <span className="text-muted-foreground/60">(Optional)</span>
+            </label>
+            <div className="relative">
+              <textarea
+                rows={3}
+                className={cn(fieldInput, "resize-y pl-3 min-h-[80px]")}
+                placeholder="e.g. Size 18, custom initial engraving: 'AR', floral filigree center-piece, BIS 916 laser hallmark required…"
+                value={form.remarks}
+                onChange={set("remarks")}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Section: Dates & Payment */}
-      <div className="rounded-xl bg-surface border border-border/40 p-5 space-y-4">
-        <h3 className="text-[13px] font-semibold text-foreground">Dates & Payment</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className={fieldLabel}>Order Date</label>
-            <input
-              type="date"
-              className={fieldInput}
-              value={form.orderDate}
-              onChange={set("orderDate")}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className={fieldLabel}>Estimated Pickup Date *</label>
-            <input
-              required
-              type="date"
-              min={form.orderDate}
-              className={fieldInput}
-              value={form.pickupDate}
-              onChange={set("pickupDate")}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className={fieldLabel}>Total Order Amount (₹) *</label>
-            <input
-              required
-              type="number"
-              min={0}
-              className={fieldInput}
-              placeholder="0"
-              value={form.totalAmount || ""}
-              onChange={set("totalAmount")}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className={fieldLabel}>Advance Paid (₹) <span className="text-muted-foreground/50">(optional)</span></label>
-            <input
-              type="number"
-              min={0}
-              className={fieldInput}
-              placeholder="0"
-              value={form.advanceAmount || ""}
-              onChange={set("advanceAmount")}
-            />
-          </div>
+      {/* ── Section 3: Delivery Schedule & Financial Terms ── */}
+      <div className="space-y-4">
+        <div className="pb-2 border-b border-border/60">
+          <h3 className="text-[15px] font-bold tracking-tight text-foreground">
+            Delivery Schedule &amp; Financial Terms
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Pickup commitment date, agreed total pricing, and advance deposit.
+          </p>
         </div>
 
-        {/* Balance due preview */}
-        {Number(form.totalAmount) > 0 && (
-          <div className="flex items-center justify-between rounded-lg bg-surface-2 px-4 py-3">
-            <span className="text-[12.5px] text-muted-foreground">Balance due at pickup</span>
-            <span className="text-[14px] font-semibold text-primary tabular-nums">
-              {formatINR(Math.max(0, Number(form.totalAmount) - Number(form.advanceAmount)))}
-            </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Order Booking Date"
+            type="date"
+            required
+            leftIcon={<Calendar className="w-4 h-4 text-muted-foreground" />}
+            value={form.orderDate}
+            onChange={set("orderDate")}
+          />
+
+          <Input
+            label="Estimated Delivery Date"
+            required
+            type="date"
+            min={form.orderDate}
+            leftIcon={<Calendar className="w-4 h-4 text-muted-foreground" />}
+            value={form.pickupDate}
+            onChange={set("pickupDate")}
+          />
+
+          <Input
+            label="Total Agreed Price (₹)"
+            required
+            type="number"
+            min={0}
+            placeholder="₹ 0"
+            leftIcon={<IndianRupee className="w-4 h-4 text-muted-foreground" />}
+            value={form.totalAmount || ""}
+            onChange={set("totalAmount")}
+          />
+
+          <Input
+            label="Advance Deposit Paid (₹)"
+            type="number"
+            min={0}
+            placeholder="₹ 0"
+            leftIcon={<IndianRupee className="w-4 h-4 text-muted-foreground" />}
+            value={form.advanceAmount || ""}
+            onChange={set("advanceAmount")}
+          />
+        </div>
+
+        {/* Dynamic Financial Feedback Strip */}
+        {totalAmountNum > 0 && (
+          <div className="p-4 rounded-lg bg-surface-2 border border-border/70 space-y-2.5 animate-in fade-in">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+              <div className="space-y-0.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Payment Balance Summary
+                </p>
+                <p className="text-xs text-foreground">
+                  Agreed Total: <span className="font-bold font-mono">{formatINR(totalAmountNum)}</span> · Advance Received:{" "}
+                  <span className="font-bold font-mono text-success">{formatINR(advanceAmountNum)}</span>
+                </p>
+              </div>
+              <div className="text-left sm:text-right">
+                <span className="text-xs text-muted-foreground">Balance Due Upon Delivery:</span>
+                <p className="text-lg font-extrabold text-primary font-mono tabular-nums">
+                  {formatINR(balanceDue)}
+                </p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full bg-surface-3 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-primary h-1.5 rounded-full transition-all duration-300"
+                style={{ width: `${paidPercent}%` }}
+              />
+            </div>
           </div>
         )}
       </div>
 
-      {/* Submit */}
-      <div className="flex items-center gap-3 pt-1">
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-60 transition-opacity"
+      {/* ── Section 4: Action Footer ── */}
+      <div className="pt-4 border-t border-border/60 flex items-center justify-end gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="md"
+          onClick={handleReset}
+          leftIcon={<RotateCcw className="w-4 h-4" />}
         >
-          <Plus className="w-4 h-4" />
-          {mutation.isPending ? "Creating…" : "Create Order"}
-        </button>
+          Reset
+        </Button>
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="md"
+          isLoading={mutation.isPending}
+          className="font-bold px-6 shadow-sm"
+          leftIcon={<Plus className="w-4 h-4" />}
+        >
+          {mutation.isPending ? "Creating Order…" : "Create Custom Order"}
+        </Button>
       </div>
     </form>
   );
@@ -426,7 +654,10 @@ const ConvertToSaleModal = ({
 
   if (!open) return null;
 
-  const subtotal = cart.reduce((s, c) => s + c.pricePerPiece * c.quantity, 0);
+  const subtotal = cart.reduce(
+    (s, c) => s + c.pricePerPiece * c.quantity,
+    0
+  );
   const gst = subtotal * GST_RATE;
   const grandTotal = subtotal + gst;
 
@@ -434,366 +665,223 @@ const ConvertToSaleModal = ({
     const product = products.find(
       (p: Product) => p.sku.toLowerCase() === skuInput.trim().toLowerCase()
     );
-    if (!product) { setSkuError("Product not found for this SKU"); return; }
-    if (product.stockQuantity <= 0) { setSkuError("This item is out of stock"); return; }
+    if (!product) {
+      setSkuError("Product not found for this SKU");
+      return;
+    }
+    if (product.stockQuantity <= 0) {
+      setSkuError("This item is out of stock");
+      return;
+    }
     const existing = cart.find((c) => c.sku === product.sku);
     if (existing) {
-      setCart((prev) => prev.map((c) => c.sku === product.sku ? { ...c, quantity: c.quantity + 1 } : c));
+      setCart((prev) =>
+        prev.map((c) =>
+          c.sku === product.sku
+            ? { ...c, quantity: c.quantity + 1 }
+            : c
+        )
+      );
     } else {
-      setCart((prev) => [...prev, {
-        sku: product.sku, productName: product.name, material: product.material,
-        purity: product.purity, weight: product.baseWeight, quantity: 1, pricePerPiece: product.price,
-      }]);
+      setCart((prev) => [
+        ...prev,
+        {
+          sku: product.sku,
+          productName: product.name,
+          material: product.material,
+          purity: product.purity,
+          weight: product.baseWeight,
+          quantity: 1,
+          pricePerPiece: product.price,
+        },
+      ]);
     }
-    setSkuInput(""); setSkuError("");
+    setSkuInput("");
+    setSkuError("");
   };
 
-  const submit = (e: React.FormEvent) => {
+  const removeFromCart = (sku: string) =>
+    setCart((prev) => prev.filter((c) => c.sku !== sku));
+
+  const updateQty = (sku: string, qty: number) => {
+    setCart((prev) =>
+      prev.map((c) => (c.sku === sku ? { ...c, quantity: Math.max(1, qty) } : c))
+    );
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0) { toast.error("Add at least one item to the sale"); return; }
+    if (cart.length === 0) {
+      toast.error("Add at least one item from inventory");
+      return;
+    }
     saleMutation.mutate({
       customerName: order.customerName,
       customerPhone: order.customerPhone,
-      customerAddress: order.customerAddress,
-      items: cart.map(({ sku, quantity, pricePerPiece }) => ({ sku, quantity, pricePerPiece })),
+      customerAddress: order.customerAddress ?? "",
+      items: cart.map(({ sku, quantity, pricePerPiece }) => ({
+        sku,
+        quantity,
+        pricePerPiece,
+      })),
     });
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/70 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-2xl rounded-2xl bg-surface p-6 space-y-5 max-h-[90vh] overflow-y-auto"
-        style={{ boxShadow: "var(--shadow-elevated)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-base font-semibold">Convert to Sale</h3>
-            <p className="text-[12px] text-muted-foreground mt-0.5">
-              Order #{order.id} · {order.customerName} · {order.itemName}
-            </p>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-md text-muted-foreground hover:bg-surface-2">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Pre-filled customer info banner */}
-        <div className="rounded-lg bg-surface-2 px-4 py-3 text-[12.5px] space-y-0.5">
-          <p className="font-medium text-foreground">Customer auto-filled from order</p>
-          <p className="text-muted-foreground">{order.customerName} · {order.customerPhone}</p>
-        </div>
-
-        <form onSubmit={submit} className="space-y-4">
-          {/* SKU search */}
-          <div className="space-y-2">
-            <label className={fieldLabel}>Add item by SKU</label>
-            <div className="flex gap-2">
-              <input
-                className={fieldInput}
-                placeholder="e.g. KK-R-001"
-                value={skuInput}
-                onChange={(e) => { setSkuInput(e.target.value); setSkuError(""); }}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addToCart())}
-              />
-              <button
-                type="button"
-                onClick={addToCart}
-                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold shrink-0"
-              >
-                Add
-              </button>
-            </div>
-            {skuInput && (
-              <div className="rounded-lg bg-surface-2 border border-border divide-y divide-border max-h-36 overflow-y-auto">
-                {products
-                  .filter((p: Product) =>
-                    p.sku.toLowerCase().includes(skuInput.toLowerCase()) ||
-                    p.name.toLowerCase().includes(skuInput.toLowerCase())
-                  )
-                  .slice(0, 5)
-                  .map((p: Product) => (
-                    <button
-                      key={p.sku}
-                      type="button"
-                      onClick={() => { setSkuInput(p.sku); setSkuError(""); }}
-                      className="w-full flex justify-between items-center px-3 py-2 text-[12px] hover:bg-surface text-left"
-                    >
-                      <span><span className="font-medium">{p.sku}</span>{" · "}{p.name}</span>
-                      <span className="text-muted-foreground">{p.material} · Stock: {p.stockQuantity}</span>
-                    </button>
-                  ))}
-              </div>
-            )}
-            {skuError && <p className="text-[11.5px] text-destructive">{skuError}</p>}
-          </div>
-
-          {/* Cart */}
-          {cart.length > 0 && (
-            <div className="space-y-2">
-              <p className={fieldLabel}>Items in this sale</p>
-              <div className="rounded-lg border border-border divide-y divide-border">
-                {cart.map((item) => (
-                  <div key={item.sku} className="flex items-center gap-3 px-3 py-2.5">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium truncate">{item.productName}</p>
-                      <p className="text-[11px] text-muted-foreground">{item.sku} · {item.material} {item.purity}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button type="button" onClick={() => setCart((prev) => prev.map((c) => c.sku === item.sku ? { ...c, quantity: Math.max(1, c.quantity - 1) } : c))}
-                        className="w-6 h-6 rounded bg-surface-2 text-sm font-bold hover:bg-surface flex items-center justify-center">−</button>
-                      <span className="w-6 text-center text-sm tabular-nums">{item.quantity}</span>
-                      <button type="button" onClick={() => setCart((prev) => prev.map((c) => c.sku === item.sku ? { ...c, quantity: c.quantity + 1 } : c))}
-                        className="w-6 h-6 rounded bg-surface-2 text-sm font-bold hover:bg-surface flex items-center justify-center">+</button>
-                    </div>
-                    <div className="text-right shrink-0 w-24">
-                      <p className="text-[13px] font-semibold tabular-nums">{formatINR(item.pricePerPiece * item.quantity)}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatINR(item.pricePerPiece)} each</p>
-                    </div>
-                    <button type="button" onClick={() => setCart((prev) => prev.filter((c) => c.sku !== item.sku))}
-                      className="p-1 text-muted-foreground hover:text-destructive">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-lg bg-surface-2 px-4 py-3 space-y-1.5 text-[12.5px]">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal</span><span className="tabular-nums">{formatINR(subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>GST @ 3%</span><span className="tabular-nums">{formatINR(gst)}</span>
-                </div>
-                <div className="flex justify-between font-semibold text-foreground border-t border-border pt-1.5 mt-1">
-                  <span>Grand Total</span><span className="tabular-nums text-primary">{formatINR(grandTotal)}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose}
-              className="px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-surface-2">
-              Cancel
-            </button>
-            <button type="submit" disabled={saleMutation.isPending || cart.length === 0}
-              className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-60">
-              {saleMutation.isPending ? "Recording…" : "Confirm Sale & Close Order"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-// ─── Orders List (Ledger tab) ─────────────────────────────────────────────────
-const MaterialBadge = ({ type }: { type: MaterialType }) => {
-  const map = {
-    GOLD: { label: "Gold", cls: "bg-amber-500/15 text-amber-400" },
-    DIAMOND: { label: "Diamond", cls: "bg-sky-500/15 text-sky-400" },
-    GOLD_DIAMOND: { label: "Gold + Diamond", cls: "bg-purple-500/15 text-purple-400" },
-  };
-  const { label, cls } = map[type];
-  return <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium", cls)}>{label}</span>;
-};
-
-const StatusBadge = ({ status }: { status: CustomOrder["status"] }) => {
-  const isPending = status === "PENDING";
-  return (
-    <span className={cn(
-      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium",
-      isPending ? "bg-amber-500/15 text-amber-400" : "bg-emerald-500/15 text-emerald-400"
-    )}>
-      <span className={cn("w-1.5 h-1.5 rounded-full", isPending ? "bg-amber-400" : "bg-emerald-400")} />
-      {isPending ? "Pending" : "Picked Up"}
-    </span>
-  );
-};
-
-// ─── Update Order Modal ───────────────────────────────────────────────────────
-const UpdateOrderModal = ({
-  order,
-  onClose,
-  onSave,
-  isPending,
-}: {
-  order: CustomOrder;
-  onClose: () => void;
-  onSave: (patch: Partial<CustomOrder>) => void;
-  isPending: boolean;
-}) => {
-  const [status, setStatus] = useState<"PENDING" | "PICKED_UP">(order.status);
-  const [balanceDue, setBalanceDue] = useState<number>(Math.max(0, order.totalAmount - order.advanceAmount));
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // back-calculate advanceAmount from the edited balance
-    const newAdvance = Math.max(0, order.totalAmount - balanceDue);
-    onSave({ ...order, status, advanceAmount: newAdvance });
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/70 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-2xl bg-surface p-6 space-y-5"
-        style={{ boxShadow: "var(--shadow-elevated)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-base font-semibold">Update Order</h3>
-            <p className="text-[12px] text-muted-foreground mt-0.5">
-              Order #{order.id} · {order.customerName} · {order.itemName}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md text-muted-foreground hover:bg-surface-2"
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Convert Order to Final Sale"
+      subtitle={`Order #${order.id} · ${order.customerName} · ${order.itemName}`}
+      maxWidth="2xl"
+      footer={
+        <>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="convert-sale-form"
+            variant="primary"
+            size="sm"
+            isLoading={saleMutation.isPending}
+            disabled={cart.length === 0}
+            leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
           >
-            <X className="w-4 h-4" />
-          </button>
+            Complete Sale &amp; Mark Delivered
+          </Button>
+        </>
+      }
+    >
+      <form id="convert-sale-form" onSubmit={handleSubmit} className="space-y-4">
+        <div className="rounded-lg bg-surface-2 p-3.5 border border-border/60 text-xs space-y-1">
+          <p className="font-semibold text-foreground">
+            Customer: {order.customerName} ({order.customerPhone})
+          </p>
+          <p className="text-muted-foreground">
+            Bespoke Item: {order.itemName} · Agreed Total:{" "}
+            {formatINR(order.totalAmount)} (Advance:{" "}
+            {formatINR(order.advanceAmount)})
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Status toggle */}
-          <div className="space-y-2">
-            <p className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
-              Order Status
-            </p>
-            <div className="grid grid-cols-2 gap-2 p-1 bg-surface-2 rounded-xl">
-              {(["PENDING", "PICKED_UP"] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStatus(s)}
-                  className={cn(
-                    "py-2.5 rounded-lg text-[12.5px] font-semibold transition-all duration-200",
-                    status === s
-                      ? s === "PENDING"
-                        ? "bg-amber-500/20 text-amber-400 shadow-sm ring-1 ring-amber-500/30"
-                        : "bg-emerald-500/20 text-emerald-400 shadow-sm ring-1 ring-emerald-500/30"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle",
-                      status === s
-                        ? s === "PENDING"
-                          ? "bg-amber-400"
-                          : "bg-emerald-400"
-                        : "bg-muted-foreground/40"
-                    )}
-                  />
-                  {s === "PENDING" ? "Pending" : "Completed / Picked Up"}
-                </button>
-              ))}
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <Input
+              label="Select Finished Inventory Piece (SKU)"
+              placeholder="e.g. KK-R-001"
+              value={skuInput}
+              onChange={(e) => {
+                setSkuInput(e.target.value);
+                setSkuError("");
+              }}
+              error={skuError}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            onClick={addToCart}
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
+          >
+            Add
+          </Button>
+        </div>
+
+        {cart.length > 0 && (
+          <div className="rounded-lg border border-border/80 bg-surface-2/60 overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border/60 bg-surface-2 text-muted-foreground font-semibold">
+                  <th className="px-3 py-2 text-left">SKU</th>
+                  <th className="px-3 py-2 text-left">Item</th>
+                  <th className="px-3 py-2 text-center">Qty</th>
+                  <th className="px-3 py-2 text-right">Price</th>
+                  <th className="px-3 py-2 text-right">Total</th>
+                  <th className="px-2 py-2"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {cart.map((c) => (
+                  <tr key={c.sku}>
+                    <td className="px-3 py-2 font-mono text-muted-foreground">
+                      {c.sku}
+                    </td>
+                    <td className="px-3 py-2 font-medium text-foreground">
+                      {c.productName}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <input
+                        type="number"
+                        min={1}
+                        value={c.quantity}
+                        onChange={(e) =>
+                          updateQty(
+                            c.sku,
+                            parseInt(e.target.value, 10) || 1
+                          )
+                        }
+                        className="w-12 text-center bg-surface border border-border/80 rounded py-0.5 text-xs"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatINR(c.pricePerPiece)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold font-mono">
+                      {formatINR(c.pricePerPiece * c.quantity)}
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(c.sku)}
+                        className="p-1 rounded text-muted-foreground hover:text-danger"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="p-3 bg-surface border-t border-border/60 text-xs flex justify-between font-bold">
+              <span>Grand Total (incl. GST)</span>
+              <span className="text-primary font-mono">{formatINR(grandTotal)}</span>
             </div>
           </div>
-
-          {/* Amount fields — side by side */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Advance Paid — fixed, read-only */}
-            <div className="space-y-1.5">
-              <label className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
-                Advance Paid (₹)
-              </label>
-              <div className="w-full bg-surface-2/50 border border-transparent rounded-lg py-2.5 px-3 text-sm text-muted-foreground tabular-nums cursor-not-allowed">
-                {formatINR(order.advanceAmount)}
-              </div>
-            </div>
-
-            {/* Balance Due — editable */}
-            <div className="space-y-1.5">
-              <label className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
-                Balance Due (₹)
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={balanceDue || ""}
-                onChange={(e) => setBalanceDue(Number(e.target.value))}
-                className={cn(
-                  "w-full border rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground/60",
-                  balanceDue === 0
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                    : "bg-surface-2 border-transparent text-foreground"
-                )}
-                placeholder="0"
-              />
-            </div>
-          </div>
-
-          {/* Summary row */}
-          <div className="rounded-lg bg-surface-2 px-4 py-3 flex items-center justify-between text-[12.5px]">
-            <span className="text-muted-foreground">Order Total</span>
-            <span className="font-semibold tabular-nums text-foreground">{formatINR(order.totalAmount)}</span>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-surface-2"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="px-5 py-2.5 rounded-lg bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 disabled:opacity-60 transition-colors"
-            >
-              {isPending ? "Saving…" : "Save Changes"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        )}
+      </form>
+    </Modal>
   );
 };
 
+// ─── Orders List Tab ──────────────────────────────────────────────────────────
 const OrdersListTab = () => {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [slipOrder, setSlipOrder] = useState<CustomOrder | null>(null);
   const [convertOrder, setConvertOrder] = useState<CustomOrder | null>(null);
-  const [updateOrder, setUpdateOrder] = useState<CustomOrder | null>(null);
   const slipRef = useRef<HTMLDivElement>(null);
 
-  const { data: orders = [] } = useQuery({
+  const { data: orders = [], isLoading } = useQuery({
     queryKey: ["custom-orders"],
     queryFn: fetchCustomOrders,
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteCustomOrder,
-    onSuccess: () => { toast.success("Order deleted"); qc.invalidateQueries({ queryKey: ["custom-orders"] }); },
-  });
-
-  const updateMut = useMutation({
-    mutationFn: ({ id, patch }: { id: number; patch: Partial<CustomOrder> }) =>
-      updateCustomOrder(id, patch),
     onSuccess: () => {
-      toast.success("Order updated!");
+      toast.success("Custom order deleted");
       qc.invalidateQueries({ queryKey: ["custom-orders"] });
-      setUpdateOrder(null);
     },
-    onError: () => toast.error("Failed to update order"),
   });
 
   const markPickedUp = useMutation({
     mutationFn: ({ id, saleId }: { id: number; saleId?: number }) =>
       markOrderPickedUp(id, saleId),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["custom-orders"] }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["custom-orders"] });
+    },
   });
 
   const filtered = orders.filter((o: CustomOrder) => {
@@ -809,136 +897,176 @@ const OrdersListTab = () => {
 
   const handlePrintSlip = (order: CustomOrder) => {
     setSlipOrder(order);
-    // give DOM time to render then trigger print
     setTimeout(() => {
-      const content = slipRef.current;
-      if (!content) return;
-      const win = window.open("", "_blank", "width=400,height=700");
-      if (!win) return;
-      win.document.write(`<html><head><title>K.K Jewelers - Order #${order.id}</title>
-        <style>body{margin:0;font-family:monospace;}</style>
-        </head><body>${content.innerHTML}</body></html>`);
-      win.document.close(); win.focus(); win.print(); win.close();
-    }, 100);
+      window.print();
+    }, 200);
   };
-
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex items-center gap-3">
+      {/* Search Toolbar */}
+      <div className="flex items-center justify-between gap-3 bg-surface p-3.5 rounded-xl border border-border/80 shadow-xs">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search orders…"
-            className="w-full pl-9 pr-3 py-2 text-sm bg-surface-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="Search custom orders…"
+            className="w-full pl-9 pr-3 py-2 text-xs bg-surface-2 border border-border/60 hover:border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
           />
         </div>
-        <p className="text-[12px] text-muted-foreground">
-          {filtered.length} order{filtered.length !== 1 ? "s" : ""}
+        <p className="text-xs text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{filtered.length}</span> order{filtered.length !== 1 ? "s" : ""}
         </p>
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface-2">
-              {["#", "Customer", "Item", "Material", "Pickup Date", "Total", "Advance", "Balance", "Status", ""].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  {h}
+      {isLoading ? (
+        <TableSkeleton rows={6} />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={ClipboardList}
+          title="No custom orders found"
+          description="Create your first bespoke jewelry order using the 'New Bespoke Order' tab."
+        />
+      ) : (
+        <div className="rounded-xl border border-border/80 bg-surface overflow-x-auto shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-surface-2/80">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  #
                 </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Customer
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Piece Description
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Composition
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Delivery
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Total
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Advance
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Due
+                </th>
+                <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {filtered.map((order: CustomOrder) => (
+                <tr
+                  key={order.id}
+                  className="hover:bg-surface-2/50 transition-colors"
+                >
+                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
+                    #{order.id}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <p className="font-semibold text-[13px] text-foreground">
+                      {order.customerName}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {order.customerPhone}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-[13px] max-w-[180px]">
+                    <p className="truncate text-foreground font-medium">{order.itemName}</p>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <MaterialBadge type={order.materialType} />
+                  </td>
+                  <td className="px-4 py-3 text-[12.5px] text-muted-foreground whitespace-nowrap">
+                    {fmtDate(order.pickupDate)}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums font-semibold text-right text-[13px] whitespace-nowrap">
+                    {formatINR(order.totalAmount)}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-right text-[13px] text-muted-foreground whitespace-nowrap">
+                    {formatINR(order.advanceAmount)}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-right text-[13px] font-semibold text-primary whitespace-nowrap">
+                    {formatINR(
+                      Math.max(0, order.totalAmount - order.advanceAmount)
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-center whitespace-nowrap">
+                    <StatusBadge
+                      variant={
+                        order.status === "PICKED_UP"
+                          ? "success"
+                          : "warning"
+                      }
+                      withDot
+                    >
+                      {order.status === "PICKED_UP" ? "Delivered" : "Pending"}
+                    </StatusBadge>
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handlePrintSlip(order)}
+                        title="Print order slip"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </Button>
+
+                      {order.status === "PENDING" && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setConvertOrder(order)}
+                          className="text-xs h-8"
+                        >
+                          Convert to Sale
+                        </Button>
+                      )}
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `Delete Custom Order #${order.id}? This cannot be undone.`
+                            )
+                          )
+                            deleteMut.mutate(order.id);
+                        }}
+                        title="Delete order"
+                        className="h-8 w-8 text-muted-foreground hover:text-danger"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {filtered.map((order: CustomOrder) => (
-              <tr key={order.id} className="hover:bg-surface-2/50 transition-colors">
-                <td className="px-4 py-3.5 text-muted-foreground text-xs">#{order.id}</td>
-                <td className="px-4 py-3.5">
-                  <p className="font-semibold text-[13px]">{order.customerName}</p>
-                  <p className="text-[11px] text-muted-foreground">{order.customerPhone}</p>
-                </td>
-                <td className="px-4 py-3.5 text-[13px] max-w-[160px]">
-                  <p className="truncate">{order.itemName}</p>
-                </td>
-                <td className="px-4 py-3.5"><MaterialBadge type={order.materialType} /></td>
-                <td className="px-4 py-3.5 text-[13px] text-muted-foreground whitespace-nowrap">{fmtDate(order.pickupDate)}</td>
-                <td className="px-4 py-3.5 tabular-nums font-semibold text-[13px]">{formatINR(order.totalAmount)}</td>
-                <td className="px-4 py-3.5 tabular-nums text-[13px] text-muted-foreground">{formatINR(order.advanceAmount)}</td>
-                <td className="px-4 py-3.5 tabular-nums text-[13px] font-medium text-primary">
-                  {formatINR(Math.max(0, order.totalAmount - order.advanceAmount))}
-                </td>
-                <td className="px-4 py-3.5"><StatusBadge status={order.status} /></td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center gap-1.5">
-                    {/* Print slip */}
-                    <button
-                      onClick={() => handlePrintSlip(order)}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                      title="Print order slip"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Convert to Sale */}
-                    {order.status === "PENDING" && (
-                      <button
-                        onClick={() => setConvertOrder(order)}
-                        className="px-2.5 py-1 rounded-md bg-primary/10 text-primary text-[11px] font-semibold hover:bg-primary/20 transition-colors whitespace-nowrap"
-                        title="Convert to sale"
-                      >
-                        Convert to Sale
-                      </button>
-                    )}
-
-                    {/*Update the order — only while pending*/}
-                    {order.status === "PENDING" && (
-                      <button
-                        onClick={() => setUpdateOrder(order)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-500/15 text-amber-400 ring-1 ring-amber-500/30 text-[11px] font-semibold hover:bg-amber-500/25 transition-colors whitespace-nowrap"
-                        title="Update order"
-                      >
-                        ✎ Update
-                      </button>
-                    )}
-
-                    {/* Delete */}
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete Order #${order.id}? This cannot be undone.`))
-                          deleteMut.mutate(order.id);
-                      }}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-surface-2"
-                      title="Delete order"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                  No custom orders found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Hidden print target */}
-      {slipOrder && (
-        <div className="hidden">
-          <div ref={slipRef}>
-            <OrderSlip order={slipOrder} />
-          </div>
+            </tbody>
+          </table>
         </div>
       )}
+
+      {/* Hidden print slip */}
+      <div className="hidden print:block" ref={slipRef}>
+        {slipOrder && <OrderSlip order={slipOrder} />}
+      </div>
 
       {/* Convert to Sale Modal */}
       {convertOrder && (
@@ -948,19 +1076,9 @@ const OrdersListTab = () => {
           onClose={() => setConvertOrder(null)}
           onConverted={(saleId) => {
             markPickedUp.mutate({ id: convertOrder.id, saleId });
-            toast.success("Order marked as Picked Up & sale recorded!");
+            toast.success("Order marked as Delivered & sale recorded!");
             setConvertOrder(null);
           }}
-        />
-      )}
-
-      {/* Update Order Modal */}
-      {updateOrder && (
-        <UpdateOrderModal
-          order={updateOrder}
-          onClose={() => setUpdateOrder(null)}
-          onSave={(patch) => updateMut.mutate({ id: updateOrder.id, patch })}
-          isPending={updateMut.isPending}
         />
       )}
     </div>
@@ -978,35 +1096,36 @@ export const CustomOrderForm = () => {
   const handlePrintSlip = (order: CustomOrder) => {
     setSlipOrder(order);
     setTimeout(() => {
-      const content = slipRef.current;
-      if (!content) return;
-      const win = window.open("", "_blank", "width=400,height=700");
-      if (!win) return;
-      win.document.write(`<html><head><title>K.K Jewelers - Order #${order.id}</title>
-        <style>body{margin:0;font-family:monospace;}</style>
-        </head><body>${content.innerHTML}</body></html>`);
-      win.document.close(); win.focus(); win.print(); win.close();
-    }, 100);
+      window.print();
+    }, 200);
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "new-order", label: "New Order", icon: <Plus className="w-3.5 h-3.5" /> },
-    { id: "orders-list", label: "Orders List", icon: <ClipboardList className="w-3.5 h-3.5" /> },
+    {
+      id: "new-order",
+      label: "New Bespoke Order",
+      icon: <Plus className="w-3.5 h-3.5" />,
+    },
+    {
+      id: "orders-list",
+      label: "Orders Ledger",
+      icon: <ClipboardList className="w-3.5 h-3.5" />,
+    },
   ];
 
   return (
-    <div className="space-y-5 animate-in fade-in slide-in-from-top-4 duration-300">
-      {/* Tab bar */}
-      <div className="flex gap-1 p-1 bg-surface rounded-xl w-fit border border-border/40">
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Structured Tab Header (Linear / Stripe Style) */}
+      <div className="flex items-center gap-2 border-b border-border/60 pb-px">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={cn(
-              "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200",
+              "inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold transition-all border-b-2 select-none -mb-px",
               activeTab === t.id
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
+                ? "border-primary text-primary font-bold"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
             )}
           >
             {t.icon}
@@ -1015,11 +1134,10 @@ export const CustomOrderForm = () => {
         ))}
       </div>
 
-      {/* Content */}
+      {/* Tab Content */}
       {activeTab === "new-order" ? (
-        <NewOrderForm
+        <NewOrderFormVariationA
           onCreated={(order) => {
-            // Show slip then switch to list
             setSlipOrder(order);
             setActiveTab("orders-list");
           }}
@@ -1028,37 +1146,38 @@ export const CustomOrderForm = () => {
         <OrdersListTab />
       )}
 
-      {/* Order Slip modal — shown after creation */}
+      {/* Order Slip Dialog */}
       {slipOrder && activeTab === "orders-list" && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/70 backdrop-blur-sm"
-          onClick={() => setSlipOrder(null)}
-        >
-          <div
-            className="rounded-2xl bg-white overflow-hidden"
-            style={{ boxShadow: "var(--shadow-elevated)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div ref={slipRef}>
-              <OrderSlip order={slipOrder} />
-            </div>
-            <div className="flex gap-2 p-3 bg-white border-t border-gray-200">
-              <button
+        <Modal
+          open={!!slipOrder}
+          onClose={() => setSlipOrder(null)}
+          title={`Order #${slipOrder.id} Voucher`}
+          subtitle="Nehru Road, Farrukhabad official bespoke order voucher"
+          maxWidth="2xl"
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setSlipOrder(null)}
-                className="flex-1 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100"
               >
                 Close
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => handlePrintSlip(slipOrder)}
-                className="flex-1 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:opacity-80 flex items-center justify-center gap-2"
+                leftIcon={<Printer className="w-4 h-4" />}
               >
-                <Printer className="w-4 h-4" />
-                Print Slip
-              </button>
-            </div>
+                Print Voucher (A5)
+              </Button>
+            </>
+          }
+        >
+          <div ref={slipRef} className="overflow-x-auto py-2 flex justify-center">
+            <OrderSlip order={slipOrder} />
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

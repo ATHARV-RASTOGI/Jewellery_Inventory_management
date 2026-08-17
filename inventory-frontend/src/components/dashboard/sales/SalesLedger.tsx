@@ -1,93 +1,34 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, X, Printer, Trash2 } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Printer,
+  Trash2,
+  Receipt as ReceiptIcon,
+  ShoppingCart,
+  User,
+  ShoppingBag,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatINR } from "@/lib/utils";
 import {
-  fetchSales, fetchSaleItems, createSale,
-  type Sale, type SaleItem,
+  fetchSales,
+  fetchSaleItems,
+  createSale,
+  type Sale,
+  type SaleItem,
 } from "@/lib/api/sales";
 import { fetchProducts, type Product } from "@/lib/api/inventory";
 import { GST_RATE } from "@/lib/constants";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { TableSkeleton } from "@/components/feedback/Skeleton";
+import { SalesInvoiceSlip } from "@/components/receipts/SalesInvoiceSlip";
 
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IN", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-
-// ─── Receipt component (printable) ───────────────────────────────────────────
-const Receipt = ({
-  sale,
-  items,
-}: {
-  sale: Sale;
-  items: SaleItem[];
-}) => (
-  <div className="font-mono text-[12px] text-black bg-white p-6 w-[320px]">
-    {/* Header */}
-    <div className="text-center mb-4">
-      <p className="text-[18px] font-bold">K.K Jewelers</p>
-      <p className="text-[11px]">GST Receipt</p>
-      <p className="text-[11px]">Sale #{sale.id} · {fmtDate(sale.saleDate)}</p>
-    </div>
-
-    <div className="border-t border-dashed border-black my-2" />
-
-    {/* Customer */}
-    <div className="mb-3 space-y-0.5">
-      <p><span className="font-bold">Name:</span> {sale.customerName}</p>
-      <p><span className="font-bold">Phone:</span> {sale.customerPhoneNo}</p>
-      {sale.customerAddress && (
-        <p><span className="font-bold">Address:</span> {sale.customerAddress}</p>
-      )}
-    </div>
-
-    <div className="border-t border-dashed border-black my-2" />
-
-    {/* Items */}
-    <div className="mb-3 space-y-2">
-      {items.map((item) => (
-        <div key={item.id}>
-          <div className="flex justify-between font-bold">
-            <span>{item.productName}</span>
-            <span>{formatINR(item.lineTotal)}</span>
-          </div>
-          <div className="text-[10px] text-gray-600">
-            {item.sku} · {item.material} {item.purity} · {item.weight}g
-            · Qty {item.quantity} × {formatINR(item.pricePerPiece)}
-          </div>
-        </div>
-      ))}
-    </div>
-
-    <div className="border-t border-dashed border-black my-2" />
-
-    {/* Totals */}
-    <div className="space-y-1">
-      <div className="flex justify-between">
-        <span>Subtotal</span>
-        <span>{formatINR(sale.subtotal)}</span>
-      </div>
-      <div className="flex justify-between">
-        <span>GST @ 3%</span>
-        <span>{formatINR(sale.gstAmount)}</span>
-      </div>
-      <div className="flex justify-between font-bold text-[14px] border-t border-black pt-1 mt-1">
-        <span>TOTAL</span>
-        <span>{formatINR(sale.grandTotal)}</span>
-      </div>
-    </div>
-
-    <div className="border-t border-dashed border-black my-2" />
-
-    <div className="text-center text-[10px] mt-2 space-y-0.5">
-      <p>Thank you for shopping at K.K Jewelers!</p>
-      <p>All sales are final. Exchange within 7 days.</p>
-    </div>
-  </div>
-);
-
-// ─── New Sale Modal ───────────────────────────────────────────────────────────
 type CartItem = {
   sku: string;
   productName: string;
@@ -98,10 +39,21 @@ type CartItem = {
   pricePerPiece: number;
 };
 
-const fieldLabel = "text-[11.5px] font-medium text-muted-foreground tracking-wide";
-const fieldInput =
-  "w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring";
+const fmtDate = (iso: string) => {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso.includes("T") ? iso : `${iso}T00:00:00`);
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+};
 
+// ─── New Sale Modal ───────────────────────────────────────────────────────────
 const NewSaleModal = ({
   open,
   onClose,
@@ -120,23 +72,27 @@ const NewSaleModal = ({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [skuInput, setSkuInput] = useState("");
   const [skuError, setSkuError] = useState("");
-  const [items, setItems] = useState<SaleItem[]>([]);
+
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
-    queryFn:()=> fetchProducts(),
+    queryFn: () => fetchProducts(),
     enabled: open,
   });
 
   const mutation = useMutation({
     mutationFn: createSale,
     onSuccess: (sale) => {
-      toast.success("Sale recorded!");
+      toast.success("Sale recorded successfully!");
       qc.invalidateQueries({ queryKey: ["sales"] });
-      qc.invalidateQueries({ queryKey: ["products"] }); // refresh stock
+      qc.invalidateQueries({ queryKey: ["products"] });
       onCreated(sale);
       onClose();
       setCart([]);
-      setCustomer({ customerName: "", customerPhone: "", customerAddress: "" });
+      setCustomer({
+        customerName: "",
+        customerPhone: "",
+        customerAddress: "",
+      });
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to record sale"),
   });
@@ -148,11 +104,11 @@ const NewSaleModal = ({
       (p: Product) => p.sku.toLowerCase() === skuInput.trim().toLowerCase()
     );
     if (!product) {
-      setSkuError("Product not found for this SKU");
+      setSkuError("No inventory piece found for this SKU");
       return;
     }
     if (product.stockQuantity <= 0) {
-      setSkuError("This item is out of stock");
+      setSkuError("This piece is currently out of stock");
       return;
     }
     const existing = cart.find((c) => c.sku === product.sku);
@@ -188,409 +144,430 @@ const NewSaleModal = ({
   const updateQty = (sku: string, qty: number) => {
     const product = products.find((p: Product) => p.sku === sku);
     if (product && qty > product.stockQuantity) {
-      toast.error(`Only ${product.stockQuantity} in stock`);
+      toast.error(`Only ${product.stockQuantity} pieces in stock`);
       return;
     }
     setCart((prev) =>
-      prev.map((c) => (c.sku === sku ? { ...c, quantity: Math.max(1, qty) } : c))
+      prev.map((c) =>
+        c.sku === sku ? { ...c, quantity: Math.max(1, qty) } : c
+      )
     );
   };
 
-  const subtotal = cart.reduce((s, c) => s + c.pricePerPiece * c.quantity, 0);
+  const subtotal = cart.reduce(
+    (s, c) => s + c.pricePerPiece * c.quantity,
+    0
+  );
   const gst = subtotal * GST_RATE;
   const grandTotal = subtotal + gst;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) {
-      toast.error("Add at least one item");
+      toast.error("Please add at least one item to the cart");
       return;
     }
-    if (customer.customerPhone.length !== 10 || !/^\d+$/.test(customer.customerPhone)) {
-      toast.error("Mobile no should be exactly 10 digits");
+    if (
+      customer.customerPhone.length !== 10 ||
+      !/^\d+$/.test(customer.customerPhone)
+    ) {
+      toast.error("Customer mobile number must be exactly 10 digits");
       return;
     }
     mutation.mutate({
       ...customer,
       items: cart.map(({ sku, quantity, pricePerPiece }) => ({
-        sku, quantity, pricePerPiece,
+        sku,
+        quantity,
+        pricePerPiece,
       })),
     });
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/70 backdrop-blur-sm"
-      onClick={onClose}
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Create New Counter Sale"
+      subtitle="Scan items by SKU, record customer details, and calculate GST invoice."
+      maxWidth="2xl"
+      footer={
+        <>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="new-sale-form"
+            variant="primary"
+            size="sm"
+            isLoading={mutation.isPending}
+            disabled={cart.length === 0}
+            leftIcon={<ShoppingCart className="w-3.5 h-3.5" />}
+          >
+            Complete Sale &amp; Invoice
+          </Button>
+        </>
+      }
     >
-      <div
-        className="w-full max-w-2xl rounded-2xl bg-surface p-6 space-y-5 max-h-[90vh] overflow-y-auto"
-        style={{ boxShadow: "var(--shadow-elevated)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="text-base font-semibold">New Sale</h3>
-            <p className="text-[12px] text-muted-foreground mt-0.5">K.K Jewelers</p>
+      <form id="new-sale-form" onSubmit={submit} className="space-y-5">
+        {/* Customer Information */}
+        <div className="grid grid-cols-2 gap-3.5">
+          <div className="col-span-2 sm:col-span-1">
+            <Input
+              label="Customer Name"
+              required
+              placeholder="e.g. Ramesh Kumar"
+              value={customer.customerName}
+              onChange={(e) =>
+                setCustomer((p) => ({ ...p, customerName: e.target.value }))
+              }
+            />
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-md text-muted-foreground hover:bg-surface-2">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="col-span-2 sm:col-span-1">
+            <Input
+              label="Mobile Number"
+              required
+              placeholder="10-digit number"
+              value={customer.customerPhone}
+              onChange={(e) =>
+                setCustomer((p) => ({ ...p, customerPhone: e.target.value }))
+              }
+            />
+          </div>
+          <div className="col-span-2">
+            <Input
+              label="Address (Optional)"
+              placeholder="Street, City"
+              value={customer.customerAddress}
+              onChange={(e) =>
+                setCustomer((p) => ({
+                  ...p,
+                  customerAddress: e.target.value,
+                }))
+              }
+            />
+          </div>
         </div>
 
-        <form onSubmit={submit} className="space-y-5">
-          {/* Customer details */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 space-y-1.5">
-              <label className={fieldLabel}>Customer name</label>
-              <input
-                required
-                className={fieldInput}
-                placeholder="e.g. Ramesh Kumar"
-                value={customer.customerName}
-                onChange={(e) =>
-                  setCustomer((p) => ({ ...p, customerName: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className={fieldLabel}>Phone</label>
-              <input
-                required
-                className={fieldInput}
-                placeholder="9876543210"
-                value={customer.customerPhone}
-                onChange={(e) =>
-                  setCustomer((p) => ({ ...p, customerPhone: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className={fieldLabel}>Address (optional)</label>
-              <input
-                className={fieldInput}
-                placeholder="Street, City"
-                value={customer.customerAddress}
-                onChange={(e) =>
-                  setCustomer((p) => ({ ...p, customerAddress: e.target.value }))
-                }
-              />
-            </div>
-          </div>
-          
-
-          {/* SKU search */}
-          <div className="space-y-2">
-            <label className={fieldLabel}>Add item by SKU</label>
-            <div className="flex gap-2">
-              <input
-                className={fieldInput}
+        {/* Item Entry by SKU */}
+        <div className="space-y-2 pt-2 border-t border-border/40">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Input
+                label="Add Item to Cart by SKU"
                 placeholder="e.g. KK-R-001"
                 value={skuInput}
                 onChange={(e) => {
                   setSkuInput(e.target.value);
                   setSkuError("");
                 }}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addToCart())}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && (e.preventDefault(), addToCart())
+                }
+                error={skuError}
               />
-              <button
-                type="button"
-                onClick={addToCart}
-                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold shrink-0"
-              >
-                Add
-              </button>
             </div>
-
-            {/* SKU suggestions */}
-            {skuInput && (
-              <div className="rounded-lg bg-surface-2 border border-border divide-y divide-border max-h-36 overflow-y-auto">
-                {products
-                  .filter((p: Product) =>
-                    p.sku.toLowerCase().includes(skuInput.toLowerCase()) ||
-                    p.name.toLowerCase().includes(skuInput.toLowerCase())
-                  )
-                  .slice(0, 5)
-                  .map((p: Product) => (
-                    <button
-                      key={p.sku}
-                      type="button"
-                      onClick={() => {
-                        setSkuInput(p.sku);
-                        setSkuError("");
-                      }}
-                      className="w-full flex justify-between items-center px-3 py-2 text-[12px] hover:bg-surface text-left"
-                    >
-                      <span>
-                        <span className="font-medium">{p.sku}</span>
-                        {" · "}{p.name}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {p.material} · Stock: {p.stockQuantity}
-                      </span>
-                    </button>
-                  ))}
-              </div>
-            )}
-            {skuError && (
-              <p className="text-[11.5px] text-destructive">{skuError}</p>
-            )}
-          </div>
-
-          {/* Cart */}
-          {cart.length > 0 && (
-            <div className="space-y-2">
-              <p className={fieldLabel}>Items in this sale</p>
-              <div className="rounded-lg border border-border divide-y divide-border">
-                {cart.map((item) => (
-                  <div key={item.sku} className="flex items-center gap-3 px-3 py-2.5">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium truncate">{item.productName}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {item.sku} · {item.material} {item.purity} · {item.weight}g
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.sku, item.quantity - 1)}
-                        className="w-6 h-6 rounded bg-surface-2 text-sm font-bold hover:bg-surface flex items-center justify-center"
-                      >
-                        −
-                      </button>
-                      <span className="w-6 text-center text-sm tabular-nums">
-                        {item.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => updateQty(item.sku, item.quantity + 1)}
-                        className="w-6 h-6 rounded bg-surface-2 text-sm font-bold hover:bg-surface flex items-center justify-center"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <div className="text-right shrink-0 w-24">
-                      <p className="text-[13px] font-semibold tabular-nums">
-                        {formatINR(item.pricePerPiece * item.quantity)}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {formatINR(item.pricePerPiece)} each
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFromCart(item.sku)}
-                      className="p-1 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Bill summary */}
-              <div className="rounded-lg bg-surface-2 px-4 py-3 space-y-1.5 text-[12.5px]">
-                <div className="flex justify-between text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span className="tabular-nums">{formatINR(subtotal)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>GST @ 3%</span>
-                  <span className="tabular-nums">{formatINR(gst)}</span>
-                </div>
-                <div className="flex justify-between font-semibold text-foreground border-t border-border pt-1.5 mt-1">
-                  <span>Grand Total</span>
-                  <span className="tabular-nums text-primary">{formatINR(grandTotal)}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <button
+            <Button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-surface-2"
+              variant="secondary"
+              size="md"
+              onClick={addToCart}
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending || cart.length === 0}
-              className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-60"
-            >
-              {mutation.isPending ? "Recording…" : "Confirm Sale"}
-            </button>
+              Add Item
+            </Button>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        {/* Cart Item Listing */}
+        {cart.length > 0 ? (
+          <div className="rounded-xl border border-border/80 bg-surface-2/60 overflow-hidden shadow-xs">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border/60 bg-surface-2 text-muted-foreground font-semibold uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left">SKU</th>
+                  <th className="px-3 py-2 text-left">Item</th>
+                  <th className="px-3 py-2 text-center">Qty</th>
+                  <th className="px-3 py-2 text-right">Price</th>
+                  <th className="px-3 py-2 text-right">Total</th>
+                  <th className="px-2 py-2 text-center"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {cart.map((c) => (
+                  <tr key={c.sku} className="hover:bg-surface-2/40">
+                    <td className="px-3 py-2 font-mono text-muted-foreground">
+                      {c.sku}
+                    </td>
+                    <td className="px-3 py-2 font-medium text-foreground">
+                      {c.productName}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <input
+                        type="number"
+                        min={1}
+                        value={c.quantity}
+                        onChange={(e) =>
+                          updateQty(
+                            c.sku,
+                            parseInt(e.target.value, 10) || 1
+                          )
+                        }
+                        className="w-12 text-center bg-surface border border-border/80 rounded py-1 text-xs font-semibold focus:ring-1 focus:ring-ring"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatINR(c.pricePerPiece)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold font-mono text-foreground">
+                      {formatINR(c.pricePerPiece * c.quantity)}
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => removeFromCart(c.sku)}
+                        className="p-1 rounded text-muted-foreground hover:text-danger hover:bg-danger/10 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Totals Summary */}
+            <div className="p-3 bg-surface border-t border-border/60 space-y-1 text-xs">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Subtotal</span>
+                <span className="font-mono">{formatINR(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>GST (3%)</span>
+                <span className="font-mono">{formatINR(gst)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-sm text-foreground pt-1 border-t border-border/40">
+                <span>Grand Total</span>
+                <span className="text-primary font-mono">{formatINR(grandTotal)}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border/80 rounded-xl">
+            No jewelry pieces added to this sale yet. Enter SKU above.
+          </div>
+        )}
+      </form>
+    </Modal>
   );
 };
 
-// ─── Main Sales Ledger Page ───────────────────────────────────────────────────
+// ─── Main Sales Ledger Component ─────────────────────────────────────────────
 export const SalesLedger = () => {
-  const [newSaleOpen, setNewSaleOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
   const [receiptItems, setReceiptItems] = useState<SaleItem[]>([]);
-  const [search, setSearch] = useState("");
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
-  const { data: sales = [] } = useQuery({
+  const { data: sales = [], isLoading } = useQuery({
     queryKey: ["sales"],
     queryFn: fetchSales,
   });
 
-  const { data: selectedItems = [] } = useQuery({
-    queryKey: ["sale-items", receiptSale?.id],
-    queryFn: () => fetchSaleItems(receiptSale!.id),
-    enabled: !!receiptSale,
-  });
+  const filtered = sales.filter(
+    (s) =>
+      !search ||
+      s.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      s.customerPhoneNo.includes(search) ||
+      String(s.id).includes(search)
+  );
 
-  const openReceipt = (sale: Sale) => setReceiptSale(sale);
-
-  const handlePrint = () => {
-    const content = receiptRef.current;
-    if (!content) return;
-    const win = window.open("", "_blank", "width=400,height=600");
-    if (!win) return;
-    win.document.write(`
-      <html><head><title>K.K Jewelers - Receipt #${receiptSale?.id}</title>
-      <style>body { margin: 0; font-family: monospace; }</style>
-      </head><body>${content.innerHTML}</body></html>
-    `);
-    win.document.close();
-    win.focus();
-    win.print();
-    win.close();
+  const printReceipt = async (sale: Sale) => {
+    try {
+      const items = await fetchSaleItems(sale.id);
+      setReceiptSale(sale);
+      setReceiptItems(items);
+      setTimeout(() => {
+        window.print();
+      }, 300);
+    } catch {
+      toast.error("Failed to load invoice items for printing");
+    }
   };
 
-const filtered = sales.filter((s: Sale) => {
-    const q = search.trim().toLowerCase();
-    return (
-      !q ||
-      (s.customerName || "").toLowerCase().includes(q) ||
-      String(s.customerPhoneNo || "").includes(q) ||
-      String(s.id).includes(q)
-    );
-});
-
   return (
-    <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+    <div className="space-y-4 animate-in fade-in duration-300">
+      {/* ── Toolbar ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface p-3.5 rounded-xl border border-border/80 shadow-xs">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search sales…"
-            className="w-full pl-9 pr-3 py-2 text-sm bg-surface-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="Search sales by customer name, phone, or invoice #…"
+            className="w-full bg-surface-2 border border-border/60 hover:border-border rounded-lg pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
           />
         </div>
-        <button
-          onClick={() => setNewSaleOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90"
+
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => setModalOpen(true)}
+          leftIcon={<Plus className="w-4 h-4" />}
         >
-          <Plus className="w-4 h-4" />
-          New Sale
-        </button>
+          New Counter Sale
+        </Button>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface-2">
-              {["Sale ID", "Customer", "Phone", "Date", "Items", "Subtotal", "GST", "Total", ""].map(
-                (h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
-                  >
-                    {h}
-                  </th>
-                )
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {filtered.map((sale: Sale) => (
-              <tr key={sale.id} className="hover:bg-surface-2/50 transition-colors">
-                <td className="px-4 py-3.5 text-muted-foreground text-xs">#{sale.id}</td>
-                <td className="px-4 py-3.5 font-semibold text-[13px]">{sale.customerName}</td>
-                <td className="px-4 py-3.5 text-muted-foreground text-[13px]">{sale.customerPhoneNo}</td>
-                <td className="px-4 py-3.5 text-muted-foreground text-[13px]">{fmtDate(sale.saleDate)}</td>
-                <td className="px-4 py-3.5 text-muted-foreground text-[13px]">{sale.itemCount}{sale.itemCount === 1 ? " Item" : " Items"}</td>
-                <td className="px-4 py-3.5 tabular-nums">{formatINR(sale.subtotal)}</td>
-                <td className="px-4 py-3.5 tabular-nums text-muted-foreground">{formatINR(sale.gstAmount)}</td>
-                <td className="px-4 py-3.5 tabular-nums font-semibold">{formatINR(sale.grandTotal)}</td>
-                <td className="px-4 py-3.5">
-                  <button
-                    onClick={() => openReceipt(sale)}
-                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2"
-                    title="View receipt"
-                  >
-                    <Printer className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  No sales found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {/* Info metric */}
+      <div className="px-1 text-xs text-muted-foreground">
+        Showing <span className="font-semibold text-foreground">{filtered.length}</span> recorded invoice{filtered.length === 1 ? "" : "s"}
       </div>
+
+      {/* Sales Table */}
+      {isLoading ? (
+        <TableSkeleton rows={6} />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={ShoppingBag}
+          title="No sales transactions recorded"
+          description="Log counter invoices using the 'New Counter Sale' button."
+          action={
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setModalOpen(true)}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              New Sale
+            </Button>
+          }
+        />
+      ) : (
+        <div className="rounded-xl border border-border/80 bg-surface overflow-x-auto shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-surface-2/80">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Invoice #
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Customer
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Date
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Subtotal
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  GST (3%)
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Grand Total
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Receipt
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {filtered.map((sale) => (
+                <tr
+                  key={sale.id}
+                  className="hover:bg-surface-2/50 transition-colors"
+                >
+                  <td className="px-4 py-3 text-xs font-mono text-muted-foreground">
+                    #{sale.id}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <p className="font-semibold text-[13px] text-foreground">
+                      {sale.customerName}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {sale.customerPhoneNo}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-[12.5px] text-muted-foreground whitespace-nowrap">
+                    {fmtDate(sale.saleDate)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-[12.5px] font-mono whitespace-nowrap">
+                    {formatINR(sale.subtotal)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-[12.5px] text-muted-foreground font-mono whitespace-nowrap">
+                    {formatINR(sale.gstAmount)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold font-mono text-foreground whitespace-nowrap">
+                    {formatINR(sale.grandTotal)}
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => printReceipt(sale)}
+                      leftIcon={<Printer className="w-3.5 h-3.5" />}
+                    >
+                      Print
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* New Sale Modal */}
       <NewSaleModal
-        open={newSaleOpen}
-        onClose={() => setNewSaleOpen(false)}
-        onCreated={(sale) => {
-          setNewSaleOpen(false);
-          openReceipt(sale);
-        }}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={(sale) => printReceipt(sale)}
       />
 
-      {/* Receipt Modal */}
+      {/* Invoice Slip Preview & Print Modal */}
       {receiptSale && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/70 backdrop-blur-sm"
-          onClick={() => setReceiptSale(null)}
-        >
-          <div
-            className="rounded-2xl bg-white overflow-hidden"
-            style={{ boxShadow: "var(--shadow-elevated)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div ref={receiptRef}>
-              <Receipt sale={receiptSale} items={selectedItems} />
-            </div>
-            <div className="flex gap-2 p-3 bg-white border-t border-gray-200">
-              <button
+        <Modal
+          open={!!receiptSale}
+          onClose={() => setReceiptSale(null)}
+          title={`Tax Invoice & Cash Receipt #${receiptSale.id}`}
+          subtitle={`${receiptSale.customerName} · Nehru Road, Farrukhabad official tax voucher`}
+          maxWidth="3xl"
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setReceiptSale(null)}
-                className="flex-1 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100"
               >
                 Close
-              </button>
-              <button
-                onClick={handlePrint}
-                className="flex-1 py-2 rounded-lg bg-black text-white text-sm font-semibold hover:opacity-80 flex items-center justify-center gap-2"
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setTimeout(() => window.print(), 200);
+                }}
+                leftIcon={<Printer className="w-4 h-4" />}
               >
-                <Printer className="w-4 h-4" />
-                Print
-              </button>
-            </div>
+                Print Invoice (A5)
+              </Button>
+            </>
+          }
+        >
+          <div className="overflow-x-auto py-2 flex justify-center">
+            <SalesInvoiceSlip sale={receiptSale} items={receiptItems} />
           </div>
-        </div>
+        </Modal>
       )}
+
+      {/* Hidden printable receipt for direct window.print() */}
+      <div className="hidden print:block" ref={printRef}>
+        {receiptSale && (
+          <SalesInvoiceSlip sale={receiptSale} items={receiptItems} />
+        )}
+      </div>
     </div>
   );
 };

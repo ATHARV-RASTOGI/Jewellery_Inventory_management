@@ -3,7 +3,11 @@ import ReactDOM from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { QueryClient } from "@tanstack/react-query";
 import { routeTree } from "./routeTree.gen";
+import { applyTheme, getInitialTheme } from "./lib/theme";
 import "./styles.css";
+
+// Apply persisted or system theme immediately
+applyTheme(getInitialTheme());
 
 // Shared query cache used by the entire app
 const queryClient = new QueryClient();
@@ -27,6 +31,6 @@ if (!root.innerHTML) {
   ReactDOM.createRoot(root).render(
     <React.StrictMode>
       <RouterProvider router={router} />
-    </React.StrictMode>,
+    </React.StrictMode>
   );
 }

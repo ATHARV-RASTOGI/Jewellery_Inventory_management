@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search, MoreHorizontal, X, CheckCircle2, IndianRupee, PlusCircle, User, MapPin } from "lucide-react";
+import {
+  Search,
+  X,
+  CheckCircle2,
+  IndianRupee,
+  PlusCircle,
+  User,
+  MapPin,
+  Trash2,
+  FileSpreadsheet,
+  Printer,
+} from "lucide-react";
 import { toast } from "sonner";
 import { calculateSettlement, type SettlementCalculation } from "@/lib/api/loans";
+import { LoanSlip } from "@/components/receipts/LoanSlip";
 
 import { cn, formatINR } from "@/lib/utils";
 import {
@@ -19,13 +31,15 @@ import {
   type PendingDisbursement,
 } from "@/lib/api/loans";
 import { queryKeys } from "@/lib/api/query-keys";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { TableSkeleton } from "@/components/feedback/Skeleton";
 
 type LoanStatus = "ACTIVE" | "CLOSED";
-
-const statusStyle: Record<string, string> = {
-  ACTIVE: "bg-success/10 text-success",
-  CLOSED: "bg-muted text-muted-foreground",
-};
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-IN", {
@@ -35,7 +49,6 @@ const fmtDate = (iso: string) =>
   });
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-// Fallback monthly interest rate when backend does not provide one
 const FALLBACK_MONTHLY_INTEREST_RATE = 0.02;
 
 export const LoanLedger = () => {
@@ -45,7 +58,9 @@ export const LoanLedger = () => {
   const [tab, setTab] = useState<"all" | LoanStatus>("all");
   const [computed, setComputed] = useState<SettlementCalculation | null>(null);
 
-  const displayMonthlyRate = computed ? computed.monthlyInterest * 100 : FALLBACK_MONTHLY_INTEREST_RATE * 100;
+  const displayMonthlyRate = computed
+    ? computed.monthlyInterest * 100
+    : FALLBACK_MONTHLY_INTEREST_RATE * 100;
 
   // settle state
   const [settleTarget, setSettleTarget] = useState<Loan | null>(null);
@@ -55,20 +70,39 @@ export const LoanLedger = () => {
   // interest payment state
   const [interestTarget, setInterestTarget] = useState<Loan | null>(null);
   const [interestAmount, setInterestAmount] = useState(0);
-  const [interestNote, setInterestNote] = useState("Interest payment");
   const [interestFromDate, setInterestFromDate] = useState(todayIso());
   const [interestToDate, setInterestToDate] = useState(todayIso());
   const [interestRate, setInterestRate] = useState(2);
-  const [interestComputed, setInterestComputed] = useState<SettlementCalculation | null>(null);
+  const [interestComputed, setInterestComputed] =
+    useState<SettlementCalculation | null>(null);
 
   // disbursement state
   const [disburseTarget, setDisburseTarget] = useState<Loan | null>(null);
   const [disburseAmount, setDisburseAmount] = useState(0);
   const [disburseDate, setDisburseDate] = useState(todayIso());
 
-  const { data: loans = [] } = useQuery({
+  // delete confirmation state
+  const [deleteTarget, setDeleteTarget] = useState<Loan | null>(null);
+
+  // print statement state
+  const [printStatementTarget, setPrintStatementTarget] = useState<Loan | null>(null);
+
+  const { data: loans = [], isLoading } = useQuery({
     queryKey: queryKeys.loans,
     queryFn: fetchLoans,
+  });
+
+  // fetch payments for statement
+  const { data: statementPayments = [] } = useQuery<InterestPayment[]>({
+    queryKey: ["payments", printStatementTarget?.id],
+    queryFn: () => fetchInterestPayments(printStatementTarget!.id),
+    enabled: !!printStatementTarget,
+  });
+
+  const { data: statementDisbursements = [] } = useQuery<PendingDisbursement[]>({
+    queryKey: ["pending-disbursements", printStatementTarget?.id],
+    queryFn: () => fetchPendingDisbursements(printStatementTarget!.id),
+    enabled: !!printStatementTarget,
   });
 
   // fetch payment history when interest dialog opens
@@ -103,15 +137,17 @@ export const LoanLedger = () => {
   const closeMutation = useMutation({
     mutationFn: closeLoan,
     onSuccess: () => {
-      toast.success("Loan deleted");
+      toast.success("Loan record removed");
+      setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: queryKeys.loans });
     },
+    onError: () => toast.error("Failed to delete loan"),
   });
 
   const settleMutation = useMutation({
     mutationFn: settleLoan,
     onSuccess: () => {
-      toast.success("Loan settled");
+      toast.success("Loan settled and marked closed");
       setSettleTarget(null);
       qc.invalidateQueries({ queryKey: queryKeys.loans });
     },
@@ -134,7 +170,7 @@ export const LoanLedger = () => {
     mutationFn: (d: { id: string; amount: number; date: string }) =>
       addDisbursement(d.id, d.amount, d.date),
     onSuccess: () => {
-      toast.success("Disbursement added");
+      toast.success("Disbursement added to loan balance");
       setDisburseTarget(null);
       qc.invalidateQueries({ queryKey: queryKeys.loans });
       qc.invalidateQueries({ queryKey: ["pending-disbursements"] });
@@ -148,7 +184,6 @@ export const LoanLedger = () => {
       toast.error(msg);
     },
   });
-
 
   useEffect(() => {
     if (!settleTarget) return;
@@ -167,8 +202,7 @@ export const LoanLedger = () => {
   const openSettle = (l: Loan) => {
     setSettleTarget(l);
     setComputed(null);
-    const today = todayIso();
-    setCloseDate(today);
+    setCloseDate(todayIso());
   };
 
   const openInterest = (l: Loan) => {
@@ -188,7 +222,9 @@ export const LoanLedger = () => {
 
   useEffect(() => {
     if (interestPayment.length > 0 && interestTarget) {
-      setInterestFromDate(interestPayment[interestPayment.length - 1].paymentDate);
+      setInterestFromDate(
+        interestPayment[interestPayment.length - 1].paymentDate
+      );
     } else if (interestPayment.length === 0 && interestTarget) {
       setInterestFromDate(interestTarget.issueDate);
     }
@@ -202,7 +238,12 @@ export const LoanLedger = () => {
           setInterestComputed(null);
           return;
         }
-        const result = await previewInterestForLoan(interestTarget.id, interestFromDate, interestToDate, interestRate);
+        const result = await previewInterestForLoan(
+          interestTarget.id,
+          interestFromDate,
+          interestToDate,
+          interestRate
+        );
         setInterestComputed(result);
       } catch (err) {
         console.error("Interest calc failed:", err);
@@ -210,8 +251,13 @@ export const LoanLedger = () => {
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [interestTarget, interestFromDate, interestToDate, interestRate, pendingDisbursements]);
-
+  }, [
+    interestTarget,
+    interestFromDate,
+    interestToDate,
+    interestRate,
+    pendingDisbursements,
+  ]);
 
   const filtered = useMemo(() => {
     const cQuery = customerSearch.trim().toLowerCase();
@@ -232,7 +278,6 @@ export const LoanLedger = () => {
 
       let searchMatch = true;
       if (cQuery && aQuery) {
-        // Independent OR match as requested: matches either customer or address
         searchMatch = customerMatch || addressMatch;
       } else if (cQuery) {
         searchMatch = customerMatch;
@@ -246,13 +291,16 @@ export const LoanLedger = () => {
 
   const totals = useMemo(() => {
     const activeLoans = filtered.filter((l) => l.status === "ACTIVE");
-    return { outstanding: activeLoans.reduce((s, l) => s + l.loanAmount, 0) };
+    return {
+      count: activeLoans.length,
+      outstanding: activeLoans.reduce((s, l) => s + l.loanAmount, 0),
+    };
   }, [filtered]);
 
   return (
-    <div className="space-y-4">
-      {/* ── toolbar ── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+    <div className="space-y-4 animate-in fade-in duration-300">
+      {/* ── Toolbar ── */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-3.5 rounded-xl border border-border/80 shadow-xs">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
           {/* Customer / Father Name Search */}
           <div className="relative flex-1 max-w-sm">
@@ -260,8 +308,8 @@ export const LoanLedger = () => {
             <input
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
-              placeholder="Search name / father's name…"
-              className="w-full pl-9 pr-8 py-2 text-sm bg-surface-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Search by customer / father's name…"
+              className="w-full pl-9 pr-8 py-2 text-xs bg-surface-2 border border-border/60 hover:border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
             />
             {customerSearch && (
               <button
@@ -280,8 +328,8 @@ export const LoanLedger = () => {
             <input
               value={addressSearch}
               onChange={(e) => setAddressSearch(e.target.value)}
-              placeholder="Search by address…"
-              className="w-full pl-9 pr-8 py-2 text-sm bg-surface-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Filter by city / address…"
+              className="w-full pl-9 pr-8 py-2 text-xs bg-surface-2 border border-border/60 hover:border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
             />
             {addressSearch && (
               <button
@@ -295,234 +343,268 @@ export const LoanLedger = () => {
           </div>
         </div>
 
-        {/* Status Tabs */}
-        <div className="flex gap-1 shrink-0">
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-lg border border-border/60 shrink-0">
           {(["all", "ACTIVE", "CLOSED"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md capitalize",
+                "px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-all",
                 tab === t
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-surface-2",
+                  ? "bg-surface text-primary font-semibold shadow-xs border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {t.toLowerCase()}
+              {t === "all" ? "All Loans" : t.toLowerCase()}
             </button>
           ))}
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Outstanding across active loans:{" "}
-        <span className="font-semibold text-foreground">{formatINR(totals.outstanding)}</span>
-      </p>
-
-      <div className="rounded-xl border border-border overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-surface-2">
-              {[
-                "Loan ID",
-                "Customer",
-                "Father's Name",
-                "Metal",
-                "Weight",
-                "Description",
-                "Issued",
-                "Amount",
-                "Status",
-                "",
-              ].map((h) => (
-                <th
-                  key={h}
-                  className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {filtered.map((l: Loan) => (
-              <tr key={l.id} className="hover:bg-surface-2/50 transition-colors">
-                <td className="px-4 py-3.5 text-muted-foreground text-xs font-mono">{l.id}</td>
-                <td className="px-4 py-3.5 whitespace-nowrap">
-                  <p className="font-semibold text-[13px]">{l.name}</p>
-                  <p className="text-[11px] text-muted-foreground">{l.mobileNo}</p>
-                </td>
-                <td className="px-4 py-3.5 text-[13px] whitespace-nowrap">
-                  {l.fatherName ? (
-                    <span className="font-medium text-foreground/90">{l.fatherName}</span>
-                  ) : (
-                    <span className="text-muted-foreground/40">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3.5 font-medium text-[13px] whitespace-nowrap">{l.metal}</td>
-                <td className="px-4 py-3.5 text-[13px] tabular-nums font-medium whitespace-nowrap">
-                  {l.weight ? (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11.5px] font-medium bg-surface-2 text-foreground/90 border border-border/50">
-                      {l.weight} g
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground/40">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3.5 text-[12.5px] text-muted-foreground max-w-[200px] truncate" title={l.description || ""}>
-                  {l.description || <span className="text-muted-foreground/40">—</span>}
-                </td>
-                <td className="px-4 py-3.5 text-muted-foreground text-[13px] whitespace-nowrap">
-                  {fmtDate(l.issueDate)}
-                </td>
-                <td className="px-4 py-3.5 font-semibold tabular-nums whitespace-nowrap">
-                  {formatINR(l.loanAmount)}
-                </td>
-                <td className="px-4 py-3.5 whitespace-nowrap">
-                  <span
-                    className={cn(
-                      "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium capitalize",
-                      statusStyle[l.status] ?? "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {l.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3.5">
-                  <div className="flex items-center justify-end gap-1">
-                    {l.status === "ACTIVE" && (
-                      <>
-                        {/* ── Add disbursement button ── */}
-                        <button
-                          title="Add disbursement"
-                          onClick={() => openDisburse(l)}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
-                        >
-                          <PlusCircle className="w-4 h-4" />
-                        </button>
-                        
-                        {/* ── Pay Interest button ── */}
-                        <button
-                          title="Pay interest"
-                          onClick={() => openInterest(l)}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-amber-400 hover:bg-amber-400/10 transition-colors"
-                        >
-                          <IndianRupee className="w-4 h-4" />
-                        </button>
-
-                        {/* settle */}
-                        <button
-                          title="Settle loan"
-                          onClick={() => openSettle(l)}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-success hover:bg-success/10 transition-colors"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                        </button>
-
-                        {/* delete */}
-                        <button
-                          title="Delete loan"
-                          onClick={() => closeMutation.mutate(l.id)}
-                          className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                    <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={10} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  No loans found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      {/* Summary metric bar */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+        <p>
+          Showing <span className="font-medium text-foreground">{filtered.length}</span> loans ·{" "}
+          Outstanding balance:{" "}
+          <span className="font-semibold text-foreground">
+            {formatINR(totals.outstanding)}
+          </span>
+        </p>
       </div>
+
+      {/* Main Ledger Table */}
+      {isLoading ? (
+        <TableSkeleton rows={6} />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={FileSpreadsheet}
+          title="No loan records found"
+          description="Try adjusting your customer name or address search filters."
+          action={
+            customerSearch || addressSearch ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCustomerSearch("");
+                  setAddressSearch("");
+                  setTab("all");
+                }}
+              >
+                Reset Filters
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (
+        <div className="rounded-xl border border-border/80 bg-surface overflow-x-auto shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-surface-2/80">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  ID
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Customer
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Father's Name
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Collateral
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Weight
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Description
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Issued
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Principal
+                </th>
+                <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {filtered.map((l: Loan) => (
+                <tr
+                  key={l.id}
+                  className="hover:bg-surface-2/50 transition-colors"
+                >
+                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
+                    #{l.id}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <p className="font-semibold text-[13px] text-foreground">
+                      {l.name}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {l.mobileNo}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-[12.5px] whitespace-nowrap">
+                    {l.fatherName ? (
+                      <span className="text-foreground/90">{l.fatherName}</span>
+                    ) : (
+                      <span className="text-muted-foreground/40">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-[12.5px] whitespace-nowrap">
+                    <span
+                      className={
+                        l.metal.toLowerCase() === "gold"
+                          ? "text-gold font-semibold"
+                          : "text-slate-300 font-semibold"
+                      }
+                    >
+                      {l.metal}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-[12.5px] tabular-nums text-right whitespace-nowrap">
+                    {l.weight ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11.5px] font-medium bg-surface-2 text-foreground border border-border/50">
+                        {l.weight} g
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/40">—</span>
+                    )}
+                  </td>
+                  <td
+                    className="px-4 py-3 text-[12px] text-muted-foreground max-w-[180px] truncate"
+                    title={l.description || ""}
+                  >
+                    {l.description || (
+                      <span className="text-muted-foreground/40">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground text-[12.5px] whitespace-nowrap">
+                    {fmtDate(l.issueDate)}
+                  </td>
+                  <td className="px-4 py-3 font-semibold tabular-nums text-right text-foreground whitespace-nowrap">
+                    {formatINR(l.loanAmount)}
+                  </td>
+                  <td className="px-4 py-3 text-center whitespace-nowrap">
+                    <StatusBadge
+                      variant={l.status === "ACTIVE" ? "success" : "neutral"}
+                      withDot
+                    >
+                      {l.status === "ACTIVE" ? "Active" : "Closed"}
+                    </StatusBadge>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Print Statement & Payment History Voucher */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Print Loan Statement & History"
+                        aria-label="Print Loan Statement & History"
+                        onClick={() => setPrintStatementTarget(l)}
+                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </Button>
+
+                      {l.status === "ACTIVE" && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Add Disbursement"
+                            aria-label="Add Disbursement"
+                            onClick={() => openDisburse(l)}
+                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          >
+                            <PlusCircle className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Record Interest Payment"
+                            aria-label="Record Interest Payment"
+                            onClick={() => openInterest(l)}
+                            className="h-8 w-8 text-muted-foreground hover:text-warning hover:bg-warning/10"
+                          >
+                            <IndianRupee className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Settle & Close Loan"
+                            aria-label="Settle & Close Loan"
+                            onClick={() => openSettle(l)}
+                            className="h-8 w-8 text-muted-foreground hover:text-success hover:bg-success/10"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Delete Loan"
+                            aria-label="Delete Loan"
+                            onClick={() => setDeleteTarget(l)}
+                            className="h-8 w-8 text-muted-foreground hover:text-danger hover:bg-danger/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* DISBURSEMENT MODAL */}
       {disburseTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setDisburseTarget(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl bg-surface p-6 space-y-5 animate-in zoom-in-95"
-            style={{ boxShadow: "var(--shadow-elevated)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-base font-semibold">Add Disbursement</h3>
-                <p className="text-[12px] text-muted-foreground mt-0.5">
-                  Loan #{disburseTarget.id} · {disburseTarget.name} · {disburseTarget.metal}
-                  {disburseTarget.weight ? ` (${disburseTarget.weight}g)` : ""}
-                </p>
-              </div>
-              <button
+        <Modal
+          open={!!disburseTarget}
+          onClose={() => setDisburseTarget(null)}
+          title="Add Collateral Disbursement"
+          subtitle={`Loan #${disburseTarget.id} · ${disburseTarget.name} · ${disburseTarget.metal}${
+            disburseTarget.weight ? ` (${disburseTarget.weight}g)` : ""
+          }`}
+          maxWidth="sm"
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setDisburseTarget(null)}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
-                  Amount to disburse (₹)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={disburseAmount || ""}
-                  onChange={(e) => setDisburseAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
-                  Disbursed Date
-                </label>
-                <input
-                  type="date"
-                  value={disburseDate}
-                  min={minDisburseDate}
-                  max={todayIso()}
-                  onChange={(e) => setDisburseDate(e.target.value)}
-                  className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Earliest allowed date: <span className="font-medium text-foreground">{fmtDate(minDisburseDate)}</span>
-                  {disbursePayments.length > 0 ? " (last interest payment)" : " (loan origination)"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                onClick={() => setDisburseTarget(null)}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
                 disabled={
                   disburseMutation.isPending ||
                   disburseAmount <= 0 ||
                   Boolean(disburseDate && disburseDate < minDisburseDate)
                 }
+                isLoading={disburseMutation.isPending}
                 onClick={() => {
                   if (disburseDate < minDisburseDate) {
-                    toast.error(`Disbursement date cannot be earlier than ${fmtDate(minDisburseDate)}`);
+                    toast.error(
+                      `Disbursement date cannot be earlier than ${fmtDate(
+                        minDisburseDate
+                      )}`
+                    );
                     return;
                   }
                   disburseMutation.mutate({
@@ -531,140 +613,199 @@ export const LoanLedger = () => {
                     date: disburseDate,
                   });
                 }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-blue-500 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+                leftIcon={<PlusCircle className="w-4 h-4" />}
               >
-                <PlusCircle className="w-4 h-4" />
-                {disburseMutation.isPending ? "Saving…" : "Add funds"}
-              </button>
-            </div>
+                Add Funds
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <Input
+              label="Amount to Disburse (₹)"
+              type="number"
+              min={1}
+              value={disburseAmount || ""}
+              onChange={(e) =>
+                setDisburseAmount(parseFloat(e.target.value) || 0)
+              }
+              placeholder="e.g. 5000"
+            />
+
+            <Input
+              label="Disbursed Date"
+              type="date"
+              value={disburseDate}
+              min={minDisburseDate}
+              max={todayIso()}
+              onChange={(e) => setDisburseDate(e.target.value)}
+              helperText={`Earliest allowed date: ${fmtDate(minDisburseDate)} (${
+                disbursePayments.length > 0
+                  ? "last payment"
+                  : "origination"
+              })`}
+            />
           </div>
-        </div>
+        </Modal>
       )}
 
+      {/* INTEREST PAYMENT MODAL */}
       {interestTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setInterestTarget(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl bg-surface p-6 space-y-5 animate-in zoom-in-95"
-            style={{ boxShadow: "var(--shadow-elevated)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-base font-semibold">Pay Interest</h3>
-                <p className="text-[12px] text-muted-foreground mt-0.5">
-                  Loan #{interestTarget.id} · {interestTarget.name} · {interestTarget.metal}
-                  {interestTarget.weight ? ` (${interestTarget.weight}g)` : ""}
-                </p>
-              </div>
-              <button
+        <Modal
+          open={!!interestTarget}
+          onClose={() => setInterestTarget(null)}
+          title="Record Interest Payment"
+          subtitle={`Loan #${interestTarget.id} · ${interestTarget.name} · ${interestTarget.metal}${
+            interestTarget.weight ? ` (${interestTarget.weight}g)` : ""
+          }`}
+          maxWidth="md"
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setInterestTarget(null)}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2"
               >
-                <X className="w-4 h-4" />
-              </button>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={interestMutation.isPending || interestAmount <= 0}
+                isLoading={interestMutation.isPending}
+                onClick={() =>
+                  interestMutation.mutate({
+                    id: interestTarget.id,
+                    amountPaid: interestAmount,
+                    fromDate: interestFromDate,
+                    toDate: interestToDate,
+                    interestRate: interestRate,
+                  })
+                }
+                leftIcon={<IndianRupee className="w-4 h-4" />}
+              >
+                Record Payment
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            {/* Dates & Rate Grid */}
+            <div className="grid grid-cols-3 gap-2.5">
+              <Input
+                label="From Date"
+                type="date"
+                value={interestFromDate}
+                disabled
+              />
+              <Input
+                label="To Date"
+                type="date"
+                value={interestToDate}
+                min={interestFromDate}
+                onChange={(e) => setInterestToDate(e.target.value)}
+              />
+              <Input
+                label="Monthly Rate (%)"
+                type="number"
+                min={0}
+                step={0.1}
+                value={interestRate}
+                onChange={(e) =>
+                  setInterestRate(parseFloat(e.target.value) || 0)
+                }
+              />
             </div>
 
-            {/* Dates & Rate inputs */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1">
-                <label className="text-[10.5px] uppercase tracking-wider text-muted-foreground">From</label>
-                <input
-                  type="date"
-                  value={interestFromDate}
-                  readOnly
-                  className="w-full bg-surface-2 rounded-md py-1.5 px-2 text-[13px] opacity-70 cursor-not-allowed focus:outline-none"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10.5px] uppercase tracking-wider text-muted-foreground">To</label>
-                <input
-                  type="date"
-                  value={interestToDate}
-                  min={interestFromDate}
-                  onChange={(e) => setInterestToDate(e.target.value)}
-                  className="w-full bg-surface-2 rounded-md py-1.5 px-2 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10.5px] uppercase tracking-wider text-muted-foreground">Rate (%)</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  value={interestRate}
-                  onChange={(e) => setInterestRate(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-surface-2 rounded-md py-1.5 px-2 text-[13px] focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-            </div>
-
-            {/* Live preview of new balance */}
-            <div className="rounded-lg bg-surface-2 px-4 py-3 space-y-1.5 text-[12.5px]">
+            {/* Calculated Breakdown Card */}
+            <div className="rounded-xl bg-surface-2 p-3.5 space-y-2 text-xs border border-border/60">
               {pendingDisbursements.map((d) => (
-                <div key={d.id} className="flex justify-between text-muted-foreground text-[11px] bg-amber-500/10 px-2 py-1 rounded">
-                  <span>Pending: disbursed {fmtDate(d.disbursedDate)}</span>
-                  <span className="tabular-nums">+ {formatINR(d.amount)}</span>
+                <div
+                  key={d.id}
+                  className="flex justify-between text-muted-foreground bg-warning-soft text-warning px-2.5 py-1 rounded-md"
+                >
+                  <span>Pending disbursement ({fmtDate(d.disbursedDate)})</span>
+                  <span className="tabular-nums font-semibold">
+                    + {formatINR(d.amount)}
+                  </span>
                 </div>
               ))}
+
               <div className="flex justify-between text-muted-foreground">
-                <span>Base amount</span>
-                <span className="tabular-nums">{interestComputed ? formatINR(interestComputed.principal) : formatINR(interestTarget.loanAmount)}</span>
+                <span>Principal base</span>
+                <span className="tabular-nums font-medium text-foreground">
+                  {interestComputed
+                    ? formatINR(interestComputed.principal)
+                    : formatINR(interestTarget.loanAmount)}
+                </span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Computed interest</span>
-                <span className="tabular-nums">{interestComputed ? formatINR(interestComputed.interestAmount) : "..."}</span>
+                <span>Calculated interest</span>
+                <span className="tabular-nums font-medium text-foreground">
+                  {interestComputed
+                    ? formatINR(interestComputed.interestAmount)
+                    : "—"}
+                </span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
+              <div className="flex justify-between text-muted-foreground pt-1 border-t border-border/40 font-semibold text-foreground">
                 <span>Total due</span>
-                <span className="tabular-nums">{interestComputed ? formatINR(interestComputed.totalAmount) : "..."}</span>
-              </div>
-              <div className="flex justify-between pt-1.5 border-t border-border-subtle">
-                <span className="font-medium">Payment</span>
-                <span className="tabular-nums text-amber-400 font-medium">− {formatINR(interestAmount)}</span>
-              </div>
-              <div className="flex justify-between font-medium text-foreground">
-                <span>New balance</span>
                 <span className="tabular-nums">
-                  {interestComputed ? formatINR(Math.max(0, interestComputed.totalAmount - interestAmount)) : "..."}
+                  {interestComputed
+                    ? formatINR(interestComputed.totalAmount)
+                    : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between pt-1.5 border-t border-border/40">
+                <span className="font-medium text-foreground">Payment applied</span>
+                <span className="tabular-nums text-success font-semibold">
+                  − {formatINR(interestAmount)}
+                </span>
+              </div>
+              <div className="flex justify-between font-semibold text-foreground">
+                <span>New balance</span>
+                <span className="tabular-nums text-primary font-bold">
+                  {interestComputed
+                    ? formatINR(
+                        Math.max(
+                          0,
+                          interestComputed.totalAmount - interestAmount
+                        )
+                      )
+                    : "—"}
                 </span>
               </div>
             </div>
 
-            {/* Amount input */}
-            <div className="space-y-1.5">
-              <label className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
-                Amount deposited (₹)
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={interestAmount || ""}
-                onChange={(e) => setInterestAmount(parseFloat(e.target.value) || 0)}
-                className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
+            <Input
+              label="Amount Deposited (₹)"
+              type="number"
+              min={0}
+              value={interestAmount || ""}
+              onChange={(e) =>
+                setInterestAmount(parseFloat(e.target.value) || 0)
+              }
+              placeholder="₹ 0"
+            />
 
             {/* Payment history */}
             {interestPayment.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground">
-                  Payment history
+              <div className="space-y-1.5 pt-2">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                  Previous Payment Records ({interestPayment.length})
                 </p>
-                <div className="rounded-lg bg-surface-2 divide-y divide-border max-h-36 overflow-y-auto">
+                <div className="rounded-lg bg-surface-2 divide-y divide-border/40 max-h-32 overflow-y-auto border border-border/60">
                   {interestPayment.map((p) => (
                     <div
                       key={p.id}
                       className="flex justify-between items-center px-3 py-2 text-[12px]"
                     >
-                      <span className="text-muted-foreground">{fmtDate(p.paymentDate)}</span>
-                      <span className="tabular-nums text-amber-400">
+                      <span className="text-muted-foreground">
+                        {fmtDate(p.paymentDate)}
+                      </span>
+                      <span className="tabular-nums text-success font-medium">
                         − {formatINR(p.amountPaid)}
                       </span>
-                      <span className="tabular-nums text-muted-foreground">
+                      <span className="tabular-nums text-muted-foreground font-mono">
                         bal: {formatINR(p.balanceAfter)}
                       </span>
                     </div>
@@ -672,129 +813,34 @@ export const LoanLedger = () => {
                 </div>
               </div>
             )}
-
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                onClick={() => setInterestTarget(null)}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={interestMutation.isPending || interestAmount <= 0}
-                onClick={() =>
-                  interestMutation.mutate({
-                    id: interestTarget.id,
-                    amountPaid: interestAmount,
-                    fromDate: interestFromDate,
-                    toDate: interestToDate,
-                    interestRate: interestRate
-                  })
-                }
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-60"
-              >
-                <IndianRupee className="w-4 h-4" />
-                {interestMutation.isPending ? "Recording…" : "Record payment"}
-              </button>
-            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
+      {/* SETTLEMENT & CLOSE MODAL */}
       {settleTarget && computed && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm animate-in fade-in"
-          onClick={() => setSettleTarget(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl bg-surface p-6 space-y-5 animate-in zoom-in-95"
-            style={{ boxShadow: "var(--shadow-elevated)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-base font-semibold">Close loan #{settleTarget.id}</h3>
-                <p className="text-[12px] text-muted-foreground mt-0.5">
-                  {settleTarget.name} · {settleTarget.metal}
-                  {settleTarget.weight ? ` (${settleTarget.weight}g)` : ""}
-                </p>
-              </div>
-              <button
+        <Modal
+          open={!!settleTarget}
+          onClose={() => setSettleTarget(null)}
+          title={`Close & Settle Loan #${settleTarget.id}`}
+          subtitle={`${settleTarget.name} · ${settleTarget.metal}${
+            settleTarget.weight ? ` (${settleTarget.weight}g)` : ""
+          }`}
+          maxWidth="md"
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setSettleTarget(null)}
-                className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg bg-surface-2 px-3 py-2">
-                <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
-                  Issue date
-                </p>
-                <p className="text-[13px] font-medium mt-0.5">{fmtDate(settleTarget.issueDate)}</p>
-              </div>
-              <div className="rounded-lg bg-surface-2 px-3 py-2">
-                <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
-                  Loan amount
-                </p>
-                <p className="text-[13px] font-medium mt-0.5 tabular-nums">
-                  {formatINR(settleTarget.loanAmount)}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
-                Close date
-              </label>
-              <input
-                type="date"
-                value={closeDate}
-                min={settleTarget.issueDate}
-                onChange={(e) => {
-                  const d = e.target.value;
-                  setCloseDate(d);
-                }}
-                className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div className="rounded-lg bg-surface-2 px-4 py-3 space-y-1.5 text-[12.5px]">
-              <div className="flex justify-between text-muted-foreground">
-                <span>Duration</span>
-                <span className="tabular-nums">{computed.months} month(s)</span>
-              </div>
-              <div className="flex justify-between text-muted-foreground">
-                <span>Interest @ {displayMonthlyRate}%/mo</span>
-                <span className="tabular-nums">{formatINR(computed.interestAmount)}</span>
-              </div>
-              <div className="flex justify-between pt-1.5 border-t border-border-subtle">
-                <span className="font-medium text-foreground">Total calculated</span>
-                <span className="font-semibold tabular-nums text-foreground">
-                  {formatINR(computed.totalAmount)}
-                </span>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11.5px] font-medium text-muted-foreground tracking-wide">
-                Agreed settlement amount (₹)
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={settlementAmount || ""}
-                onChange={(e) => setSettlementAmount(parseFloat(e.target.value) || 0)}
-                className="w-full bg-surface-2 border border-transparent rounded-lg py-2.5 px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                onClick={() => setSettleTarget(null)}
-                className="px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
                 disabled={settleMutation.isPending}
+                isLoading={settleMutation.isPending}
                 onClick={() =>
                   settleMutation.mutate({
                     id: settleTarget.id,
@@ -802,14 +848,133 @@ export const LoanLedger = () => {
                     settlementAmount,
                   })
                 }
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-60"
+                leftIcon={<CheckCircle2 className="w-4 h-4" />}
               >
-                <CheckCircle2 className="w-4 h-4" />
-                {settleMutation.isPending ? "Closing…" : "Close loan"}
-              </button>
+                Close &amp; Settle Loan
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-surface-2 p-3 border border-border/60">
+                <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                  Origination Date
+                </p>
+                <p className="text-sm font-semibold text-foreground mt-0.5">
+                  {fmtDate(settleTarget.issueDate)}
+                </p>
+              </div>
+              <div className="rounded-lg bg-surface-2 p-3 border border-border/60">
+                <p className="text-[10.5px] uppercase tracking-wider text-muted-foreground">
+                  Initial Principal
+                </p>
+                <p className="text-sm font-semibold text-foreground mt-0.5 tabular-nums">
+                  {formatINR(settleTarget.loanAmount)}
+                </p>
+              </div>
             </div>
+
+            <Input
+              label="Settlement Closing Date"
+              type="date"
+              value={closeDate}
+              min={settleTarget.issueDate}
+              onChange={(e) => setCloseDate(e.target.value)}
+            />
+
+            <div className="rounded-xl bg-surface-2 p-3.5 space-y-2 text-xs border border-border/60">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Duration</span>
+                <span className="tabular-nums font-medium text-foreground">
+                  {computed.months} month(s)
+                </span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Accrued Interest @ {displayMonthlyRate}%/mo</span>
+                <span className="tabular-nums font-medium text-foreground">
+                  {formatINR(computed.interestAmount)}
+                </span>
+              </div>
+              <div className="flex justify-between pt-1.5 border-t border-border/40 font-bold text-foreground">
+                <span>Total Calculated Amount</span>
+                <span className="tabular-nums text-primary font-bold">
+                  {formatINR(computed.totalAmount)}
+                </span>
+              </div>
+            </div>
+
+            <Input
+              label="Agreed Settlement Amount (₹)"
+              type="number"
+              min={0}
+              value={settlementAmount || ""}
+              onChange={(e) =>
+                setSettlementAmount(parseFloat(e.target.value) || 0)
+              }
+              placeholder="₹ 0"
+            />
           </div>
-        </div>
+        </Modal>
+      )}
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      {deleteTarget && (
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => closeMutation.mutate(deleteTarget.id)}
+          title="Delete Loan Record?"
+          description={
+            <>
+              Are you sure you want to delete loan <strong>#{deleteTarget.id}</strong> for{" "}
+              <strong>{deleteTarget.name}</strong>? This action cannot be undone.
+            </>
+          }
+          confirmText="Delete Loan"
+          isLoading={closeMutation.isPending}
+          isDestructive={true}
+        />
+      )}
+
+      {/* PRINT STATEMENT & PAYMENT RECORD MODAL */}
+      {printStatementTarget && (
+        <Modal
+          open={!!printStatementTarget}
+          onClose={() => setPrintStatementTarget(null)}
+          title={`Loan Statement & Payment Record #${printStatementTarget.id}`}
+          subtitle={`${printStatementTarget.name} · Complete payment history, pending disbursements, and collateral pledge record`}
+          maxWidth="3xl"
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPrintStatementTarget(null)}
+              >
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setTimeout(() => window.print(), 200);
+                }}
+                leftIcon={<Printer className="w-4 h-4" />}
+              >
+                Print Statement (A5)
+              </Button>
+            </>
+          }
+        >
+          <div className="overflow-x-auto py-2 flex justify-center">
+            <LoanSlip
+              loan={printStatementTarget}
+              payments={statementPayments}
+              pendingDisbursements={statementDisbursements}
+            />
+          </div>
+        </Modal>
       )}
     </div>
   );

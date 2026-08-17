@@ -76,17 +76,16 @@ function toBackend(input: CreateCustomOrderInput | Partial<CustomOrder>): any {
 // ─── API functions ─────────────────────────────────────────────────────────
 
 export async function fetchCustomOrders(): Promise<CustomOrder[]> {
-  const { data } = await apiClient.get<any[]>("/custom-order/get-all-orders");
+  const { data } = await apiClient.get<any[]>("/custom-order");
   return data.map(fromBackend).sort((a, b) => b.id - a.id);
 }
 
 /** Create a new custom order. Returns the saved order with its id. */
-
 export async function createCustomOrder(
   input: CreateCustomOrderInput
 ): Promise<CustomOrder> {
   const { data } = await apiClient.post<any>(
-    "/custom-order/create-new-order",
+    "/custom-order",
     toBackend(input)
   );
   return fromBackend(data);
@@ -98,7 +97,7 @@ export async function markOrderPickedUp(
   linkedSaleId?: number
 ): Promise<CustomOrder> {
   const { data } = await apiClient.put<any>(
-    `/custom-order/update-order/${orderId}`,
+    `/custom-order/${orderId}`,
     toBackend({ status: "PICKED_UP", linkedSaleId } as any)
   );
   return fromBackend(data);
@@ -106,7 +105,7 @@ export async function markOrderPickedUp(
 
 /** Delete a custom order (for correction / accidental entry). */
 export async function deleteCustomOrder(orderId: number): Promise<void> {
-  await apiClient.delete(`/custom-order/delete-order/${orderId}`);
+  await apiClient.delete(`/custom-order/${orderId}`);
 }
 
 /** Update an existing order (status and/or advance amount). */
@@ -115,7 +114,7 @@ export async function updateCustomOrder(
   patch: Partial<CustomOrder>
 ): Promise<CustomOrder> {
   const { data } = await apiClient.put<any>(
-    `/custom-order/update-order/${orderId}`,
+    `/custom-order/${orderId}`,
     toBackend(patch as any)
   );
   return fromBackend(data);

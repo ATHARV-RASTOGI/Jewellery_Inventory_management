@@ -1,50 +1,17 @@
 import { useState } from "react";
-import { IndianRupee, Package, FileText, TrendingUp, ArrowUpRight, ArrowDownRight, Pencil } from "lucide-react";
+import {
+  TrendingUp,
+  Pencil,
+  Coins,
+  Package,
+  FileText,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDashboardStats, type DashboardStats } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/api/query-keys";
 import { formatINR, formatNum, cn } from "@/lib/utils";
 import { RateUpdateModal } from "./RateUpdateModal";
-
-type Stat = {
-  title: string;
-  value: string;
-  icon: React.ElementType;
-  trend: string;
-  trendPositive: boolean;
-  showTrendIcon?: boolean;
-};
-
-const buildStats = (s: DashboardStats): Stat[] => [
-  {
-    title: "Today's Silver Rate",
-    value: `${formatINR(s.silverRatePerGram)} / 10 g`,
-    icon: TrendingUp,
-    trend: "Silver Rate",
-    trendPositive: true,
-  },
-  {
-    title: "Today's Gold Rate",
-    value: `${formatINR(s.goldRatePerGram)} / 10 g`,
-    icon: TrendingUp,
-    trend: "24K Gold Rate",
-    trendPositive: true,
-  },
-  {
-    title: "Items In Stock",
-    value: formatNum(s.totalItemsInStock),
-    icon: Package,
-    trend: `${s.lowStockItemsCount} low stock items`,
-    trendPositive: s.lowStockItemsCount === 0,
-  },
-  {
-    title: "Active Loans",
-    value: formatNum(s.activeLoansCount),
-    icon: FileText,
-    trend: "Active Loans",
-    trendPositive: true,
-  },
-];
+import { Button } from "@/components/ui/Button";
 
 const EMPTY_STATS: DashboardStats = {
   silverRatePerGram: 0,
@@ -59,78 +26,100 @@ const EMPTY_STATS: DashboardStats = {
 export const TopStats = () => {
   const [rateModalOpen, setRateModalOpen] = useState(false);
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: queryKeys.dashboardStats,
     queryFn: fetchDashboardStats,
   });
 
-  const stats = buildStats(data || EMPTY_STATS);
+  const s = data || EMPTY_STATS;
+
+  const stats = [
+    {
+      title: "Today's Silver Rate",
+      value: `${formatINR(s.silverRatePerGram * 10)} / 10 g`,
+      icon: Coins,
+      trend: "Live Silver Rate",
+      trendColor: "text-slate-400",
+    },
+    {
+      title: "Today's Gold Rate",
+      value: `${formatINR(s.goldRatePerGram * 10)} / 10 g`,
+      icon: TrendingUp,
+      trend: "24K Pure Gold",
+      trendColor: "text-amber-400",
+    },
+    {
+      title: "Total Stock Items",
+      value: formatNum(s.totalItemsInStock),
+      icon: Package,
+      trend: s.lowStockItemsCount > 0 ? `${s.lowStockItemsCount} Low Stock` : "Stock Healthy",
+      trendColor: s.lowStockItemsCount > 0 ? "text-warning" : "text-success",
+    },
+    {
+      title: "Active Loans Portfolio",
+      value: formatINR(s.totalOutstandingAmount),
+      icon: FileText,
+      trend: `${s.activeLoansCount} Active Pledges`,
+      trendColor: "text-primary",
+    },
+  ];
 
   return (
-    <>
-      {/* Header row with Update Rates button */}
-      <div className="flex items-center justify-between">
-        <p className="text-[12px] font-medium text-muted-foreground tracking-wide">
-          Live rates · updated today
-        </p>
-        <button
+    <div className="space-y-4">
+      {/* Header bar with Rate Update trigger */}
+      <div className="flex items-center justify-between pb-1 border-b border-border/50">
+        <div>
+          <h2 className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
+            Market Rates &amp; Operational Overview
+          </h2>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => setRateModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
+          leftIcon={<Pencil className="w-3.5 h-3.5 text-primary" />}
+          className="text-xs h-7.5 font-semibold"
         >
-          <Pencil className="w-3 h-3" />
-          Update rates
-        </button>
+          Update Today's Rates
+        </Button>
       </div>
 
-      {/* Stat cards */}
+      {/* Seamless Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map((s) => {
-          const Icon = s.icon;
+        {stats.map((stat, i) => {
+          const Icon = stat.icon;
           return (
             <div
-              key={s.title}
-              className="group relative rounded-xl bg-surface p-5 transition-colors hover:bg-surface-2/70"
-              style={{ boxShadow: "var(--shadow-card)" }}
+              key={i}
+              className="p-4 rounded-lg bg-surface/50 border border-border/60 hover:bg-surface/80 hover:border-border transition-all duration-150"
             >
-              <div className="flex items-start justify-between">
-                <p className="text-[12px] font-medium text-muted-foreground tracking-wide">
-                  {s.title}
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {stat.title}
                 </p>
-                <div className="w-8 h-8 rounded-lg bg-surface-2 text-muted-foreground/80 flex items-center justify-center group-hover:text-gold group-hover:bg-gold-soft transition-colors">
-                  <Icon className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-md bg-surface-2 text-muted-foreground flex items-center justify-center border border-border/40">
+                  <Icon className="w-3.5 h-3.5" />
                 </div>
               </div>
 
-              <div className="mt-4 text-[26px] font-semibold tracking-tight text-foreground leading-none">
-                {s.value}
+              <div className="mt-2 text-xl font-bold font-mono tracking-tight text-foreground tabular-nums">
+                {stat.value}
               </div>
 
-              <div
-                className={cn(
-                  "mt-3 flex items-center gap-1 text-[11.5px] font-medium",
-                  s.trendPositive ? "text-success" : "text-warning",
-                )}
-              >
-                {s.showTrendIcon &&
-                  (s.trendPositive ? (
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  ) : (
-                    <ArrowDownRight className="w-3.5 h-3.5" />
-                  ))}
-                <span className="text-muted-foreground font-normal">{s.trend}</span>
+              <div className={cn("mt-2 text-[11px] font-semibold", stat.trendColor)}>
+                {stat.trend}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Rate update modal */}
       <RateUpdateModal
         open={rateModalOpen}
         onClose={() => setRateModalOpen(false)}
-        currentGold={data?.goldRatePerGram ? data.goldRatePerGram * 10 : 0}
-        currentSilver={data?.silverRatePerGram ?? 0}
+        currentGold={s.goldRatePerGram * 10}
+        currentSilver={s.silverRatePerGram * 10}
       />
-    </>
+    </div>
   );
 };
