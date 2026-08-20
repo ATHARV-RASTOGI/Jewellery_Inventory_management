@@ -17,6 +17,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -63,9 +64,11 @@ public class CustomOrder {
 
 
     @Column(name = "Advance")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Advance amount must be non-negative")
     private BigDecimal advanceAmount;
 
     @Column(name = "Total")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Total amount must be non-negative")
     private BigDecimal totalAmount;
 
     

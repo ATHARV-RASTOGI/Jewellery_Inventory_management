@@ -31,3 +31,24 @@ export function getStockStatus(stock: number): "in-stock" | "low" | "out" {
   if (stock <= 5) return "low";
   return "in-stock";
 }
+
+/** Format ISO date string to Indian readable date (e.g. 15 Aug 2024). */
+export function fmtDate(iso?: string | null): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso.includes("T") ? iso : `${iso}T00:00:00`);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+/** Get current date in YYYY-MM-DD ISO format. */
+export function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}

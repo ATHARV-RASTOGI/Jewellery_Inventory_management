@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.ems.custom_order.model.CustomOrder;
+import com.ems.custom_order.dto.CustomOrderRequestDTO;
+import com.ems.custom_order.dto.CustomOrderResponseDTO;
 import com.ems.custom_order.service.CustomOrderService;
 
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -30,28 +32,28 @@ public class CustomOrderController {
 
     // ── Create a new custom order ────
     @PostMapping
-    public ResponseEntity<CustomOrder> createNewOrder(@RequestBody CustomOrder order) {
-        CustomOrder newOrder = customOrderService.saveCustomOrder(order);
+    public ResponseEntity<CustomOrderResponseDTO> createNewOrder(@Valid @RequestBody CustomOrderRequestDTO order) {
+        CustomOrderResponseDTO newOrder = customOrderService.saveCustomOrder(order);
         log.info("Custom order created with id: {}", newOrder.getOrderId());
         return new ResponseEntity<>(newOrder, HttpStatus.CREATED);
     }
 
 
     @GetMapping
-    public ResponseEntity<List<CustomOrder>> getAllOrders() {
-        List<CustomOrder> orders = customOrderService.getAllCustomOrder();
+    public ResponseEntity<List<CustomOrderResponseDTO>> getAllOrders() {
+        List<CustomOrderResponseDTO> orders = customOrderService.getAllCustomOrder();
         return new ResponseEntity<>(orders, HttpStatus.OK);
     }
     
     @GetMapping("{id}")
-    public ResponseEntity<CustomOrder> getById(@PathVariable Long id){
-        CustomOrder order = customOrderService.getCustomOrderById(id);
+    public ResponseEntity<CustomOrderResponseDTO> getById(@PathVariable Long id){
+        CustomOrderResponseDTO order = customOrderService.getCustomOrderById(id);
         return ResponseEntity.ok(order);
     }
 
     @PutMapping("{id}")
-    public ResponseEntity<CustomOrder> updateOrder(@PathVariable Long id, @RequestBody CustomOrder order) {
-        CustomOrder updated = customOrderService.updateCustomOrder(id, order);
+    public ResponseEntity<CustomOrderResponseDTO> updateOrder(@PathVariable Long id, @Valid @RequestBody CustomOrderRequestDTO order) {
+        CustomOrderResponseDTO updated = customOrderService.updateCustomOrder(id, order);
         return new ResponseEntity<>(updated, HttpStatus.OK);
     }
 
