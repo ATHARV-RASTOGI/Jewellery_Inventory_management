@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Search,
-  X,
   CheckCircle2,
   IndianRupee,
   PlusCircle,
@@ -13,11 +11,9 @@ import {
   Printer,
 } from "lucide-react";
 import { toast } from "sonner";
-import { calculateSettlement, type SettlementCalculation } from "@/lib/api/loans";
-import { LoanSlip } from "@/components/receipts/LoanSlip";
-
-import { cn, formatINR } from "@/lib/utils";
 import {
+  calculateSettlement,
+  type SettlementCalculation,
   closeLoan,
   fetchLoans,
   settleLoan,
@@ -30,6 +26,8 @@ import {
   type InterestPayment,
   type PendingDisbursement,
 } from "@/lib/api/loans";
+import { LoanSlip } from "@/components/receipts/LoanSlip";
+import { formatINR, fmtDate, todayIso } from "@/lib/utils";
 import { queryKeys } from "@/lib/api/query-keys";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -37,18 +35,10 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/feedback/EmptyState";
-import { TableSkeleton } from "@/components/feedback/Skeleton";
+import { SearchToolbar, SearchInput, FilterTabs } from "@/components/ui/SearchToolbar";
+import { DataTable } from "@/components/ui/DataTable";
 
 type LoanStatus = "ACTIVE" | "CLOSED";
-
-const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-const todayIso = () => new Date().toISOString().slice(0, 10);
-
 const FALLBACK_MONTHLY_INTEREST_RATE = 0.02;
 
 export const LoanLedger = () => {
@@ -92,7 +82,6 @@ export const LoanLedger = () => {
     queryFn: fetchLoans,
   });
 
-  // fetch payments for statement
   const { data: statementPayments = [] } = useQuery<InterestPayment[]>({
     queryKey: ["payments", printStatementTarget?.id],
     queryFn: () => fetchInterestPayments(printStatementTarget!.id),
@@ -105,14 +94,12 @@ export const LoanLedger = () => {
     enabled: !!printStatementTarget,
   });
 
-  // fetch payment history when interest dialog opens
   const { data: interestPayment = [] } = useQuery<InterestPayment[]>({
     queryKey: ["payments", interestTarget?.id],
     queryFn: () => fetchInterestPayments(interestTarget!.id),
     enabled: !!interestTarget,
   });
 
-  // fetch payment history when disbursement dialog opens
   const { data: disbursePayments = [] } = useQuery<InterestPayment[]>({
     queryKey: ["payments", disburseTarget?.id],
     queryFn: () => fetchInterestPayments(disburseTarget!.id),
@@ -127,7 +114,6 @@ export const LoanLedger = () => {
     return disburseTarget.issueDate;
   }, [disburseTarget, disbursePayments]);
 
-  // fetch pending disbursements when dialog opens
   const { data: pendingDisbursements = [] } = useQuery<PendingDisbursement[]>({
     queryKey: ["pending-disbursements", interestTarget?.id],
     queryFn: () => fetchPendingDisbursements(interestTarget!.id),
@@ -265,7 +251,6 @@ export const LoanLedger = () => {
 
     return loans.filter((l: Loan) => {
       const tabMatch = tab === "all" || l.status === tab;
-
       const customerMatch =
         !cQuery ||
         (l.name ? l.name.toLowerCase().includes(cQuery) : false) ||
@@ -297,72 +282,48 @@ export const LoanLedger = () => {
     };
   }, [filtered]);
 
+  const columns = [
+    { header: "ID" },
+    { header: "Customer" },
+    { header: "Father's Name" },
+    { header: "Collateral" },
+    { header: "Weight", align: "right" as const },
+    { header: "Description" },
+    { header: "Issued" },
+    { header: "Principal", align: "right" as const },
+    { header: "Status", align: "center" as const },
+    { header: "Actions", align: "right" as const },
+  ];
+
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
-      {/* ── Toolbar ── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-3.5 rounded-xl border border-border/80 shadow-xs">
+      <SearchToolbar>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1">
-          {/* Customer / Father Name Search */}
-          <div className="relative flex-1 max-w-sm">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
-              placeholder="Search by customer / father's name…"
-              className="w-full pl-9 pr-8 py-2 text-xs bg-surface-2 border border-border/60 hover:border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-            />
-            {customerSearch && (
-              <button
-                type="button"
-                onClick={() => setCustomerSearch("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Address Search */}
-          <div className="relative flex-1 max-w-sm">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              value={addressSearch}
-              onChange={(e) => setAddressSearch(e.target.value)}
-              placeholder="Filter by city / address…"
-              className="w-full pl-9 pr-8 py-2 text-xs bg-surface-2 border border-border/60 hover:border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-            />
-            {addressSearch && (
-              <button
-                type="button"
-                onClick={() => setAddressSearch("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+          <SearchInput
+            value={customerSearch}
+            onChange={setCustomerSearch}
+            placeholder="Search by customer / father's name…"
+            icon={User}
+          />
+          <SearchInput
+            value={addressSearch}
+            onChange={setAddressSearch}
+            placeholder="Filter by city / address…"
+            icon={MapPin}
+          />
         </div>
 
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-lg border border-border/60 shrink-0">
-          {(["all", "ACTIVE", "CLOSED"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-all",
-                tab === t
-                  ? "bg-surface text-primary font-semibold shadow-xs border border-border/60"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {t === "all" ? "All Loans" : t.toLowerCase()}
-            </button>
-          ))}
-        </div>
-      </div>
+        <FilterTabs
+          options={[
+            { id: "all", label: "All Loans" },
+            { id: "ACTIVE", label: "Active" },
+            { id: "CLOSED", label: "Closed" },
+          ]}
+          active={tab}
+          onChange={(t) => setTab(t as any)}
+        />
+      </SearchToolbar>
 
-      {/* Summary metric bar */}
       <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
         <p>
           Showing <span className="font-medium text-foreground">{filtered.length}</span> loans ·{" "}
@@ -373,202 +334,153 @@ export const LoanLedger = () => {
         </p>
       </div>
 
-      {/* Main Ledger Table */}
-      {isLoading ? (
-        <TableSkeleton rows={6} />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={FileSpreadsheet}
-          title="No loan records found"
-          description="Try adjusting your customer name or address search filters."
-          action={
-            customerSearch || addressSearch ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setCustomerSearch("");
-                  setAddressSearch("");
-                  setTab("all");
-                }}
-              >
-                Reset Filters
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : (
-        <div className="rounded-xl border border-border/80 bg-surface overflow-x-auto shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface-2/80">
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  ID
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  Customer
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  Father's Name
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  Collateral
-                </th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  Weight
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  Description
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  Issued
-                </th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  Principal
-                </th>
-                <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {filtered.map((l: Loan) => (
-                <tr
-                  key={l.id}
-                  className="hover:bg-surface-2/50 transition-colors"
+      <DataTable
+        columns={columns}
+        data={filtered}
+        isLoading={isLoading}
+        keyExtractor={(l) => l.id}
+        emptyState={
+          <EmptyState
+            icon={FileSpreadsheet}
+            title="No loan records found"
+            description="Try adjusting your customer name or address search filters."
+            action={
+              customerSearch || addressSearch ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setCustomerSearch("");
+                    setAddressSearch("");
+                    setTab("all");
+                  }}
                 >
-                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
-                    #{l.id}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <p className="font-semibold text-[13px] text-foreground">
-                      {l.name}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {l.mobileNo}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 text-[12.5px] whitespace-nowrap">
-                    {l.fatherName ? (
-                      <span className="text-foreground/90">{l.fatherName}</span>
-                    ) : (
-                      <span className="text-muted-foreground/40">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-[12.5px] whitespace-nowrap">
-                    <span
-                      className={
-                        l.metal.toLowerCase() === "gold"
-                          ? "text-gold font-semibold"
-                          : "text-slate-300 font-semibold"
-                      }
+                  Reset Filters
+                </Button>
+              ) : undefined
+            }
+          />
+        }
+        renderRow={(l) => (
+          <tr className="hover:bg-surface-2/50 transition-colors">
+            <td className="px-4 py-3 text-muted-foreground text-xs font-mono">
+              #{l.id}
+            </td>
+            <td className="px-4 py-3 whitespace-nowrap">
+              <p className="font-semibold text-[13px] text-foreground">{l.name}</p>
+              <p className="text-[11px] text-muted-foreground">{l.mobileNo}</p>
+            </td>
+            <td className="px-4 py-3 text-[12.5px] whitespace-nowrap">
+              {l.fatherName ? (
+                <span className="text-foreground/90">{l.fatherName}</span>
+              ) : (
+                <span className="text-muted-foreground/40">—</span>
+              )}
+            </td>
+            <td className="px-4 py-3 font-medium text-[12.5px] whitespace-nowrap">
+              <span
+                className={
+                  l.metal.toLowerCase() === "gold"
+                    ? "text-gold font-semibold"
+                    : "text-slate-300 font-semibold"
+                }
+              >
+                {l.metal}
+              </span>
+            </td>
+            <td className="px-4 py-3 text-[12.5px] tabular-nums text-right whitespace-nowrap">
+              {l.weight ? (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11.5px] font-medium bg-surface-2 text-foreground border border-border/50">
+                  {l.weight} g
+                </span>
+              ) : (
+                <span className="text-muted-foreground/40">—</span>
+              )}
+            </td>
+            <td
+              className="px-4 py-3 text-[12px] text-muted-foreground max-w-[180px] truncate"
+              title={l.description || ""}
+            >
+              {l.description || (
+                <span className="text-muted-foreground/40">—</span>
+              )}
+            </td>
+            <td className="px-4 py-3 text-muted-foreground text-[12.5px] whitespace-nowrap">
+              {fmtDate(l.issueDate)}
+            </td>
+            <td className="px-4 py-3 font-semibold tabular-nums text-right text-foreground whitespace-nowrap">
+              {formatINR(l.loanAmount)}
+            </td>
+            <td className="px-4 py-3 text-center whitespace-nowrap">
+              <StatusBadge
+                variant={l.status === "ACTIVE" ? "success" : "neutral"}
+                withDot
+              >
+                {l.status === "ACTIVE" ? "Active" : "Closed"}
+              </StatusBadge>
+            </td>
+            <td className="px-4 py-3 text-right">
+              <div className="flex items-center justify-end gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Print Loan Statement & History"
+                  aria-label="Print Loan Statement & History"
+                  onClick={() => setPrintStatementTarget(l)}
+                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                >
+                  <Printer className="w-4 h-4" />
+                </Button>
+
+                {l.status === "ACTIVE" && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Add Disbursement"
+                      aria-label="Add Disbursement"
+                      onClick={() => openDisburse(l)}
+                      className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
                     >
-                      {l.metal}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-[12.5px] tabular-nums text-right whitespace-nowrap">
-                    {l.weight ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11.5px] font-medium bg-surface-2 text-foreground border border-border/50">
-                        {l.weight} g
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground/40">—</span>
-                    )}
-                  </td>
-                  <td
-                    className="px-4 py-3 text-[12px] text-muted-foreground max-w-[180px] truncate"
-                    title={l.description || ""}
-                  >
-                    {l.description || (
-                      <span className="text-muted-foreground/40">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground text-[12.5px] whitespace-nowrap">
-                    {fmtDate(l.issueDate)}
-                  </td>
-                  <td className="px-4 py-3 font-semibold tabular-nums text-right text-foreground whitespace-nowrap">
-                    {formatINR(l.loanAmount)}
-                  </td>
-                  <td className="px-4 py-3 text-center whitespace-nowrap">
-                    <StatusBadge
-                      variant={l.status === "ACTIVE" ? "success" : "neutral"}
-                      withDot
+                      <PlusCircle className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Record Interest Payment"
+                      aria-label="Record Interest Payment"
+                      onClick={() => openInterest(l)}
+                      className="h-8 w-8 text-muted-foreground hover:text-warning hover:bg-warning/10"
                     >
-                      {l.status === "ACTIVE" ? "Active" : "Closed"}
-                    </StatusBadge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {/* Print Statement & Payment History Voucher */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Print Loan Statement & History"
-                        aria-label="Print Loan Statement & History"
-                        onClick={() => setPrintStatementTarget(l)}
-                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                      >
-                        <Printer className="w-4 h-4" />
-                      </Button>
-
-                      {l.status === "ACTIVE" && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Add Disbursement"
-                            aria-label="Add Disbursement"
-                            onClick={() => openDisburse(l)}
-                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                          >
-                            <PlusCircle className="w-4 h-4" />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Record Interest Payment"
-                            aria-label="Record Interest Payment"
-                            onClick={() => openInterest(l)}
-                            className="h-8 w-8 text-muted-foreground hover:text-warning hover:bg-warning/10"
-                          >
-                            <IndianRupee className="w-4 h-4" />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Settle & Close Loan"
-                            aria-label="Settle & Close Loan"
-                            onClick={() => openSettle(l)}
-                            className="h-8 w-8 text-muted-foreground hover:text-success hover:bg-success/10"
-                          >
-                            <CheckCircle2 className="w-4 h-4" />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Delete Loan"
-                            aria-label="Delete Loan"
-                            onClick={() => setDeleteTarget(l)}
-                            className="h-8 w-8 text-muted-foreground hover:text-danger hover:bg-danger/10"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                      <IndianRupee className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Settle & Close Loan"
+                      aria-label="Settle & Close Loan"
+                      onClick={() => openSettle(l)}
+                      className="h-8 w-8 text-muted-foreground hover:text-success hover:bg-success/10"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Delete Loan"
+                      aria-label="Delete Loan"
+                      onClick={() => setDeleteTarget(l)}
+                      className="h-8 w-8 text-muted-foreground hover:text-danger hover:bg-danger/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </td>
+          </tr>
+        )}
+      />
 
       {/* DISBURSEMENT MODAL */}
       {disburseTarget && (
@@ -631,7 +543,6 @@ export const LoanLedger = () => {
               }
               placeholder="e.g. 5000"
             />
-
             <Input
               label="Disbursed Date"
               type="date"
@@ -690,7 +601,6 @@ export const LoanLedger = () => {
           }
         >
           <div className="space-y-4">
-            {/* Dates & Rate Grid */}
             <div className="grid grid-cols-3 gap-2.5">
               <Input
                 label="From Date"
@@ -717,7 +627,6 @@ export const LoanLedger = () => {
               />
             </div>
 
-            {/* Calculated Breakdown Card */}
             <div className="rounded-xl bg-surface-2 p-3.5 space-y-2 text-xs border border-border/60">
               {pendingDisbursements.map((d) => (
                 <div
@@ -787,7 +696,6 @@ export const LoanLedger = () => {
               placeholder="₹ 0"
             />
 
-            {/* Payment history */}
             {interestPayment.length > 0 && (
               <div className="space-y-1.5 pt-2">
                 <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
@@ -957,9 +865,7 @@ export const LoanLedger = () => {
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => {
-                  setTimeout(() => window.print(), 200);
-                }}
+                onClick={() => setTimeout(() => window.print(), 200)}
                 leftIcon={<Printer className="w-4 h-4" />}
               >
                 Print Statement (A5)

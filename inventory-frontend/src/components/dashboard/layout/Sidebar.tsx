@@ -11,9 +11,8 @@ import {
   ClipboardList,
   PanelLeftClose,
   PanelLeftOpen,
-  Coins,
+  LucideIcon,
 } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 import { getSidebarCategories } from "@/lib/categories";
 
@@ -23,6 +22,40 @@ type Props = {
   collapsed: boolean;
   onToggleCollapse: () => void;
 };
+
+interface NavItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Overview",
+    items: [{ id: "dashboard", label: "Dashboard", icon: LayoutDashboard }],
+  },
+  {
+    title: "Ledger & Loans",
+    items: [
+      { id: "loan-ledger", label: "Active Loans", icon: BookOpen },
+      { id: "issue-loan", label: "Issue New Loan", icon: Scale },
+    ],
+  },
+  {
+    title: "Sales",
+    items: [{ id: "sales-ledger", label: "Sales Ledger", icon: ShoppingBag }],
+  },
+  {
+    title: "Orders",
+    items: [
+      { id: "custom-order", label: "Custom Orders", icon: ClipboardList },
+    ],
+  },
+  {
+    title: "System",
+    items: [{ id: "settings", label: "Settings", icon: Settings }],
+  },
+];
 
 export const Sidebar = ({
   activeView,
@@ -45,10 +78,8 @@ export const Sidebar = ({
   const sectionLabel =
     "px-3 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2";
 
-  // Reusable component for rendering the category trees in expanded mode
   const CategoryTree = ({
     categories,
-    metal,
   }: {
     categories: any[];
     metal: "gold" | "silver";
@@ -137,7 +168,6 @@ export const Sidebar = ({
           )}
         </div>
 
-        {/* Toggle Collapse Button */}
         {!collapsed && (
           <button
             onClick={onToggleCollapse}
@@ -152,165 +182,101 @@ export const Sidebar = ({
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin px-2.5 py-4 space-y-4">
-        {/* Overview */}
-        <div>
-          {!collapsed && <p className={sectionLabel}>Overview</p>}
-          <button
-            onClick={() => onViewChange("dashboard")}
-            className={itemClass(activeView === "dashboard")}
-            title={collapsed ? "Dashboard" : undefined}
-          >
-            <LayoutDashboard className="w-4 h-4 shrink-0" />
-            {!collapsed && <span>Dashboard</span>}
-          </button>
-        </div>
-
-        {/* Ledger & Loans */}
-        <div>
-          {!collapsed && <p className={sectionLabel}>Ledger &amp; Loans</p>}
-          <div className="space-y-0.5">
-            <button
-              onClick={() => onViewChange("loan-ledger")}
-              className={itemClass(activeView === "loan-ledger")}
-              title={collapsed ? "Active Loans Ledger" : undefined}
-            >
-              <BookOpen className="w-4 h-4 shrink-0" />
-              {!collapsed && <span>Active Loans</span>}
-            </button>
-            <button
-              onClick={() => onViewChange("issue-loan")}
-              className={itemClass(activeView === "issue-loan")}
-              title={collapsed ? "Issue New Loan" : undefined}
-            >
-              <Scale className="w-4 h-4 shrink-0" />
-              {!collapsed && <span>Issue New Loan</span>}
-            </button>
+        {NAV_GROUPS.slice(0, 3).map((group) => (
+          <div key={group.title}>
+            {!collapsed && <p className={sectionLabel}>{group.title}</p>}
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onViewChange(item.id)}
+                  className={itemClass(activeView === item.id)}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <item.icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ))}
 
-        {/* Sales */}
-        <div>
-          {!collapsed && <p className={sectionLabel}>Sales</p>}
-          <div className="space-y-0.5">
-            <button
-              onClick={() => onViewChange("sales-ledger")}
-              className={itemClass(activeView === "sales-ledger")}
-              title={collapsed ? "Sales Ledger" : undefined}
-            >
-              <ShoppingBag className="w-4 h-4 shrink-0" />
-              {!collapsed && <span>Sales Ledger</span>}
-            </button>
-          </div>
-        </div>
-
-        {/* Inventory */}
+        {/* Inventory Group */}
         <div>
           {!collapsed && <p className={sectionLabel}>Inventory</p>}
           <div className="space-y-1">
-            {/* Gold Inventory */}
-            <div>
-              <button
-                onClick={() => {
-                  if (collapsed) {
-                    onToggleCollapse();
-                    setOpenMetal("gold");
-                  } else {
-                    setOpenMetal(openMetal === "gold" ? null : "gold");
-                  }
-                }}
-                className={itemClass(
-                  openMetal === "gold" && activeView.startsWith("gold")
-                )}
-                title={collapsed ? "Gold Inventory" : undefined}
-              >
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 shadow-xs" />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 text-left">Gold Inventory</span>
-                    <ChevronDown
-                      className={cn(
-                        "w-3.5 h-3.5 transition-transform duration-200 opacity-60",
-                        openMetal === "gold" && "rotate-180"
-                      )}
-                    />
-                  </>
-                )}
-              </button>
-              {!collapsed && openMetal === "gold" && (
-                <CategoryTree
-                  categories={getSidebarCategories("gold")}
-                  metal="gold"
-                />
-              )}
-            </div>
+            {(["gold", "silver"] as const).map((metal) => {
+              const isOpen = openMetal === metal;
+              const isMetalActive = activeView.startsWith(metal);
+              const label = metal === "gold" ? "Gold Inventory" : "Silver Inventory";
+              const colorDot =
+                metal === "gold" ? "bg-amber-400" : "bg-slate-300";
 
-            {/* Silver Inventory */}
-            <div>
-              <button
-                onClick={() => {
-                  if (collapsed) {
-                    onToggleCollapse();
-                    setOpenMetal("silver");
-                  } else {
-                    setOpenMetal(openMetal === "silver" ? null : "silver");
-                  }
-                }}
-                className={itemClass(
-                  openMetal === "silver" && activeView.startsWith("silver")
-                )}
-                title={collapsed ? "Silver Inventory" : undefined}
-              >
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0 shadow-xs" />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 text-left">Silver Inventory</span>
-                    <ChevronDown
+              return (
+                <div key={metal}>
+                  <button
+                    onClick={() => {
+                      if (collapsed) {
+                        onToggleCollapse();
+                        setOpenMetal(metal);
+                      } else {
+                        setOpenMetal(isOpen ? null : metal);
+                      }
+                    }}
+                    className={itemClass(isOpen && isMetalActive)}
+                    title={collapsed ? label : undefined}
+                  >
+                    <div
                       className={cn(
-                        "w-3.5 h-3.5 transition-transform duration-200 opacity-60",
-                        openMetal === "silver" && "rotate-180"
+                        "w-2.5 h-2.5 rounded-full shrink-0 shadow-xs",
+                        colorDot
                       )}
                     />
-                  </>
-                )}
-              </button>
-              {!collapsed && openMetal === "silver" && (
-                <CategoryTree
-                  categories={getSidebarCategories("silver")}
-                  metal="silver"
-                />
-              )}
-            </div>
+                    {!collapsed && (
+                      <>
+                        <span className="flex-1 text-left">{label}</span>
+                        <ChevronDown
+                          className={cn(
+                            "w-3.5 h-3.5 transition-transform duration-200 opacity-60",
+                            isOpen && "rotate-180"
+                          )}
+                        />
+                      </>
+                    )}
+                  </button>
+                  {!collapsed && isOpen && (
+                    <CategoryTree
+                      categories={getSidebarCategories(metal)}
+                      metal={metal}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Custom Orders */}
-        <div>
-          {!collapsed && <p className={sectionLabel}>Orders</p>}
-          <button
-            onClick={() => onViewChange("custom-order")}
-            className={itemClass(activeView === "custom-order")}
-            title={collapsed ? "Custom Orders" : undefined}
-          >
-            <ClipboardList className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="flex-1 text-left">Custom Orders</span>}
-          </button>
-        </div>
-
-        {/* Settings */}
-        <div>
-          {!collapsed && <p className={sectionLabel}>System</p>}
-          <button
-            onClick={() => onViewChange("settings")}
-            className={itemClass(activeView === "settings")}
-            title={collapsed ? "Settings" : undefined}
-          >
-            <Settings className="w-4 h-4 shrink-0" />
-            {!collapsed && <span>Settings</span>}
-          </button>
-        </div>
+        {NAV_GROUPS.slice(3).map((group) => (
+          <div key={group.title}>
+            {!collapsed && <p className={sectionLabel}>{group.title}</p>}
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onViewChange(item.id)}
+                  className={itemClass(activeView === item.id)}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <item.icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* User Footer Card & Collapse Toggle Button */}
+      {/* User Footer Card */}
       <div className="p-2.5 border-t border-border/40">
         {collapsed ? (
           <button

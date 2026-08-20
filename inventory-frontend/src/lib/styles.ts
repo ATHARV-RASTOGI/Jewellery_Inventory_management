@@ -30,4 +30,16 @@ export const cardStyles =
   "rounded-xl bg-surface border border-border/70 p-5 md:p-6 shadow-sm";
 
 export const tableContainer =
-  "rounded-xl border border-border/80 bg-surface overflow-hidden";
+  "rounded-xl border border-border/80 bg-surface overflow-x-auto shadow-sm";
+
+export const thCell =
+  "px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap";
+
+export const tdCell = "px-4 py-3 text-sm text-foreground whitespace-nowrap";
+
+export const toolbarContainer =
+  "flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-3.5 rounded-xl border border-border/80 shadow-xs";
+
+export const printSlipContainer =
+  "font-sans text-black bg-white p-6 sm:p-8 max-w-[650px] w-full mx-auto border border-gray-300 rounded-lg shadow-sm print:border-none print:shadow-none print:p-2 print:max-w-none";
+

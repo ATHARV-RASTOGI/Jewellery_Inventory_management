@@ -8,22 +8,20 @@ import {
   User,
   Users,
   Phone,
-  MapPin,
   Calendar,
   IndianRupee,
-  Coins,
   ShieldAlert,
   RotateCcw,
   Tag,
   Printer,
   CheckCircle2,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
-
 import { issueLoan, findLoanByCustomer, type Loan } from "@/lib/api/loans";
 import { fetchGoldRate, fetchSilverRate } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/api/query-keys";
-import { formatINR, cn } from "@/lib/utils";
+import { formatINR, cn, todayIso } from "@/lib/utils";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -31,8 +29,7 @@ import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { LoanSlip } from "@/components/receipts/LoanSlip";
 import { fieldLabel, fieldInput } from "@/lib/styles";
-
-const today = () => new Date().toISOString().slice(0, 10);
+import { FormSection } from "@/components/ui/FormSection";
 
 type FormState = {
   name: string;
@@ -53,7 +50,7 @@ const initialForm = (): FormState => ({
   address: "",
   metalType: "Gold",
   loanAmount: "",
-  issueDate: today(),
+  issueDate: todayIso(),
   description: "",
   weight: 0,
 });
@@ -125,7 +122,7 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
         address: form.address,
         metal: form.metalType,
         loanAmount: Number(form.loanAmount),
-        issueDate: form.issueDate || today(),
+        issueDate: form.issueDate || todayIso(),
         description: form.description || "",
         weight: form.weight || 0,
       }),
@@ -153,9 +150,7 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
 
   const handlePrintSlip = () => {
     if (!lastIssuedLoan) return;
-    setTimeout(() => {
-      window.print();
-    }, 200);
+    setTimeout(() => window.print(), 200);
   };
 
   const resetFormForNextLoan = () => {
@@ -203,7 +198,7 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
                   variant="secondary"
                   size="md"
                   onClick={resetFormForNextLoan}
-                  leftIcon={<PlusIcon className="w-4 h-4" />}
+                  leftIcon={<Plus className="w-4 h-4" />}
                 >
                   Issue Another Loan
                 </Button>
@@ -275,30 +270,21 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
         </div>
       )}
 
-      {/* Pure Cardless Canvas Document Form */}
       <form
         id="loan-issue-form"
         onSubmit={submit}
         className="max-w-4xl space-y-8 pt-2"
       >
-        {/* ── Section 1: Borrower Information ── */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-border/60">
-            <div>
-              <h3 className="text-[15px] font-bold tracking-tight text-foreground">
-                Borrower Information
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Identity details, family reference, and verified residential address.
-              </p>
+        <FormSection
+          title="Borrower Information"
+          description="Identity details, family reference, and verified residential address."
+        >
+          {isSearchingCustomer && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground -mt-2 pb-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              <span>Checking ledger history…</span>
             </div>
-            {isSearchingCustomer && (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                <span>Checking ledger history…</span>
-              </div>
-            )}
-          </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
@@ -309,7 +295,6 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
               onChange={(e) => update("name", e.target.value)}
               placeholder="e.g. Anjali Verma"
             />
-
             <Input
               label="Father's / Husband's Name"
               leftIcon={<Users className="w-4 h-4 text-muted-foreground" />}
@@ -318,7 +303,6 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
               placeholder="e.g. Ramesh Verma"
             />
 
-            {/* Existing Customer Detected Card */}
             {existingCustomer && (
               <div className="sm:col-span-2 rounded-lg border border-primary/30 bg-primary/10 p-3.5 space-y-2.5 animate-in fade-in zoom-in-95 duration-200">
                 <div className="flex items-start justify-between gap-2">
@@ -376,30 +360,21 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
               <label className={fieldLabel}>
                 Residence Address <span className="text-danger">*</span>
               </label>
-              <div className="relative">
-                <textarea
-                  className={cn(fieldInput, "min-h-[85px] resize-y pl-3")}
-                  value={form.address}
-                  onChange={(e) => update("address", e.target.value)}
-                  required
-                  placeholder="House no., street name, landmark, city, PIN code"
-                />
-              </div>
+              <textarea
+                className={cn(fieldInput, "min-h-[85px] resize-y pl-3")}
+                value={form.address}
+                onChange={(e) => update("address", e.target.value)}
+                required
+                placeholder="House no., street name, landmark, city, PIN code"
+              />
             </div>
           </div>
-        </div>
+        </FormSection>
 
-        {/* ── Section 2: Collateral Pledged (Girvi) ── */}
-        <div className="space-y-4">
-          <div className="pb-2 border-b border-border/60">
-            <h3 className="text-[15px] font-bold tracking-tight text-foreground">
-              Collateral Pledged (Girvi)
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Metal classification, assessed net weight, and hallmark description.
-            </p>
-          </div>
-
+        <FormSection
+          title="Collateral Pledged (Girvi)"
+          description="Metal classification, assessed net weight, and hallmark description."
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className={fieldLabel}>Metal Classification</label>
@@ -446,19 +421,12 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
               />
             </div>
           </div>
-        </div>
+        </FormSection>
 
-        {/* ── Section 3: Principal Amount & Terms ── */}
-        <div className="space-y-4">
-          <div className="pb-2 border-b border-border/60">
-            <h3 className="text-[15px] font-bold tracking-tight text-foreground">
-              Principal Amount &amp; Origination Terms
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Disbursed loan value and calendar origination date.
-            </p>
-          </div>
-
+        <FormSection
+          title="Principal Amount & Origination Terms"
+          description="Disbursed loan value and calendar origination date."
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Principal Amount Disbursed (₹)"
@@ -472,7 +440,6 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
               }
               placeholder="₹ 0"
             />
-
             <Input
               label="Origination Date"
               type="date"
@@ -483,7 +450,6 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
             />
           </div>
 
-          {/* Live Collateral Valuation & Safety Assessment Banner */}
           {weight > 0 && (
             <div className="p-4 rounded-lg bg-surface-2 border border-border/70 space-y-3 animate-in fade-in">
               <div className="flex items-center justify-between pb-2 border-b border-border/50">
@@ -537,9 +503,8 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
               )}
             </div>
           )}
-        </div>
+        </FormSection>
 
-        {/* ── Section 4: Action Footer ── */}
         <div className="pt-4 border-t border-border/60 flex items-center justify-end gap-3">
           <Button
             type="button"
@@ -577,7 +542,6 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
         </div>
       </form>
 
-      {/* Printable Loan Slip Modal */}
       {lastIssuedLoan && (
         <Modal
           open={showSlipModal}
@@ -613,18 +577,3 @@ export const LoanIssueForm = ({ onClose }: { onClose?: () => void }) => {
     </div>
   );
 };
-
-const PlusIcon = ({ className }: { className?: string }) => (
-  <svg
-    className={className}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M5 12h14" />
-    <path d="M12 5v14" />
-  </svg>
-);

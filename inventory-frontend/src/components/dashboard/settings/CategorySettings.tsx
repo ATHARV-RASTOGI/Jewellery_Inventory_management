@@ -10,7 +10,6 @@ import {
   X,
   Layers,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import {
   useCategories,
   type Category,
@@ -18,10 +17,9 @@ import {
 } from "@/lib/categories";
 import { fetchProducts } from "@/lib/api/inventory";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { fieldInput } from "@/lib/styles";
+import { FilterTabs } from "@/components/ui/SearchToolbar";
 
 function slug(label: string): string {
   return label
@@ -59,16 +57,12 @@ export const CategorySettings = () => {
 
   const productCountForCategory = (catId: string) =>
     allProducts.filter(
-      (p) =>
-        p.material.toLowerCase() === metal &&
-        p.mainCategory === catId
+      (p) => p.material.toLowerCase() === metal && p.mainCategory === catId
     ).length;
 
   const productCountForSubcategory = (subId: string) =>
     allProducts.filter(
-      (p) =>
-        p.material.toLowerCase() === metal &&
-        p.subCategory === subId
+      (p) => p.material.toLowerCase() === metal && p.subCategory === subId
     ).length;
 
   const addCategory = () => {
@@ -101,13 +95,7 @@ export const CategorySettings = () => {
     setCategories(
       categories.map((c) =>
         c.id === catId
-          ? {
-              ...c,
-              subcategories: [
-                ...c.subcategories,
-                { id, label },
-              ],
-            }
+          ? { ...c, subcategories: [...c.subcategories, { id, label }] }
           : c
       )
     );
@@ -180,42 +168,17 @@ export const CategorySettings = () => {
 
   return (
     <div className="space-y-4">
-      {/* Metal Switcher */}
-      <div className="flex items-center gap-2 p-1 bg-surface-2 border border-border/60 rounded-xl w-fit">
-        <button
-          type="button"
-          onClick={() => {
-            setMetal("gold");
-            setExpandedId(null);
-          }}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
-            metal === "gold"
-              ? "bg-surface text-amber-400 font-bold shadow-xs border border-border/80"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <span className="w-2 h-2 rounded-full bg-amber-400" />
-          Gold Categories ({gold.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setMetal("silver");
-            setExpandedId(null);
-          }}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all",
-            metal === "silver"
-              ? "bg-surface text-slate-300 font-bold shadow-xs border border-border/80"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <span className="w-2 h-2 rounded-full bg-slate-300" />
-          Silver Categories ({silver.length})
-        </button>
-      </div>
+      <FilterTabs
+        options={[
+          { id: "gold", label: `Gold Categories (${gold.length})` },
+          { id: "silver", label: `Silver Categories (${silver.length})` },
+        ]}
+        active={metal}
+        onChange={(m) => {
+          setMetal(m as any);
+          setExpandedId(null);
+        }}
+      />
 
       {/* Category Tree Items */}
       <div className="rounded-xl border border-border/80 bg-surface divide-y divide-border/50 overflow-hidden shadow-xs">
@@ -229,9 +192,7 @@ export const CategorySettings = () => {
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={() =>
-                    setExpandedId(isExpanded ? null : cat.id)
-                  }
+                  onClick={() => setExpandedId(isExpanded ? null : cat.id)}
                   className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
                 >
                   {isExpanded ? (
@@ -380,7 +341,7 @@ export const CategorySettings = () => {
                               onClick={() => tryDeleteSubcategory(cat.id, sub)}
                               className="p-1 rounded text-muted-foreground hover:text-danger"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </>
                         )}
