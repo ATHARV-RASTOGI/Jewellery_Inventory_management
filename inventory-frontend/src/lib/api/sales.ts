@@ -9,6 +9,9 @@ export type SaleItem = {
   purity: string;
   weight: number;
   quantity: number;
+  appliedRatePer10g?: number;
+  makingChargePercent?: number;
+  makingChargeAmount?: number;
   pricePerPiece: number;
   lineTotal: number;
 };
@@ -33,6 +36,9 @@ export type CreateSaleInput = {
     sku: string;
     quantity: number;
     pricePerPiece: number;
+    appliedRatePer10g?: number;
+    makingChargePercent?: number;
+    makingChargeAmount?: number;
   }[];
 };
 

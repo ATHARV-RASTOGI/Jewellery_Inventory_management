@@ -107,26 +107,6 @@ export const ProductDrawer = ({ product, onClose, onEdit }: Props) => {
                 />
                 <Chip label="In Stock" value={`${product.stockQuantity} pcs`} />
               </div>
-
-              {/* Pricing breakdown */}
-              <div className="rounded-xl bg-surface-2/80 border border-border/60 p-4 space-y-3">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    Estimated Unit Price
-                  </span>
-                  <span className="text-base font-bold tracking-tight text-foreground tabular-nums">
-                    {formatINR(product.price)}
-                  </span>
-                </div>
-                <div className="flex items-baseline justify-between pt-2 border-t border-border/40">
-                  <span className="text-xs text-muted-foreground">
-                    Total Inventory Asset Value
-                  </span>
-                  <span className="text-base font-bold tracking-tight text-primary tabular-nums">
-                    {formatINR(product.price * product.stockQuantity)}
-                  </span>
-                </div>
-              </div>
             </div>
 
             <div className="border-t border-border/50 px-6 py-4 flex items-center gap-3">

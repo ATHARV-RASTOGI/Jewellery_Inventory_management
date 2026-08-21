@@ -1,12 +1,17 @@
 package com.ems.inventory.service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 import java.util.Optional;
+
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import com.ems.Exception.Custom_Exception.ItemNotFoundException;
+import com.ems.inventory.dto.ProductRequestDTO;
+import com.ems.inventory.dto.ProductResponseDTO;
 import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.model.Product;
 import com.ems.inventory.model.Silver;
@@ -27,20 +32,30 @@ public class ProductService {
 
     private final SilverRateRepository silverRateRepository;
 
+    private final ModelMapper modelMapper;
+
 
 
     @Transactional
-    public Product saveProduct(Product newproduct) {
-        // Ensure stock is never negative, default to 0 if null
-        if (newproduct.getStockQuantity() == null || newproduct.getStockQuantity() < 0) {
-            newproduct.setStockQuantity(0);
+    public ProductRequestDTO saveProduct(ProductRequestDTO newproduct) {
+
+        if(productRepository.findBySku(newproduct.getSku()).isPresent()){
+            throw new IllegalStateException("Product already exists with SKU: " + newproduct.getSku());
         }
-        return productRepository.save(newproduct);
+
+        Product product =modelMapper.map(newproduct, Product.class);
+        // Ensure stock is never negative, default to 0 if null
+        if (product.getStockQuantity() == null || product.getStockQuantity() < 0) {
+            product.setStockQuantity(0);
+        }
+        Product saved= productRepository.save(product);
+        return modelMapper.map(saved, ProductRequestDTO.class);
+        
     }
 
     
     @Transactional
-    public Product updateProduct(long id, Product updatedDetails) {
+    public ProductRequestDTO updateProduct(long id, ProductRequestDTO updatedDetails) {
        Product existingProduct= productRepository.findById(id).orElseThrow(() -> new ItemNotFoundException("Product not found with id: " + id));
 
     existingProduct.setName(updatedDetails.getName());
@@ -49,27 +64,36 @@ public class ProductService {
     existingProduct.setSubCategory(updatedDetails.getSubCategory());
     existingProduct.setPurity(updatedDetails.getPurity());
     existingProduct.setBaseWeight(updatedDetails.getBaseWeight());
+   
+    // modelMapper.map(updatedDetails, existingProduct);
+
     // Deliberately NOT updating stockQuantity here to avoid clobbering concurrent sale deductions
-    existingProduct.setPrice(updatedDetails.getPrice());
-
-
-    return productRepository.save(existingProduct);
+    Product saved = productRepository.save(existingProduct);
+    return modelMapper.map(saved, ProductRequestDTO.class);
 
 }
 
-    public List<Product> getFilterProducts(String mainCategory, String subCategory, String purity , Double maxWeight){
+    public List<ProductResponseDTO> getFilterProducts(String mainCategory, String subCategory, String purity , Double maxWeight){
 
+        List<Product> products;
+        
         if (mainCategory != null && subCategory != null && purity != null && maxWeight != null) {
-        return productRepository.findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(
+            products = productRepository.findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(
                 mainCategory, subCategory, purity, maxWeight);
         }
         else if(mainCategory != null && subCategory != null){
-            return productRepository.findByMainCategoryAndSubCategory(mainCategory, subCategory);
+            products = productRepository.findByMainCategoryAndSubCategory(mainCategory, subCategory);
         }
         else if(mainCategory != null){
-            return productRepository.findByMainCategory(mainCategory);
+            products = productRepository.findByMainCategory(mainCategory);
         }
-        return productRepository.findAll();
+        else{
+            products = productRepository.findAll();
+        }
+        
+        return products.stream()
+            .map(prod -> modelMapper.map(prod, ProductResponseDTO.class))
+            .toList();
     }
 
     public List<Product> searchProduct(String keyword) {
@@ -84,9 +108,33 @@ public class ProductService {
             productRepository.deleteById(id);
     }
 
+    
+    public BigDecimal getTotalvaluegold(){
+        BigDecimal totalgold = productRepository.getTotalWeightForGold();
+        return totalgold != null ? totalgold : BigDecimal.ZERO;
+    }
+    
+    public BigDecimal getTotalvaluesilver(){
+        BigDecimal totalsilver = productRepository.getTotalWeightForSilver();
+        return totalsilver != null ? totalsilver : BigDecimal.ZERO;
+    }
+
     public BigDecimal getTotalvalue() {
-        BigDecimal total = productRepository.getTotalvalue();
-        return total != null ? total : BigDecimal.ZERO;
+        
+       BigDecimal gold= getTotalvaluegold();
+       BigDecimal silver = getTotalvaluesilver();
+
+       BigDecimal goldratreper= getliveGoldRate();
+       BigDecimal silverratreper= getlivesilverDouble();
+
+
+       BigDecimal goldRatePerGram = goldratreper.divide(BigDecimal.TEN, 2, RoundingMode.HALF_UP);
+       BigDecimal silverRatePerGram = silverratreper.divide(BigDecimal.TEN, 2, RoundingMode.HALF_UP);
+
+       BigDecimal goldtotalvalue= goldRatePerGram.multiply(gold);
+       BigDecimal silvertotalvalue= silverRatePerGram.multiply(silver);
+        return goldtotalvalue.add(silvertotalvalue);
+       
     }
 
     public Integer getTotalItems() {

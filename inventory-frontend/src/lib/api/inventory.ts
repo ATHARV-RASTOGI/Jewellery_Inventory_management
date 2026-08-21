@@ -10,7 +10,7 @@ export type Product = {
   baseWeight: number;
   purity: string;
   stockQuantity: number;
-  price: number;
+  price?: number;
 };
 
 // GET /api/inventory/products?category=...

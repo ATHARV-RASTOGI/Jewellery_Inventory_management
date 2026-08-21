@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { SearchToolbar, SearchInput } from "@/components/ui/SearchToolbar";
 import { DataTable } from "@/components/ui/DataTable";
 
-type SortKey = "weight" | "purity" | "price" | null;
+type SortKey = "weight" | "purity" | "stock" | null;
 type SortDir = "asc" | "desc";
 
 function parsePurity(purity: string): number {
@@ -118,8 +118,8 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
           av = parsePurity(a.purity);
           bv = parsePurity(b.purity);
         } else {
-          av = a.price ?? 0;
-          bv = b.price ?? 0;
+          av = a.stockQuantity ?? 0;
+          bv = b.stockQuantity ?? 0;
         }
         return sortDir === "asc" ? av - bv : bv - av;
       });
@@ -166,15 +166,14 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
     {
       header: (
         <button
-          onClick={() => toggleSort("price")}
+          onClick={() => toggleSort("stock")}
           className="inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto uppercase"
         >
-          Est. Price <SortIcon column="price" />
+          Stock <SortIcon column="stock" />
         </button>
       ),
       align: "right" as const,
     },
-    { header: "Stock", align: "right" as const },
     { header: "Status", align: "center" as const },
   ];
 
@@ -289,9 +288,6 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
               </td>
               <td className="px-4 py-3 text-[12.5px] text-muted-foreground tabular-nums text-right whitespace-nowrap font-mono">
                 {formatWeight(p.baseWeight)}
-              </td>
-              <td className="px-4 py-3 font-semibold tabular-nums text-right text-[13.5px] text-foreground whitespace-nowrap">
-                {formatINR(p.price)}
               </td>
               <td className="px-4 py-3 text-[12.5px] text-muted-foreground tabular-nums text-right whitespace-nowrap">
                 {p.stockQuantity} pcs

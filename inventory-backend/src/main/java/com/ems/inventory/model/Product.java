@@ -39,9 +39,7 @@ public class Product {
 
     private Integer stockQuantity;
 
-    @Column(precision = 12, scale = 2)
-    private BigDecimal price;
-
+   
     @Version
     private Long version;
 }

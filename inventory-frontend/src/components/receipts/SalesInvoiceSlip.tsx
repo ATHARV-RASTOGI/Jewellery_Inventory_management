@@ -49,8 +49,10 @@ export const SalesInvoiceSlip: React.FC<SalesInvoiceSlipProps> = ({
               <th className="border border-black p-2 text-left">Product Title &amp; Spec</th>
               <th className="border border-black p-2 text-left">Purity</th>
               <th className="border border-black p-2 text-right">Net Wt</th>
+              <th className="border border-black p-2 text-center">Metal Rate (₹/10g)</th>
+              <th className="border border-black p-2 text-center">Making %</th>
+              <th className="border border-black p-2 text-right">Unit Rate (₹)</th>
               <th className="border border-black p-2 text-center">Qty</th>
-              <th className="border border-black p-2 text-right">Rate (₹)</th>
               <th className="border border-black p-2 text-right">Total (₹)</th>
             </tr>
           </thead>
@@ -69,11 +71,17 @@ export const SalesInvoiceSlip: React.FC<SalesInvoiceSlipProps> = ({
                 <td className="border border-black p-1.5 text-right font-mono">
                   {item.weight ? `${item.weight} g` : "—"}
                 </td>
-                <td className="border border-black p-1.5 text-center font-mono font-semibold">
-                  {item.quantity}
+                <td className="border border-black p-1.5 text-center font-mono text-gray-700">
+                  {item.appliedRatePer10g ? formatINR(item.appliedRatePer10g) : "—"}
+                </td>
+                <td className="border border-black p-1.5 text-center font-mono text-gray-700">
+                  {item.makingChargePercent ? `${item.makingChargePercent}%` : "—"}
                 </td>
                 <td className="border border-black p-1.5 text-right font-mono">
                   {formatINR(item.pricePerPiece)}
+                </td>
+                <td className="border border-black p-1.5 text-center font-mono font-semibold">
+                  {item.quantity}
                 </td>
                 <td className="border border-black p-1.5 text-right font-mono font-bold">
                   {formatINR(item.lineTotal)}

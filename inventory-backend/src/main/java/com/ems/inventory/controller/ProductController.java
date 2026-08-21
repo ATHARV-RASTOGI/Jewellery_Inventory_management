@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.ems.inventory.model.Product;
+import com.ems.inventory.dto.ProductRequestDTO;
+import com.ems.inventory.dto.ProductResponseDTO;
 import com.ems.inventory.service.ProductService;
 @RestController
 @RequestMapping("/api/inventory/products")
@@ -28,26 +29,27 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<Product> addProduct(@RequestBody Product newproduct){
-        Product savesProduct=service.saveProduct(newproduct);
+    public ResponseEntity<ProductRequestDTO> addProduct(@RequestBody ProductRequestDTO newproduct){
+        ProductRequestDTO savesProduct=service.saveProduct(newproduct);
         return new ResponseEntity<>(savesProduct,HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Product> updateProduct(@PathVariable long id, @RequestBody Product productdetails){
-        Product updatedProduct = service.updateProduct(id, productdetails);
+    public ResponseEntity<ProductRequestDTO> updateProduct(@PathVariable long id, @RequestBody ProductRequestDTO productdetails){
+        ProductRequestDTO updatedProduct = service.updateProduct(id, productdetails);
         return new ResponseEntity<>(updatedProduct, HttpStatus.OK);
     }
 
     @GetMapping
-    public ResponseEntity<List<Product>> getProducts(
+    public ResponseEntity<List<ProductResponseDTO>> getProducts(
         @RequestParam(required= false) String mainCategory,
         @RequestParam(required= false) String subCategory,
         @RequestParam(required= false) String purity,
         @RequestParam(required= false) Double maxWeight
-    ){
+    )
+    {
         
-    List<Product> products = service.getFilterProducts(mainCategory,subCategory,purity,maxWeight);
+    List<ProductResponseDTO> products = service.getFilterProducts(mainCategory,subCategory,purity,maxWeight);
     return new ResponseEntity<>(products, HttpStatus.OK);
     }
 

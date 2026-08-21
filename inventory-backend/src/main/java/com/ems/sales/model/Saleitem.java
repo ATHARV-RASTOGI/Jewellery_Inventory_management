@@ -51,7 +51,9 @@ public class Saleitem {
 
 
     private BigDecimal pricePerPiece;
-
+    private BigDecimal appliedRatePer10g;
+    private BigDecimal makingChargePercent;
+    private BigDecimal makingChargeAmount;
 
     private BigDecimal lineTotal;
 }   

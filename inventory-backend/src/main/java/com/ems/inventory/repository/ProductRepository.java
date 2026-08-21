@@ -32,8 +32,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         "LOWER(p.mainCategory) LIKE LOWER(CONCAT('%', :keyword, '%'))")
         List<Product> searchProducts(@Param("keyword") String keyword);
 
-        @Query("SELECT COALESCE(SUM(p.price * p.stockQuantity), 0) FROM Product p")
-        public BigDecimal getTotalvalue();
+        @Query("SELECT COALESCE(SUM(p.baseWeight * p.stockQuantity), 0) FROM Product p WHERE p.material = 'Gold'")
+        BigDecimal getTotalWeightForGold();
+
+        @Query("SELECT COALESCE(SUM(p.baseWeight * p.stockQuantity), 0) FROM Product p WHERE p.material = 'Silver'")
+        BigDecimal getTotalWeightForSilver();
 
         @Query("SELECT COALESCE(SUM(p.stockQuantity), 0) FROM Product p")
         public Integer calculateTotalItemsInStock();
@@ -54,5 +57,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         @Query("SELECT p FROM Product p WHERE p.material = 'Silver' ")
         List<Product> findByMaterialSilver();
 
-       
+        @Query("SELECT p FROM Product p WHERE p.sku = :sku ")
+        Optional<Product> findBySku(@Param("sku") String sku);       
 }

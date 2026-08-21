@@ -163,7 +163,7 @@ public class ExportService {
         String[] cols = {
                 "Product ID", "Name", "SKU",
                 "Main Category", "Sub Category", "Material",
-                "Purity", "Base Weight (g)", "Stock Qty", "Price (₹)"
+                "Purity", "Base Weight (g)", "Stock Qty"
         };
         writeHeader(sheet, cols, headerStyle);
 
@@ -179,7 +179,6 @@ public class ExportService {
             row.createCell(6).setCellValue(nullSafe(p.getPurity()));
             row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
             row.createCell(8).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
-            setCurrency(row, 9, p.getPrice(), currencyStyle);
         }
         autoSize(sheet, cols.length);
     }
@@ -191,7 +190,7 @@ public class ExportService {
         String[] cols = {
                 "Product ID", "Name", "SKU",
                 "Main Category", "Sub Category", "Material",
-                "Purity", "Base Weight (g)", "Stock Qty", "Price (₹)"
+                "Purity", "Base Weight (g)", "Stock Qty"
         };
         writeHeader(sheet, cols, headerStyle);
 
@@ -207,7 +206,6 @@ public class ExportService {
             row.createCell(6).setCellValue(nullSafe(p.getPurity()));
             row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
             row.createCell(8).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
-            setCurrency(row, 9, p.getPrice(), currencyStyle);
         }
         autoSize(sheet, cols.length);
     }
@@ -219,7 +217,7 @@ public class ExportService {
         String[] cols = {
                 "Product ID", "Name", "SKU",
                 "Main Category", "Sub Category", "Material",
-                "Base Weight (g)", "Stock Qty", "Price (₹)"
+                "Base Weight (g)", "Stock Qty"
         };
         writeHeader(sheet, cols, headerStyle);
 
@@ -234,7 +232,6 @@ public class ExportService {
             row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
             row.createCell(6).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
             row.createCell(7).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
-            setCurrency(row, 8, p.getPrice(), currencyStyle);
         }
         autoSize(sheet, cols.length);
     }
@@ -338,18 +335,18 @@ public class ExportService {
 
         // ── Inventory summary ──
         if (includeInventory && products != null) {
-            double totalStockValue = products.stream()
+            double totalStockWeight = products.stream()
                     .mapToDouble(p -> {
-                        double price = p.getPrice() != null ? p.getPrice().doubleValue() : 0.0;
+                        double weight = p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0;
                         int qty = p.getStockQuantity() != null ? p.getStockQuantity() : 0;
-                        return price * qty;
+                        return weight * qty;
                     }).sum();
             int totalStockQty = products.stream()
                     .mapToInt(p -> p.getStockQuantity() != null ? p.getStockQuantity() : 0).sum();
 
             ri = addSummaryRow(sheet, ri, "Inventory", "Total Products", products.size());
             ri = addSummaryRow(sheet, ri, "Inventory", "Total Stock Qty", totalStockQty);
-            ri = addSummaryRow(sheet, ri, "Inventory", "Total Stock Value (₹)", totalStockValue);
+            ri = addSummaryRow(sheet, ri, "Inventory", "Total Stock Weight (g)", totalStockWeight);
         }
 
         // ── Sales summary ──

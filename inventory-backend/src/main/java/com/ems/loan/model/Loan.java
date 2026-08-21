@@ -33,7 +33,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "loan") // Ensure this matches your database table name
+@Table(name = "loan") 
 public class Loan {
 
     @Id

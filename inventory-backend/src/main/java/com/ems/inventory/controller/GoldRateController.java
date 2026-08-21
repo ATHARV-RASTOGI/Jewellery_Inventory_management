@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ems.inventory.dto.RateUpdateRequestDTO;
 import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.service.GoldRateService;
 import com.ems.inventory.service.SilverRateService;
@@ -45,14 +46,13 @@ public class GoldRateController {
     }
 
     @PostMapping("/update")
-    public ResponseEntity<String> updateGoldRate(@RequestBody Map<String, Object> payload) {
-        Number rate = (Number) payload.get("rate");
-        if (rate == null) {
-            throw new IllegalArgumentException("rate is required");
-        }
-        goldRateService.updateManualGoldRate(rate.doubleValue());
-        return ResponseEntity.ok("Gold rate updated successfully");
+    public ResponseEntity<String> updateGoldRate(@RequestBody RateUpdateRequestDTO request) {
+    if (request == null || request.getRate() == null) {
+        throw new IllegalArgumentException("rate is required");
     }
+    goldRateService.updateManualGoldRate(request.getRate().doubleValue());
+    return ResponseEntity.ok("Gold rate updated successfully");
+}
 
  
 }

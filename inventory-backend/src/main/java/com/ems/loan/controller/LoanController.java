@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ems.loan.dto.LoanRequestDTO;
+import com.ems.loan.dto.LoanResponseDTO;
 import com.ems.loan.model.InterestPayment;
 import com.ems.loan.model.Loan;
 import com.ems.loan.model.PendingDisbursement;
@@ -40,30 +42,30 @@ public class LoanController {
     }
 
     private BigDecimal toBigDecimal(Object raw) {
-    if (raw == null) return null;
+             if (raw == null) return null;
     return objectMapper.convertValue(raw, BigDecimal.class);
 }
 
 
     @GetMapping
-    public ResponseEntity<List<Loan>> getAllLoans() {
-        List<Loan> loans = loanService.getAll();
+    public ResponseEntity<List<LoanResponseDTO>> getAllLoans() {
+        List<LoanResponseDTO> loans = loanService.getAll();
         return new ResponseEntity<>(loans, HttpStatus.OK);
     }
 
     @PostMapping
-    public ResponseEntity<Loan> createLoan(@RequestBody Loan loanData) {
-        Loan savedLoan = loanService.saveLoan(loanData);
-        log.info("Loan created with id: {}", savedLoan.getId());
+    public ResponseEntity<LoanResponseDTO> createLoan(@RequestBody LoanRequestDTO loanData) {
+        LoanResponseDTO savedLoan = loanService.saveLoan(loanData);
+        log.info("Loan created ");
         return new ResponseEntity<>(savedLoan, HttpStatus.CREATED);
     }
 
     @PatchMapping("/{id}/close")
-    public ResponseEntity<Loan> closeLoan(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<LoanResponseDTO> closeLoan(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         String closeDateStr = (String) payload.get("closeDate");
         LocalDate closeDate = closeDateStr != null ? LocalDate.parse(closeDateStr) : null;
         BigDecimal settlementAmount = toBigDecimal(payload.get("settlementAmount"));
-        Loan closedLoan = loanService.closeLoan(id, closeDate, settlementAmount);
+        LoanResponseDTO closedLoan = loanService.closeLoan(id, closeDate, settlementAmount);
         return ResponseEntity.ok(closedLoan);
     }
 
@@ -156,18 +158,18 @@ public class LoanController {
     }
 
     @GetMapping("/customer")
-    public ResponseEntity<Loan> findCustomer(
+    public ResponseEntity<LoanResponseDTO> findCustomer(
             @RequestParam String name,
             @RequestParam String fathername,
             @RequestParam(required = false) String address) {
-        Loan loan = (address != null && !address.trim().isEmpty())
+        LoanResponseDTO loan = (address != null && !address.trim().isEmpty())
                 ? loanService.findByNameAndFatherNameAndAddress(name, fathername, address).orElse(null)
                 : loanService.findByNameAndFatherName(name, fathername).orElse(null);
         return ResponseEntity.ok(loan);
     }
 
     @GetMapping("/{name}/{fathername}/{address}")
-    public ResponseEntity<Loan> findByNameAndFatherNameAndAddress(
+    public ResponseEntity<LoanResponseDTO> findByNameAndFatherNameAndAddress(
             @PathVariable String name,
             @PathVariable String fathername,
             @PathVariable String address) {
@@ -175,7 +177,7 @@ public class LoanController {
     }
 
     @GetMapping("/{name}/{fathername}")
-    public ResponseEntity<Loan> findByNameAndFatherName(
+    public ResponseEntity<LoanResponseDTO> findByNameAndFatherName(
             @PathVariable String name,
             @PathVariable String fathername) {
         return ResponseEntity.ok(loanService.findByNameAndFatherName(name, fathername).orElse(null));

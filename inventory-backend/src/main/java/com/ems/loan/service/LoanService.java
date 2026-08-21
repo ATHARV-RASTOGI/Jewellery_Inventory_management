@@ -8,10 +8,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.Exception.Custom_Exception.LoanNotFoundException;
+import com.ems.loan.dto.LoanRequestDTO;
+import com.ems.loan.dto.LoanResponseDTO;
 import com.ems.loan.model.InterestPayment;
 import com.ems.loan.model.Loan;
 import com.ems.loan.model.PendingDisbursement;
@@ -19,41 +22,43 @@ import com.ems.loan.repository.InterestPaymentRepository;
 import com.ems.loan.repository.LoanRepository;
 import com.ems.loan.repository.PendingDisbursementRepository;
 
+import lombok.RequiredArgsConstructor;
+
 import com.ems.loan.model.LoanStatus;
 
 @Service
+@RequiredArgsConstructor
 public class LoanService {
 
     private final LoanRepository repository;
     private final InterestPaymentRepository interestPaymentRepository;
     private final PendingDisbursementRepository pendingDisbursementRepository;
+    private final ModelMapper modelMapper;
 
     private static final BigDecimal HUNDRED = new BigDecimal("100");
     private static final BigDecimal THIRTY = new BigDecimal("30");
     private static final BigDecimal TWELVE = new BigDecimal("12");
+
     private static final int CALC_SCALE = 10;                 // internal precision
     private static final int MONEY_SCALE = 0;                 // whole rupees, matches current UI
     private static final RoundingMode RM = RoundingMode.HALF_UP;
 
     private static final BigDecimal MONTHLY_INTEREST_RATE = new BigDecimal("2.0"); // 2%, used by calculateSettlement
 
-    public LoanService(LoanRepository repo, InterestPaymentRepository intrest,
-            PendingDisbursementRepository pendingRepo) {
-        this.repository = repo;
-        this.interestPaymentRepository = intrest;
-        this.pendingDisbursementRepository = pendingRepo;
+
+    public List<LoanResponseDTO> getAll() {
+        return repository.findAll().stream().map(a -> modelMapper.map(a, LoanResponseDTO.class)).toList();
     }
 
-    public List<Loan> getAll() {
-        return repository.findAll();
+    public LoanResponseDTO saveLoan(LoanRequestDTO loanData) {
+    Loan loan = modelMapper.map(loanData, Loan.class);
+    if (loan.getStatus() == null) {
+        loan.setStatus(LoanStatus.ACTIVE);
     }
+    Loan saved = repository.save(loan);
+    return modelMapper.map(saved, LoanResponseDTO.class);
+}
 
-    public Loan saveLoan(Loan loanData) {
-        if (loanData.getStatus() == null) {
-            loanData.setStatus(LoanStatus.ACTIVE);
-        }
-        return repository.save(loanData);
-    }
 
     public BigDecimal getTotalLoanAmount() {
         return repository.getTotalLoanAmount();
@@ -68,7 +73,7 @@ public class LoanService {
     }
 
     @Transactional
-    public Loan closeLoan(Long id, LocalDate closeDate, BigDecimal settlementAmount) {
+    public LoanResponseDTO closeLoan(Long id, LocalDate closeDate, BigDecimal settlementAmount) {
         Loan existingLoan = repository.findById(id)
                 .orElseThrow(() -> new LoanNotFoundException("Loan with ID " + id + " not found!"));
 
@@ -76,7 +81,7 @@ public class LoanService {
         existingLoan.setCloseDate(closeDate);
         existingLoan.setSettlementAmount(settlementAmount);
 
-        return repository.save(existingLoan);
+        return modelMapper.map(repository.save(existingLoan), LoanResponseDTO.class);
     }
 
     @Transactional
@@ -269,12 +274,12 @@ public class LoanService {
         return result;
     }
 
-    public Optional<Loan> findByNameAndFatherNameAndAddress(String name, String fathername, String address) {
-        return repository.findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseAndAddressIgnoreCaseOrderByIdDesc(name, fathername, address);
+    public Optional<LoanResponseDTO> findByNameAndFatherNameAndAddress(String name, String fathername, String address) {
+        return repository.findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseAndAddressIgnoreCaseOrderByIdDesc(name, fathername, address).map(m -> modelMapper.map(m,LoanResponseDTO.class));
     }
 
-    public Optional<Loan> findByNameAndFatherName(String name, String fathername) {
-        return repository.findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseOrderByIdDesc(name, fathername);
+    public Optional<LoanResponseDTO> findByNameAndFatherName(String name, String fathername) {
+        return repository.findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseOrderByIdDesc(name, fathername).map(m -> modelMapper.map(m,LoanResponseDTO.class));
     }
 
    

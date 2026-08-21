@@ -27,14 +27,6 @@ const EMPTY: Omit<Product, "id"> = {
   purity: "22K",
   baseWeight: 0,
   stockQuantity: 0,
-  price: 0,
-};
-
-const PURITY_MULTIPLIER: Record<string, number> = {
-  "24K": 1.0,
-  "20K": 20 / 24,
-  "22K": 22 / 24,
-  "18K": 18 / 24,
 };
 
 export const AddProductModal = ({
@@ -46,7 +38,6 @@ export const AddProductModal = ({
   activeCategory,
 }: Props) => {
   const [form, setForm] = useState<Product | Omit<Product, "id">>(EMPTY);
-  const [priceOverridden, setPriceOverridden] = useState(false);
   const { gold: goldCategories, silver: silverCategories } = useCategories();
 
   const currentCategories =
@@ -76,7 +67,6 @@ export const AddProductModal = ({
     if (open) {
       if (productToEdit) {
         setForm(productToEdit);
-        setPriceOverridden(true);
       } else {
         const isSilver = activeCategory.startsWith("silver");
         const categoryParts = activeCategory.split("-");
@@ -95,38 +85,9 @@ export const AddProductModal = ({
           mainCategory: cleanMainCategory,
           subCategory: cleanSubCategory,
         });
-
-        setPriceOverridden(false);
       }
     }
   }, [open, productToEdit, activeCategory]);
-
-  // Auto-calculate price whenever weight, purity, or live rates change
-  useEffect(() => {
-    const weight = Number(form.baseWeight);
-    if (priceOverridden || !weight) return;
-
-    if (form.material?.toLowerCase() === "gold") {
-      if (!goldRate?.rate) return;
-      const perGram = goldRate.rate / 10;
-      const purityFactor = PURITY_MULTIPLIER[form.purity] ?? 22 / 24;
-      const goldValue = perGram * weight * purityFactor;
-      const making = goldValue * 0.12;
-      setForm((p) => ({ ...p, price: Math.round(goldValue + making) }));
-    } else {
-      const currentSilverRate = silverRate?.rate ?? 95;
-      const silverValue = currentSilverRate * weight;
-      const making = silverValue * 0.08;
-      setForm((p) => ({ ...p, price: Math.round(silverValue + making) }));
-    }
-  }, [
-    form.baseWeight,
-    form.purity,
-    form.material,
-    goldRate,
-    silverRate,
-    priceOverridden,
-  ]);
 
   if (!open) return null;
 
@@ -144,10 +105,6 @@ export const AddProductModal = ({
     onClose();
   };
 
-  const perGramForPurity = goldRate
-    ? (goldRate.rate / 10) * (PURITY_MULTIPLIER[form.purity] ?? 1)
-    : null;
-
   return (
     <Modal
       open={open}
@@ -158,11 +115,7 @@ export const AddProductModal = ({
           <span className="flex items-center gap-1.5 text-warning font-medium">
             <Zap className="w-3.5 h-3.5" />
             Live Gold: ₹{Math.round(goldRate.rate).toLocaleString("en-IN")}/10g
-            · {form.purity} @ ₹
-            {perGramForPurity
-              ? Math.round(perGramForPurity).toLocaleString("en-IN")
-              : "—"}
-            /g
+            · Silver: ₹{Math.round(silverRate?.rate ?? 0).toLocaleString("en-IN")}/10g
           </span>
         ) : (
           "Record piece details into store inventory."
@@ -225,7 +178,6 @@ export const AddProductModal = ({
                 } else {
                   update("purity", "22K");
                 }
-                setPriceOverridden(false);
               }}
             >
               <option value="Gold">Gold</option>
@@ -275,7 +227,6 @@ export const AddProductModal = ({
                 value={form.purity}
                 onChange={(e) => {
                   update("purity", e.target.value);
-                  setPriceOverridden(false);
                 }}
               >
                 <option value="18K">18K (75.0%)</option>
@@ -294,7 +245,6 @@ export const AddProductModal = ({
             value={form.baseWeight || ""}
             onChange={(e) => {
               const val = parseFloat(e.target.value) || 0;
-              setPriceOverridden(false);
               update("baseWeight", val);
             }}
             placeholder="0.00"
@@ -310,24 +260,6 @@ export const AddProductModal = ({
               update("stockQuantity", parseInt(e.target.value, 10) || 0)
             }
             placeholder="0"
-          />
-
-          <Input
-            label="Estimated Unit Price (₹)"
-            type="number"
-            min={0}
-            required
-            value={form.price || ""}
-            onChange={(e) => {
-              setPriceOverridden(true);
-              update("price", parseFloat(e.target.value) || 0);
-            }}
-            placeholder="₹ 0"
-            helperText={
-              priceOverridden
-                ? "Manually customized price"
-                : "Auto-calculated from weight + live rate + 12% making charges"
-            }
           />
         </div>
       </form>
