@@ -19,6 +19,9 @@ import com.ems.inventory.repository.GoldRateRepository;
 import com.ems.inventory.repository.ProductRepository;
 import com.ems.inventory.repository.SilverRateRepository;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
@@ -36,8 +39,10 @@ public class ProductService {
 
 
 
+
+    @CacheEvict(value = {"products" , "inventory_metrics"} , allEntries = true)
     @Transactional
-    public ProductRequestDTO saveProduct(ProductRequestDTO newproduct) {
+    public ProductResponseDTO saveProduct(ProductRequestDTO newproduct) {
 
         if(productRepository.findBySku(newproduct.getSku()).isPresent()){
             throw new IllegalStateException("Product already exists with SKU: " + newproduct.getSku());
@@ -49,13 +54,13 @@ public class ProductService {
             product.setStockQuantity(0);
         }
         Product saved= productRepository.save(product);
-        return modelMapper.map(saved, ProductRequestDTO.class);
+        return modelMapper.map(saved, ProductResponseDTO.class);
         
     }
 
-    
+    @CacheEvict(value = {"products" , "inventory_metrics"} , allEntries = true)
     @Transactional
-    public ProductRequestDTO updateProduct(long id, ProductRequestDTO updatedDetails) {
+    public ProductResponseDTO updateProduct(long id, ProductRequestDTO updatedDetails) {
        Product existingProduct= productRepository.findById(id).orElseThrow(() -> new ItemNotFoundException("Product not found with id: " + id));
 
     existingProduct.setName(updatedDetails.getName());
@@ -65,14 +70,13 @@ public class ProductService {
     existingProduct.setPurity(updatedDetails.getPurity());
     existingProduct.setBaseWeight(updatedDetails.getBaseWeight());
    
-    // modelMapper.map(updatedDetails, existingProduct);
-
     // Deliberately NOT updating stockQuantity here to avoid clobbering concurrent sale deductions
     Product saved = productRepository.save(existingProduct);
-    return modelMapper.map(saved, ProductRequestDTO.class);
+    return modelMapper.map(saved, ProductResponseDTO.class);
 
 }
 
+    @Cacheable(value  = "products", key = "{#mainCategory,#subCategory,#purity,#maxWeight}")
     public List<ProductResponseDTO> getFilterProducts(String mainCategory, String subCategory, String purity , Double maxWeight){
 
         List<Product> products;
@@ -96,10 +100,12 @@ public class ProductService {
             .toList();
     }
 
+    @Cacheable(value = "products", key = "'search_' + #keyword")
     public List<Product> searchProduct(String keyword) {
         return productRepository.searchProducts(keyword);
     }
 
+    @CacheEvict(value = {"products" ,"inventory_metrics"} , allEntries = true)
     @Transactional
     public void deleteProduct(Long id) {
         if(!productRepository.existsById(id)){
@@ -119,6 +125,7 @@ public class ProductService {
         return totalsilver != null ? totalsilver : BigDecimal.ZERO;
     }
 
+    @Cacheable(value = "inventory_metrics" , key = "'total_valuation'")
     public BigDecimal getTotalvalue() {
         
        BigDecimal gold= getTotalvaluegold();
@@ -137,6 +144,7 @@ public class ProductService {
        
     }
 
+    @Cacheable(value = "inventory_metrics" , key = "'total_items_count'")
     public Integer getTotalItems() {
         Integer total = productRepository.calculateTotalItemsInStock();
         return total != null ? total : 0;
@@ -165,6 +173,7 @@ public class ProductService {
     }
 
 
+    @Cacheable(value  = {"inventory_metrics"} , key = "'low_stock_count'")
     public Integer getCountOfItemsWithLowStock() {
        return productRepository.countByStockQuantityLessThanEqual(3);
     }

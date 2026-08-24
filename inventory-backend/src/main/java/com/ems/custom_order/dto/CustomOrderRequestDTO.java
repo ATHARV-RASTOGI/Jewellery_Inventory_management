@@ -28,8 +28,8 @@ public class CustomOrderRequestDTO {
 
     private String materialType;
     private String goldCarat;
-    private String daimondCarat;
-    private String deesignRemark;
+    private String diamondCarat;
+    private String designRemark;
     
     @JsonFormat(pattern = "yyyy-MM-dd")
     private LocalDate orderDate;

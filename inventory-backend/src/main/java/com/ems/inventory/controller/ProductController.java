@@ -29,14 +29,14 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductRequestDTO> addProduct(@RequestBody ProductRequestDTO newproduct){
-        ProductRequestDTO savesProduct=service.saveProduct(newproduct);
+    public ResponseEntity<ProductResponseDTO> addProduct(@RequestBody ProductRequestDTO newproduct){
+        ProductResponseDTO savesProduct=service.saveProduct(newproduct);
         return new ResponseEntity<>(savesProduct,HttpStatus.CREATED);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProductRequestDTO> updateProduct(@PathVariable long id, @RequestBody ProductRequestDTO productdetails){
-        ProductRequestDTO updatedProduct = service.updateProduct(id, productdetails);
+    public ResponseEntity<ProductResponseDTO> updateProduct(@PathVariable long id, @RequestBody ProductRequestDTO productdetails){
+        ProductResponseDTO updatedProduct = service.updateProduct(id, productdetails);
         return new ResponseEntity<>(updatedProduct, HttpStatus.OK);
     }
 

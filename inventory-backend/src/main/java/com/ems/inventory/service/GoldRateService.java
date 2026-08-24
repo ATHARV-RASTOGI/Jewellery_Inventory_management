@@ -5,6 +5,8 @@ import java.time.LocalDate;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -53,7 +55,9 @@ public class GoldRateService {
         fetchAndSaveGoldRate();
     }
 
+
     // Runs once daily at 11:00 AM IST
+    @CacheEvict(value = {"gold_rates", "inventory_metrics", "sales_analytics"}, allEntries = true)
     @Scheduled(cron = "0 0 11 * * ? ", zone = "Asia/Kolkata")
     public void fetchAndSaveGoldRate() {
         try {
@@ -89,6 +93,13 @@ public class GoldRateService {
         }
     }
 
+    @Cacheable(value = "gold_rates", key = "'latest'")
+    public Goldrates getLatestGoldRate() {
+        return goldRateRepository.findFirstByOrderByTimestampDesc().orElse(null);
+ 
+ 
+    }  
+
     private void updateLocalGoldRate(double currentPricePerOunceInr) {
         try {
             log.info("Saving live gold rate to database");
@@ -117,12 +128,8 @@ public class GoldRateService {
         }
     }
 
-    public Goldrates getLatestGoldRate() {
-        return goldRateRepository.findFirstByOrderByTimestampDesc().orElse(null);
- 
- 
-    }  
     
+    @CacheEvict(value = {"gold_rates", "inventory_metrics", "sales_analytics"}, allEntries = true)
     public void updateManualGoldRate(double per10gRate) {
 
     Goldrates goldRate = new Goldrates();

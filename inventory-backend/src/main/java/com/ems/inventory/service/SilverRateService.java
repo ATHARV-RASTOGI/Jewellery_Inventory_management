@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -49,7 +51,8 @@ public class SilverRateService {
         log.info("Server started: triggering initial silver rate fetch");
         fetchAndSaveSilverRate();
     }
-    
+
+    @CacheEvict(value = {"silver_rates", "inventory_metrics", "sales_analytics"}, allEntries = true)
    @Scheduled(cron = "0 0 11 * * ? ", zone = "Asia/Kolkata")
     public void fetchAndSaveSilverRate(){
         try{
@@ -100,10 +103,13 @@ public class SilverRateService {
             log.error("Save error: {}", e.getMessage(), e);
         }
     }
+
+    @Cacheable(value = "silver_rates", key = "'latest'")
     public Silver getLatestSilverRate() {
         return silverRateRepository.findFirstByOrderByTimestampDesc().orElse(null);
     }   
 
+    @CacheEvict(value = {"silver_rates", "inventory_metrics", "sales_analytics"},allEntries = true)
     public void updateManualSilverRate(BigDecimal perGramRate) {
     Silver silver = new Silver();
     Rates rates= new Rates();

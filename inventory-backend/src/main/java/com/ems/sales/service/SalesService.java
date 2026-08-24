@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.modelmapper.ModelMapper;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -55,6 +57,7 @@ public class SalesService {
     private static final BigDecimal DEFAULT_GOLD_MAKING_PERCENT = new BigDecimal("12.0");
     private static final BigDecimal DEFAULT_SILVER_MAKING_PERCENT = new BigDecimal("8.0");
 
+    @Cacheable(value = "sales_analytics", key = "'all_sales'")
     public List<SalesResponseDTO> getAllSales() {
         List<Sales> sales = saleRepository.findAllByOrderBySaleDateDesc();
         return sales.stream().map(sale -> modelMapper.map(sale, SalesResponseDTO.class)).toList();
@@ -65,6 +68,8 @@ public class SalesService {
                 .map(sale -> modelMapper.map(sale, SalesitemResponseDTO.class)).toList();
     }
 
+
+    @CacheEvict(value = {"sales_analytics", "products", "inventory_metrics"}, allEntries = true)
     @Transactional(rollbackFor = Exception.class)
     public SalesResponseDTO createsales(SalesRequestDTO request) {
 
@@ -207,6 +212,7 @@ public class SalesService {
         return BigDecimal.ZERO;
     }
 
+    @Cacheable(value = "sales_analytics", key = "'monthly_revenue'")
     public List<Map<String, Object>> getMonthlyRevenue() {
         int currentYear = LocalDate.now().getYear();
         LocalDate start = LocalDate.of(currentYear, 1, 1);
@@ -235,6 +241,7 @@ public class SalesService {
         return result;
     }
 
+    @Cacheable(value = "sales_analytics", key = "'sales_by_material'")
     public List<Map<String, Object>> getSalesByMaterial() {
         int currentYear = LocalDate.now().getYear();
         LocalDate start = LocalDate.of(currentYear, 1, 1);
@@ -253,6 +260,7 @@ public class SalesService {
         return result;
     }
 
+    @Cacheable(value = "sales_analytics" , key = "'weekly_sales'")
     public List<Map<String, Object>> getWeeklySales() {
         LocalDate today = LocalDate.now();
         LocalDate weekStart = today.minusDays(6);
@@ -279,6 +287,7 @@ public class SalesService {
         return result;
     }
 
+    @Cacheable(value = "sales_analytics", key = "'recent_sales_' + #limit")
     public List<SalesResponseDTO> getRecentSales(int limit) {
         int bounded = Math.max(0, limit);
         Page<Sales> page = saleRepository.findAllByOrderBySaleDateDesc(PageRequest.of(0, bounded));

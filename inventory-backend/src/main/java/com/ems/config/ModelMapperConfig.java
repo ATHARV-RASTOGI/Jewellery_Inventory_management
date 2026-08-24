@@ -18,7 +18,8 @@ public class ModelMapperConfig {
 
         modelMapper.getConfiguration()
             .setMatchingStrategy(MatchingStrategies.STANDARD)
-            .setSkipNullEnabled(true);
+            .setSkipNullEnabled(true)
+            .setAmbiguityIgnored(true);
 
         modelMapper.typeMap(Sales.class, SalesResponseDTO.class)
             .addMappings(mapper -> mapper.skip(SalesResponseDTO::setItems));
