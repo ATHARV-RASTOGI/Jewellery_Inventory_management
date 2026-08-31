@@ -15,7 +15,6 @@ import jakarta.persistence.LockModeType;
 
 @Repository
 public interface LoanRepository extends JpaRepository<Loan, Long> {
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT l FROM Loan l WHERE l.id = :id")
     Optional<Loan> findByIdForUpdate(@Param("id") Long id);
@@ -27,7 +26,6 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
     long countActiveLoans();
 
     Optional<Loan> findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseOrderByIdDesc(String name, String fatherName);
-
     Optional<Loan> findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseAndAddressIgnoreCaseOrderByIdDesc(String name, String fatherName, String address);
 
    
