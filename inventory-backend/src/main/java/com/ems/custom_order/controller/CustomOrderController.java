@@ -35,6 +35,7 @@ public class CustomOrderController {
     public ResponseEntity<CustomOrderResponseDTO> createNewOrder(@Valid @RequestBody CustomOrderRequestDTO order) {
         CustomOrderResponseDTO newOrder = customOrderService.saveCustomOrder(order);
         log.info("Custom order created with id: {}", newOrder.getOrderId());
+        
         return new ResponseEntity<>(newOrder, HttpStatus.CREATED);
     }
 

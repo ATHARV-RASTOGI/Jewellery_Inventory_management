@@ -77,7 +77,7 @@ public class ProductService {
 }
 
     @Cacheable(value  = "products", key = "{#mainCategory,#subCategory,#purity,#maxWeight}")
-    public List<ProductResponseDTO> getFilterProducts(String mainCategory, String subCategory, String purity , Double maxWeight){
+    public List<ProductResponseDTO> getFilterProducts(String mainCategory, String subCategory, String purity , BigDecimal maxWeight){
 
         List<Product> products;
         

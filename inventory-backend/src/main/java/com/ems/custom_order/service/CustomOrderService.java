@@ -15,6 +15,7 @@ import com.ems.custom_order.model.CustomOrder;
 import com.ems.custom_order.model.OrderStatus;
 import com.ems.custom_order.repository.CustomOrderRepository;
 
+
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -36,9 +37,9 @@ public class CustomOrderService {
     }
 
     @CacheEvict(value = "custom_orders", allEntries = true)
-    public CustomOrderResponseDTO saveCustomOrder(CustomOrderRequestDTO  customOrderrequest) {
+    public CustomOrderResponseDTO saveCustomOrder(CustomOrderRequestDTO  order) {
 
-        CustomOrder entity = modelMapper.map(customOrderrequest , CustomOrder.class);
+        CustomOrder entity = modelMapper.map(order , CustomOrder.class);
         
         if (entity.getAdvanceAmount() != null
                 && entity.getAdvanceAmount().compareTo(BigDecimal.ZERO) < 0) {

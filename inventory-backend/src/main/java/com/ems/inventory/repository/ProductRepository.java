@@ -3,7 +3,7 @@ package com.ems.inventory.repository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.BiConsumer;
+
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -24,7 +24,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         String mainCategory,
                         String subCategory,
                         String purity,
-                        Double maxWeight);
+                        BigDecimal maxWeight);
 
         @Query("SELECT p FROM Product p WHERE " +
                         "LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +

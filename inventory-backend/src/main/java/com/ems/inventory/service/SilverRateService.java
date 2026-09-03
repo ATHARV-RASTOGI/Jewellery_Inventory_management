@@ -1,7 +1,7 @@
 package com.ems.inventory.service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -86,7 +86,7 @@ public class SilverRateService {
     private void updatesilverrate(double liveprice) {
         try {
             Silver silver= new Silver();
-            silver.setTimestamp(LocalDateTime.now());
+            silver.setTimestamp(LocalDate.now());
             silver.setBase("INR");
 
             Rates rate= new Rates();
@@ -113,7 +113,7 @@ public class SilverRateService {
     public void updateManualSilverRate(BigDecimal perGramRate) {
     Silver silver = new Silver();
     Rates rates= new Rates();
-    silver.setTimestamp(LocalDateTime.now());
+    silver.setTimestamp(LocalDate.now());
     silver.setBase("INR");
 
 

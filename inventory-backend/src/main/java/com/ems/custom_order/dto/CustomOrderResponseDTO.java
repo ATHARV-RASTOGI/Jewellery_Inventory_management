@@ -6,8 +6,10 @@ import java.time.LocalDate;
 import com.ems.custom_order.model.OrderStatus;
 import com.fasterxml.jackson.annotation.JsonFormat;
 
+import lombok.Builder;
 import lombok.Data;
 
+@Builder
 @Data
 public class CustomOrderResponseDTO {
 

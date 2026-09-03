@@ -18,14 +18,18 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.DecimalMin;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 
+@Builder
 @Entity
 @Table(name="custom_order")
-@Data // equal to getter , setter and AllArgsConstructor 
+@Data 
 @NoArgsConstructor
+@AllArgsConstructor
 public class CustomOrder {
     
     @Id

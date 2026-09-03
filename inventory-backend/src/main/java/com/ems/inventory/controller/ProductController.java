@@ -1,5 +1,5 @@
 package com.ems.inventory.controller;
-
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
@@ -45,7 +45,7 @@ public class ProductController {
         @RequestParam(required= false) String mainCategory,
         @RequestParam(required= false) String subCategory,
         @RequestParam(required= false) String purity,
-        @RequestParam(required= false) Double maxWeight
+        @RequestParam(required= false) BigDecimal maxWeight
     )
     {
         
