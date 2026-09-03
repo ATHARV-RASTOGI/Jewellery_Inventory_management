@@ -99,6 +99,15 @@ public class SalesService {
             }
 
             product.setStockQuantity(availableStock - quantity);
+
+            BigDecimal soldWeight = item.getWeight();
+            BigDecimal currentTotal = product.getTotalweight() != null ? product.getTotalweight() : BigDecimal.ZERO;
+            if (soldWeight != null) {
+                if (soldWeight.compareTo(currentTotal) > 0) {
+                    // Log warning: sold weight exceeds available total weight
+                }
+                product.setTotalweight(currentTotal.subtract(soldWeight));
+            }
             productRepository.save(product);
 
             // Extract pricing parameters from payload if provided
@@ -108,7 +117,7 @@ public class SalesService {
             BigDecimal pricePerPiece = item.getPricePerPiece();
 
             String material = product.getMaterial() != null ? product.getMaterial().trim() : "Gold";
-            BigDecimal weight = product.getBaseWeight() != null ? product.getBaseWeight() : BigDecimal.ZERO;
+            BigDecimal weight = item.getWeight() != null ? item.getWeight() : BigDecimal.ZERO;
             String purity = product.getPurity();
 
             // 1. Resolve applied rate per 10g
@@ -150,7 +159,7 @@ public class SalesService {
             saleitem.setProductName(product.getName());
             saleitem.setMaterial(product.getMaterial());
             saleitem.setPurity(product.getPurity());
-            saleitem.setWeight(product.getBaseWeight());
+            saleitem.setWeight(weight);
             saleitem.setQuantity(quantity);
             saleitem.setAppliedRatePer10g(appliedRatePer10g);
             saleitem.setMakingChargePercent(makingChargePercent);

@@ -14,18 +14,29 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ems.inventory.dto.BatchResponseDTO;
 import com.ems.inventory.dto.ProductRequestDTO;
 import com.ems.inventory.dto.ProductResponseDTO;
+import com.ems.inventory.dto.StockInRequestDTO;
 import com.ems.inventory.service.ProductService;
+import com.ems.inventory.service.StockInService;
 @RestController
 @RequestMapping("/api/inventory/products")
 
 public class ProductController {
   
     private final ProductService service;
+    private final StockInService stockInService;
 
-    public ProductController (ProductService service){
+    public ProductController (ProductService service, StockInService stockInService){
         this.service=service;
+        this.stockInService=stockInService;
+    }
+
+    @PostMapping("/stock-in")
+    public ResponseEntity<BatchResponseDTO> addStock(@RequestBody StockInRequestDTO request){
+        BatchResponseDTO response = stockInService.addStock(request);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PostMapping

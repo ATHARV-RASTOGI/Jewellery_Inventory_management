@@ -102,8 +102,8 @@ export const ProductDrawer = ({ product, onClose, onEdit }: Props) => {
               <div className="grid grid-cols-3 gap-2.5">
                 <Chip label="Purity" value={product.purity} />
                 <Chip
-                  label="Net Weight"
-                  value={formatWeight(product.baseWeight)}
+                  label="Total Weight"
+                  value={formatWeight(product.totalWeight ?? product.baseWeight)}
                 />
                 <Chip label="In Stock" value={`${product.stockQuantity} pcs`} />
               </div>

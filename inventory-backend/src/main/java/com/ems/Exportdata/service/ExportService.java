@@ -177,7 +177,7 @@ public class ExportService {
             row.createCell(4).setCellValue(nullSafe(p.getSubCategory()));
             row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
             row.createCell(6).setCellValue(nullSafe(p.getPurity()));
-            row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
+            row.createCell(7).setCellValue(p.getTotalweight() != null ? p.getTotalweight().doubleValue() : 0.0);
             row.createCell(8).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
         }
         autoSize(sheet, cols.length);
@@ -204,7 +204,7 @@ public class ExportService {
             row.createCell(4).setCellValue(nullSafe(p.getSubCategory()));
             row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
             row.createCell(6).setCellValue(nullSafe(p.getPurity()));
-            row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
+            row.createCell(7).setCellValue(p.getTotalweight() != null ? p.getTotalweight().doubleValue() : 0.0);
             row.createCell(8).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
         }
         autoSize(sheet, cols.length);
@@ -230,7 +230,7 @@ public class ExportService {
             row.createCell(3).setCellValue(nullSafe(p.getMainCategory()));
             row.createCell(4).setCellValue(nullSafe(p.getSubCategory()));
             row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
-            row.createCell(6).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
+            row.createCell(6).setCellValue(p.getTotalweight() != null ? p.getTotalweight().doubleValue() : 0.0);
             row.createCell(7).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
         }
         autoSize(sheet, cols.length);
@@ -336,11 +336,8 @@ public class ExportService {
         // ── Inventory summary ──
         if (includeInventory && products != null) {
             double totalStockWeight = products.stream()
-                    .mapToDouble(p -> {
-                        double weight = p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0;
-                        int qty = p.getStockQuantity() != null ? p.getStockQuantity() : 0;
-                        return weight * qty;
-                    }).sum();
+                    .mapToDouble(p -> p.getTotalweight() != null ? p.getTotalweight().doubleValue() : 0.0)
+                    .sum();
             int totalStockQty = products.stream()
                     .mapToInt(p -> p.getStockQuantity() != null ? p.getStockQuantity() : 0).sum();
 

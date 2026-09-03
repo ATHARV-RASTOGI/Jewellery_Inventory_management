@@ -36,6 +36,7 @@ export type CreateSaleInput = {
     sku: string;
     quantity: number;
     pricePerPiece: number;
+    weight?: number;
     appliedRatePer10g?: number;
     makingChargePercent?: number;
     makingChargeAmount?: number;

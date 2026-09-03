@@ -9,6 +9,7 @@ interface CartTableProps {
   gst: number;
   grandTotal: number;
   onUpdateQty: (sku: string, qty: number) => void;
+  onUpdateWeight?: (sku: string, weight: number) => void;
   onUpdateRate?: (sku: string, rate: number) => void;
   onUpdateMaking?: (sku: string, percent: number) => void;
   onRemove: (sku: string) => void;
@@ -20,6 +21,7 @@ export const CartTable: React.FC<CartTableProps> = ({
   gst,
   grandTotal,
   onUpdateQty,
+  onUpdateWeight,
   onUpdateRate,
   onUpdateMaking,
   onRemove,
@@ -33,7 +35,7 @@ export const CartTable: React.FC<CartTableProps> = ({
           <thead>
             <tr className="border-b border-border/70 bg-surface-2 text-muted-foreground font-semibold uppercase tracking-wider text-[11px] sm:text-xs">
               <th className="px-4 py-3 text-left">Item Details</th>
-              <th className="px-3 py-3 text-right">Net Wt</th>
+              <th className="px-3 py-3 text-right">Weighed Wt (g)</th>
               <th className="px-3 py-3 text-center">Metal Rate (₹/10g)</th>
               <th className="px-3 py-3 text-center">Making %</th>
               <th className="px-3 py-3 text-right">Unit Rate</th>
@@ -51,8 +53,26 @@ export const CartTable: React.FC<CartTableProps> = ({
                     {c.sku} · <span className="text-warning font-semibold">{c.material} {c.purity}</span>
                   </p>
                 </td>
-                <td className="px-3 py-3.5 text-right font-mono font-medium text-foreground whitespace-nowrap text-xs sm:text-sm">
-                  {formatWeight(c.weight)}
+                <td className="px-3 py-3.5 text-right whitespace-nowrap">
+                  <div className="inline-flex items-center gap-1 justify-end">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.001}
+                      placeholder="0.000"
+                      value={c.weight === 0 ? "" : c.weight}
+                      onChange={(e) =>
+                        onUpdateWeight?.(c.sku, parseFloat(e.target.value) || 0)
+                      }
+                      className={`w-24 text-right bg-surface border rounded-lg py-1 px-2 text-xs sm:text-sm font-mono font-semibold focus:ring-2 focus:ring-ring focus:border-transparent ${
+                        c.weight <= 0
+                          ? "border-warning/80 bg-warning/5 ring-1 ring-warning/30"
+                          : "border-border/80"
+                      }`}
+                      title="Enter measured weight on scale in grams"
+                    />
+                    <span className="text-muted-foreground font-mono text-xs">g</span>
+                  </div>
                 </td>
                 <td className="px-3 py-3.5 text-center whitespace-nowrap">
                   <input

@@ -12,7 +12,7 @@ public class ProductResponseDTO {
     private String mainCategory;
     private String subCategory;
     private String material;
-    private BigDecimal baseWeight;
+    private BigDecimal totalWeight;
     private String purity;
     private Integer stockQuantity; // fixed spelling
 }

@@ -11,4 +11,5 @@ public class SalesitemRequestDTO {
     private BigDecimal appliedRatePer10g;
     private BigDecimal makingChargePercent;
     private BigDecimal makingChargeAmount;
+    private BigDecimal weight;
 }

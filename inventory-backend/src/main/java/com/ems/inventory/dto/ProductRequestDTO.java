@@ -24,7 +24,7 @@ public class ProductRequestDTO {
     private Integer stockQuantity;
 
     @Column(precision = 10 , scale = 3)
-    private BigDecimal baseWeight;
+    private BigDecimal totalWeight;
 
     private String purity;
 

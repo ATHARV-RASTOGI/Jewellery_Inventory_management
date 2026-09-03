@@ -21,7 +21,7 @@ public class ProductRepositoryTest {
     @Autowired 
     private ProductRepository productRepository;
 
-    private Product createProduct(String name , String sku , String mainCategory , String subCategory , String purity , String material , int stockQuantity , BigDecimal baseWeight){
+    private Product createProduct(String name , String sku , String mainCategory , String subCategory , String purity , String material , int stockQuantity , BigDecimal totalweight){
         return Product.builder()
                 .name(name)
                 .sku(sku)
@@ -30,7 +30,7 @@ public class ProductRepositoryTest {
                 .purity(purity)
                 .material(material)
                 .stockQuantity(stockQuantity)
-                .baseWeight(baseWeight)
+                .totalweight(totalweight)
                 .build();
     }
     
@@ -61,7 +61,7 @@ public class ProductRepositoryTest {
        assertEquals(p1.getPurity(), newprod.get().getPurity());
        assertEquals(p1.getMaterial(), newprod.get().getMaterial());
        assertEquals(p1.getStockQuantity(), newprod.get().getStockQuantity());
-       assertEquals(p1.getBaseWeight(), newprod.get().getBaseWeight());
+       assertEquals(p1.getTotalweight(), newprod.get().getTotalweight());
     }
 
     @Test
@@ -101,7 +101,7 @@ public class ProductRepositoryTest {
          Product saved = productRepository.save(
                 createProduct("Gold Ring", "SKU-RING-01", "Rings", "Wedding", "22K", "Gold", 10, new BigDecimal("5.500")));
         
-        List<Product> found = productRepository.findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual("Rings", "Wedding", "22K", new BigDecimal("5.500"));
+        List<Product> found = productRepository.findByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual("Rings", "Wedding", "22K", new BigDecimal("5.500"));
 
         assertTrue(found.size() > 0);
         assertEquals(saved.getId(), found.get(0).getId());
@@ -111,7 +111,7 @@ public class ProductRepositoryTest {
         assertEquals("22K", found.get(0).getPurity());
         assertEquals("Gold", found.get(0).getMaterial());
         assertEquals(10, found.get(0).getStockQuantity());
-        assertEquals(new BigDecimal("5.500"), found.get(0).getBaseWeight());
+        assertEquals(new BigDecimal("5.500"), found.get(0).getTotalweight());
         assertThrows(IndexOutOfBoundsException.class , ()->{
             found.get(1);
         });
@@ -180,7 +180,7 @@ public class ProductRepositoryTest {
         assertEquals("22K", found.get().getPurity());
         assertEquals("Gold", found.get().getMaterial());
         assertEquals(10, found.get().getStockQuantity());
-        assertEquals(new BigDecimal("5.500"), found.get().getBaseWeight());
+        assertEquals(new BigDecimal("5.500"), found.get().getTotalweight());
 
     }
 

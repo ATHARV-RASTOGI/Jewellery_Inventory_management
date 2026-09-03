@@ -68,7 +68,7 @@ public class ProductService {
     existingProduct.setMainCategory(updatedDetails.getMainCategory());
     existingProduct.setSubCategory(updatedDetails.getSubCategory());
     existingProduct.setPurity(updatedDetails.getPurity());
-    existingProduct.setBaseWeight(updatedDetails.getBaseWeight());
+    existingProduct.setTotalweight(updatedDetails.getTotalWeight());
    
     // Deliberately NOT updating stockQuantity here to avoid clobbering concurrent sale deductions
     Product saved = productRepository.save(existingProduct);
@@ -82,7 +82,7 @@ public class ProductService {
         List<Product> products;
         
         if (mainCategory != null && subCategory != null && purity != null && maxWeight != null) {
-            products = productRepository.findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(
+            products = productRepository.findByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual(
                 mainCategory, subCategory, purity, maxWeight);
         }
         else if(mainCategory != null && subCategory != null){

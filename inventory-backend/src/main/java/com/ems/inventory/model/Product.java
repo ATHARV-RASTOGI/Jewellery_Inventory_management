@@ -34,8 +34,8 @@ public class Product {
     private String subCategory;
     private String material;
 
-    @Column(precision = 10, scale = 3)
-    private BigDecimal baseWeight;
+    @Column(name = "total_weight", precision = 10, scale = 3)
+    private BigDecimal totalweight;
 
     private String purity;
 

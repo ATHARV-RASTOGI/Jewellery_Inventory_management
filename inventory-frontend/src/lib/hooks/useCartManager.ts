@@ -64,7 +64,7 @@ export function useCartManager() {
       : (liveGoldRate10g && liveGoldRate10g > 0 ? liveGoldRate10g : 75000);
 
     const makingChargePercent = isSilver ? 8 : 12;
-    const weight = Number(product.baseWeight) || 0;
+    const weight = 0; // Starts empty/0: staff must enter actual weighed weight at counter
 
     const { makingChargeAmount, pricePerPiece } = calculateItemPrice(
       weight,
@@ -127,6 +127,28 @@ export function useCartManager() {
     }
     setCart((prev) =>
       prev.map((c) => (c.sku === sku ? { ...c, quantity: Math.max(1, qty) } : c))
+    );
+  };
+
+  const updateWeight = (sku: string, newWeight: number) => {
+    setCart((prev) =>
+      prev.map((c) => {
+        if (c.sku !== sku) return c;
+        const validWeight = Math.max(0, newWeight);
+        const { makingChargeAmount, pricePerPiece } = calculateItemPrice(
+          validWeight,
+          c.material,
+          c.purity,
+          c.appliedRatePer10g,
+          c.makingChargePercent
+        );
+        return {
+          ...c,
+          weight: validWeight,
+          makingChargeAmount,
+          pricePerPiece,
+        };
+      })
     );
   };
 
@@ -199,6 +221,7 @@ export function useCartManager() {
     addProductToCart,
     removeFromCart,
     updateQty,
+    updateWeight,
     updateRate,
     updateMakingPercent,
     updatePricePerPiece,
