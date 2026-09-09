@@ -112,8 +112,8 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
       result = [...result].sort((a, b) => {
         let av: number, bv: number;
         if (sortKey === "weight") {
-          av = a.baseWeight ?? 0;
-          bv = b.baseWeight ?? 0;
+          av = a.totalWeight ?? a.baseWeight ?? 0;
+          bv = b.totalWeight ?? b.baseWeight ?? 0;
         } else if (sortKey === "purity") {
           av = parsePurity(a.purity);
           bv = parsePurity(b.purity);
@@ -158,7 +158,7 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
           onClick={() => toggleSort("weight")}
           className="inline-flex items-center gap-1 hover:text-foreground transition-colors ml-auto uppercase"
         >
-          Weight <SortIcon column="weight" />
+          Total Weight <SortIcon column="weight" />
         </button>
       ),
       align: "right" as const,
@@ -287,7 +287,7 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
                 </StatusBadge>
               </td>
               <td className="px-4 py-3 text-[12.5px] text-muted-foreground tabular-nums text-right whitespace-nowrap font-mono">
-                {formatWeight(p.baseWeight)}
+                {formatWeight(p.totalWeight ?? p.baseWeight)}
               </td>
               <td className="px-4 py-3 text-[12.5px] text-muted-foreground tabular-nums text-right whitespace-nowrap">
                 {p.stockQuantity} pcs

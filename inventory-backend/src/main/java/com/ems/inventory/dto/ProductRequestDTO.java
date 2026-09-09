@@ -24,10 +24,15 @@ public class ProductRequestDTO {
     private Integer stockQuantity;
 
     @Column(precision = 10 , scale = 3)
-    private BigDecimal baseWeight;
+    private BigDecimal totalWeight;
 
     private String purity;
 
+    public BigDecimal getBaseWeight() {
+        return totalWeight;
+    }
 
-
+    public void setBaseWeight(BigDecimal baseWeight) {
+        this.totalWeight = baseWeight;
+    }
 }

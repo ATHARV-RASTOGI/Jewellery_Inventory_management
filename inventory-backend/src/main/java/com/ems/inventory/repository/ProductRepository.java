@@ -20,7 +20,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
         List<Product> findByMainCategoryAndSubCategory(String mainCategory, String subCategory);
 
-        List<Product> findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(
+        List<Product> findByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual(
                         String mainCategory,
                         String subCategory,
                         String purity,
@@ -32,10 +32,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         "LOWER(p.mainCategory) LIKE LOWER(CONCAT('%', :keyword, '%'))")
         List<Product> searchProducts(@Param("keyword") String keyword);
 
-        @Query("SELECT COALESCE(SUM(p.baseWeight * p.stockQuantity), 0) FROM Product p WHERE p.material = 'Gold'")
+        @Query("SELECT COALESCE(SUM(p.totalweight), 0) FROM Product p WHERE p.material = 'Gold'")
         BigDecimal getTotalWeightForGold();
 
-        @Query("SELECT COALESCE(SUM(p.baseWeight * p.stockQuantity), 0) FROM Product p WHERE p.material = 'Silver'")
+        @Query("SELECT COALESCE(SUM(p.totalweight), 0) FROM Product p WHERE p.material = 'Silver'")
         BigDecimal getTotalWeightForSilver();
 
         @Query("SELECT COALESCE(SUM(p.stockQuantity), 0) FROM Product p")

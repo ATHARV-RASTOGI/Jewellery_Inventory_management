@@ -189,7 +189,7 @@ public class ExportService {
             setTextCell(row, 4, p.getSubCategory());
             setTextCell(row, 5, p.getMaterial());
             setTextCell(row, 6, p.getPurity());
-            setDoubleCell(row, 7, p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : null);
+            setDoubleCell(row, 7, p.getTotalweight() != null ? p.getTotalweight().doubleValue() : null);
             setNumericCell(row, 8, p.getStockQuantity());
         }
         autoSize(sheet, cols.length);
@@ -294,11 +294,8 @@ public class ExportService {
         // ── Inventory summary ──
         if (includeInventory && products != null) {
             double totalStockWeight = products.stream()
-                    .mapToDouble(p -> {
-                        double weight = p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0;
-                        int qty = p.getStockQuantity() != null ? p.getStockQuantity() : 0;
-                        return weight * qty;
-                    }).sum();
+                    .mapToDouble(p -> p.getTotalweight() != null ? p.getTotalweight().doubleValue() : 0.0)
+                    .sum();
             int totalStockQty = products.stream()
                     .mapToInt(p -> p.getStockQuantity() != null ? p.getStockQuantity() : 0).sum();
 

@@ -33,8 +33,8 @@ public class Product {
     private String subCategory;
     private String material;
 
-    @Column(precision = 10, scale = 3)
-    private BigDecimal baseWeight;
+    @Column(name = "total_weight", precision = 10, scale = 3)
+    private BigDecimal totalweight;
 
     private String purity;
 
@@ -43,4 +43,19 @@ public class Product {
    
     @Version
     private Long version;
+
+    public BigDecimal getBaseWeight() {
+        return totalweight;
+    }
+
+    public void setBaseWeight(BigDecimal baseWeight) {
+        this.totalweight = baseWeight;
+    }
+
+    public static class ProductBuilder {
+        public ProductBuilder baseWeight(BigDecimal baseWeight) {
+            this.totalweight = baseWeight;
+            return this;
+        }
+    }
 }

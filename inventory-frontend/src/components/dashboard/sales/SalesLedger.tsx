@@ -24,6 +24,13 @@ import { CartTable } from "@/components/ui/CartTable";
 import { fetchGoldRate, fetchSilverRate } from "@/lib/api/dashboard";
 import { Zap } from "lucide-react";
 
+const formatPhone = (val: string) => {
+  const digits = val.replace(/\D/g, "").slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+};
+
 // ─── New Sale Modal ───────────────────────────────────────────────────────────
 const NewSaleModal = ({
   open,
@@ -54,6 +61,7 @@ const NewSaleModal = ({
     addProductToCart,
     removeFromCart,
     updateQty,
+    updateWeight,
     updateRate,
     updateMakingPercent,
     resetCart,
@@ -91,9 +99,10 @@ const NewSaleModal = ({
           p.sku.toLowerCase().includes(q) ||
           p.name.toLowerCase().includes(q) ||
           p.mainCategory?.toLowerCase().includes(q) ||
+          p.subCategory?.toLowerCase().includes(q) ||
           p.purity?.toLowerCase().includes(q)
       )
-      .slice(0, 6);
+      .slice(0, 8);
   }, [products, skuInput]);
 
   useEffect(() => {
@@ -182,18 +191,18 @@ const NewSaleModal = ({
       toast.error("Please add at least one item to the cart");
       return;
     }
-    if (
-      customer.customerPhone.length !== 10 ||
-      !/^\d+$/.test(customer.customerPhone)
-    ) {
+    const cleanPhone = customer.customerPhone.replace(/\D/g, "");
+    if (cleanPhone.length !== 10) {
       toast.error("Customer mobile number must be exactly 10 digits");
       return;
     }
     mutation.mutate({
       ...customer,
-      items: cart.map(({ sku, quantity, pricePerPiece, appliedRatePer10g, makingChargePercent, makingChargeAmount }) => ({
+      customerPhone: cleanPhone,
+      items: cart.map(({ sku, quantity, weight, pricePerPiece, appliedRatePer10g, makingChargePercent, makingChargeAmount }) => ({
         sku,
         quantity,
+        weight,
         pricePerPiece,
         appliedRatePer10g,
         makingChargePercent,
@@ -261,13 +270,30 @@ const NewSaleModal = ({
               <Input
                 label="Mobile Number"
                 required
-                placeholder="10-digit number"
+                placeholder="987 654 3210"
                 value={customer.customerPhone}
-                onChange={(e) =>
-                  setCustomer((p) => ({ ...p, customerPhone: e.target.value }))
-                }
-                className="py-2.5 text-sm font-mono"
+                onChange={(e) => {
+                  const formatted = formatPhone(e.target.value);
+                  setCustomer((p) => ({ ...p, customerPhone: formatted }));
+                }}
+                className="py-2.5 text-sm font-mono tracking-wider"
               />
+              <div className="flex justify-end mt-1 text-[11px] font-mono">
+                {(() => {
+                  const count = customer.customerPhone.replace(/\D/g, "").length;
+                  return (
+                    <span
+                      className={
+                        count === 10
+                          ? "text-success font-semibold"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {count}/10 digits
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
             <div>
               <Input
@@ -301,7 +327,7 @@ const NewSaleModal = ({
             <div className="flex gap-3 items-stretch">
               <div className="flex-1 relative">
                 <Input
-                  placeholder="Type or scan SKU code (e.g. KK-R-001 or Ring)…"
+                  placeholder="Search by SKU, name, category, or subcategory…"
                   value={skuInput}
                   onChange={(e) => {
                     setSkuInput(e.target.value);
@@ -373,7 +399,7 @@ const NewSaleModal = ({
                               {p.material} {p.purity}
                             </span>
                             <p className="text-xs font-mono font-medium text-foreground mt-0.5">
-                              {p.baseWeight} g
+                              {p.totalWeight ?? p.baseWeight} g
                             </p>
                           </div>
 
@@ -412,6 +438,7 @@ const NewSaleModal = ({
                   products.find((p) => p.sku === sku)?.stockQuantity
                 )
               }
+              onUpdateWeight={updateWeight}
               onUpdateRate={updateRate}
               onUpdateMaking={updateMakingPercent}
               onRemove={removeFromCart}

@@ -7,7 +7,8 @@ export type Product = {
   mainCategory: string;
   subCategory: string;
   material: string;
-  baseWeight: number;
+  totalWeight: number;
+  baseWeight?: number;
   purity: string;
   stockQuantity: number;
   price?: number;
@@ -44,4 +45,17 @@ export async function updateProduct(id: string, patch: Partial<Product>): Promis
 // DELETE /api/inventory/products/{id}
 export async function deleteProduct(id: string): Promise<void> {
   await apiClient.delete(`/inventory/products/${id}`);
+}
+
+export type StockInInput = {
+  sku: string;
+  quantityadded: number;
+  weightAdded: number;
+  batchNumber?: string;
+};
+
+// POST /api/inventory/products/stock-in
+export async function stockInProduct(input: StockInInput): Promise<any> {
+  const { data } = await apiClient.post("/inventory/products/stock-in", input);
+  return data;
 }

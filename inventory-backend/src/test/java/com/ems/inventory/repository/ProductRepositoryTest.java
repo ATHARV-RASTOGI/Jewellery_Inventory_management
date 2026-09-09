@@ -1,9 +1,7 @@
- package com.ems.inventory.repository;
+package com.ems.inventory.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,7 +24,7 @@ public class ProductRepositoryTest {
     private Product goldRing;
     private Product silverKadas;
 
-    private Product createProduct(String name, String sku, String mainCategory, String subCategory, String purity, String material, int stockQuantity, BigDecimal baseWeight) {
+    private Product createProduct(String name, String sku, String mainCategory, String subCategory, String purity, String material, int stockQuantity, BigDecimal totalweight) {
         return Product.builder()
                 .name(name)
                 .sku(sku)
@@ -35,7 +33,7 @@ public class ProductRepositoryTest {
                 .purity(purity)
                 .material(material)
                 .stockQuantity(stockQuantity)
-                .baseWeight(baseWeight)
+                .totalweight(totalweight)
                 .build();
     }
     
@@ -66,6 +64,14 @@ public class ProductRepositoryTest {
 
         assertTrue(found.isPresent());
         assertEquals(goldRing.getId(), found.get().getId());
+        assertEquals("Gold Ring", found.get().getName());
+        assertEquals("SKU-RING-01", found.get().getSku());
+        assertEquals("Rings", found.get().getMainCategory());
+        assertEquals("Wedding", found.get().getSubCategory());
+        assertEquals("22K", found.get().getPurity());
+        assertEquals("Gold", found.get().getMaterial());
+        assertEquals(10, found.get().getStockQuantity());
+        assertEquals(new BigDecimal("5.500"), found.get().getTotalweight());
     }
 
     @Test
@@ -74,6 +80,14 @@ public class ProductRepositoryTest {
 
         assertTrue(found.isPresent());
         assertEquals(goldRing.getId(), found.get().getId());
+        assertEquals("Gold Ring", found.get().getName());
+        assertEquals("SKU-RING-01", found.get().getSku());
+        assertEquals("Rings", found.get().getMainCategory());
+        assertEquals("Wedding", found.get().getSubCategory());
+        assertEquals("22K", found.get().getPurity());
+        assertEquals("Gold", found.get().getMaterial());
+        assertEquals(10, found.get().getStockQuantity());
+        assertEquals(new BigDecimal("5.500"), found.get().getTotalweight());
     }
 
     @Test
@@ -90,6 +104,25 @@ public class ProductRepositoryTest {
 
         assertEquals(1, found.size());
         assertEquals(goldRing.getId(), found.get(0).getId());
+        assertEquals("Gold Ring", found.get(0).getName());
+        assertEquals("Rings", found.get(0).getMainCategory());
+        assertEquals("Wedding", found.get(0).getSubCategory());
+    }
+
+    @Test
+    void testFindByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual() {
+        List<Product> found = productRepository.findByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual(
+                "Rings", "Wedding", "22K", new BigDecimal("5.500"));
+
+        assertEquals(1, found.size());
+        assertEquals(goldRing.getId(), found.get(0).getId());
+        assertEquals("Gold Ring", found.get(0).getName());
+        assertEquals("Rings", found.get(0).getMainCategory());
+        assertEquals("Wedding", found.get(0).getSubCategory());
+        assertEquals("22K", found.get(0).getPurity());
+        assertEquals("Gold", found.get(0).getMaterial());
+        assertEquals(10, found.get(0).getStockQuantity());
+        assertEquals(new BigDecimal("5.500"), found.get(0).getTotalweight());
     }
 
     @Test
