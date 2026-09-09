@@ -1,7 +1,6 @@
 package com.ems.inventory.model;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;

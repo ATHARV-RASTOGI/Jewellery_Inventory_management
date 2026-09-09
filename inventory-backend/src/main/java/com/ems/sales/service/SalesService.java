@@ -320,17 +320,3 @@ public class SalesService {
     }
 
 }
-
-// private BigDecimal getBigDecimal(Object val) {
-// if (val == null) return null;
-// if (val instanceof BigDecimal) return (BigDecimal) val;
-// if (val instanceof Number) return BigDecimal.valueOf(((Number)
-// val).doubleValue());
-// try {
-// String str = val.toString().trim();
-// if (str.isEmpty()) return null;
-// return new BigDecimal(str);
-// } catch (Exception e) {
-// return null;
-// }
-// }

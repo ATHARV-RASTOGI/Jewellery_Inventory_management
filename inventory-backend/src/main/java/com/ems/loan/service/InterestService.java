@@ -85,7 +85,7 @@ public class InterestService {
             LocalDate fromDate, LocalDate toDate, BigDecimal interestRate) {
 
         Loan loan = repository.findByIdForUpdate(loanId)
-                .orElseThrow(() -> new RuntimeException("Loan " + loanId + " not found"));
+                .orElseThrow(() -> new LoanNotFoundException("Loan " + loanId + " not found"));
 
         if (loan.getStatus() != LoanStatus.ACTIVE) {
             throw new RuntimeException("Cannot pay interest on a closed loan");
@@ -167,7 +167,7 @@ public class InterestService {
         return result;
     }
 
-    public Map<String, Object> calculateSettlement(Long loanId, LocalDate closeDate) {
+    public Map<String, Object> calculateSettlement(Long loanId, LocalDate closeDate, BigDecimal interestRate) {
         Loan loan = repository.findById(loanId)
                 .orElseThrow(() -> new RuntimeException("loan not found " + loanId));
 
@@ -177,9 +177,37 @@ public class InterestService {
             startDate = payments.get(payments.size() - 1).getPaymentDate();
         }
 
-        Map<String, Object> result = calculateInterestData(loan.getLoanAmount(), MONTHLY_INTEREST_RATE, startDate, closeDate);
-        result.put("months", result.get("totalMonths"));
+        BigDecimal rate = (interestRate != null && interestRate.compareTo(BigDecimal.ZERO) > 0)
+                ? interestRate
+                : MONTHLY_INTEREST_RATE;
+
+        Map<String, Object> mainCalc = calculateInterestData(loan.getLoanAmount(), rate, startDate, closeDate);
+        BigDecimal totalPrincipal = loan.getLoanAmount();
+        BigDecimal totalInterest = (BigDecimal) mainCalc.get("interestAmount");
+        boolean isMinApplied = Boolean.TRUE.equals(mainCalc.get("isMinimumMonthApplied"));
+
+        for (PendingDisbursement d : pendingDisbursementRepository.findByLoanId(loanId)) {
+            Map<String, Object> calc = calculateInterestData(d.getAmount(), rate, d.getDisbursedDate(), closeDate);
+            totalInterest = totalInterest.add((BigDecimal) calc.get("interestAmount"));
+            totalPrincipal = totalPrincipal.add(d.getAmount());
+            if (Boolean.TRUE.equals(calc.get("isMinimumMonthApplied"))) {
+                isMinApplied = true;
+            }
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("principal", totalPrincipal.setScale(MONEY_SCALE, RM));
+        result.put("interestAmount", totalInterest.setScale(MONEY_SCALE, RM));
+        result.put("totalAmount", totalPrincipal.add(totalInterest).setScale(MONEY_SCALE, RM));
+        result.put("months", isMinApplied ? 1L : mainCalc.get("totalMonths"));
+        result.put("isMinimumMonthApplied", isMinApplied);
+        result.put("rate", rate);
+        result.put("monthlyInterest", totalPrincipal.multiply(rate.divide(HUNDRED, CALC_SCALE, RM)).setScale(MONEY_SCALE, RM));
         return result;
+    }
+
+    public Map<String, Object> calculateSettlement(Long loanId, LocalDate closeDate) {
+        return calculateSettlement(loanId, closeDate, null);
     }
 
     public Map<String, Object> calculateInterestPreviewOnly(BigDecimal principal, LocalDate fromDate, LocalDate toDate, BigDecimal interestRate) {
@@ -211,8 +239,16 @@ public class InterestService {
         long remainderDays = d2 - d1;
         long totalMonths = fullYears * 12 + remainderWholeMonths;
 
-        BigDecimal remainderMonths = BigDecimal.valueOf(remainderWholeMonths)
-                .add(BigDecimal.valueOf(remainderDays).divide(THIRTY, CALC_SCALE, RM));
+        boolean isMinimumMonthApplied = false;
+        BigDecimal remainderMonths;
+        if (totalMonths == 0) {
+            // Under 1 full month: rule enforces a minimum charge of 1 full month of interest
+            isMinimumMonthApplied = true;
+            remainderMonths = BigDecimal.ONE;
+        } else {
+            remainderMonths = BigDecimal.valueOf(remainderWholeMonths)
+                    .add(BigDecimal.valueOf(remainderDays).divide(THIRTY, CALC_SCALE, RM));
+        }
 
         BigDecimal amount = principal;
         BigDecimal yearMultiplier = BigDecimal.ONE.add(monthlyInterestRate.multiply(TWELVE));
@@ -229,6 +265,8 @@ public class InterestService {
         result.put("principal", principal);
         result.put("totalMonths", totalMonths);
         result.put("remainderDays", remainderDays);
+        result.put("isMinimumMonthApplied", isMinimumMonthApplied);
+        result.put("rate", monthlyInterestRatePercent);
         result.put("interestAmount", interestAmount);
         result.put("totalAmount", amount);
         result.put("monthlyInterest", monthlyInterest);

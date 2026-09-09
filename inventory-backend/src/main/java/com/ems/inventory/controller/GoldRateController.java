@@ -1,7 +1,5 @@
 package com.ems.inventory.controller;
 
-import java.util.Map;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ems.inventory.dto.RateUpdateRequestDTO;
 import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.service.GoldRateService;
-import com.ems.inventory.service.SilverRateService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 public class GoldRateController {
    
     private final GoldRateService goldRateService;
-    private final SilverRateService silverRateService;
-
+   
     @GetMapping("/fetch-now")
     public ResponseEntity<String> fetchNow() {
         log.info("Manual gold rate fetch triggered");

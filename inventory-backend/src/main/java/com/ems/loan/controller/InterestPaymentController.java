@@ -86,8 +86,9 @@ public class InterestPaymentController {
     @GetMapping("/{id}/calculate-settlement")
     public ResponseEntity<Map<String, Object>> calculateSettlement(
             @PathVariable("id") Long id,
-            @RequestParam LocalDate closeDate) {
-        return ResponseEntity.ok(interestService.calculateSettlement(id, closeDate));
+            @RequestParam LocalDate closeDate,
+            @RequestParam(required = false) BigDecimal rate) {
+        return ResponseEntity.ok(interestService.calculateSettlement(id, closeDate, rate));
     }
 
     @PostMapping("/{id}/disbursements")

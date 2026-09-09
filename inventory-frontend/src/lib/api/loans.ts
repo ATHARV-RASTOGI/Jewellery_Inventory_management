@@ -40,6 +40,8 @@ export type SettlementCalculation = {
   interestAmount: number;
   totalAmount: number;
   monthlyInterest: number;
+  rate?: number;
+  isMinimumMonthApplied?: boolean;
 };
 
 // GET /api/loans
@@ -108,10 +110,14 @@ export async function fetchInterestPayments(loanId: string): Promise<InterestPay
 }
 
 // GET /api/loans/{id}/calculate-settlement
-export async function calculateSettlement(loanId: string, closeDate: string): Promise<SettlementCalculation> {
+export async function calculateSettlement(loanId: string, closeDate: string, rate?: number): Promise<SettlementCalculation> {
+  const params: Record<string, string | number> = { closeDate };
+  if (rate !== undefined && rate > 0) {
+    params.rate = rate;
+  }
   const { data } = await apiClient.get<SettlementCalculation>(
     `/loans/${loanId}/calculate-settlement`,
-    { params: { closeDate } },
+    { params },
   );
   return data;
 }

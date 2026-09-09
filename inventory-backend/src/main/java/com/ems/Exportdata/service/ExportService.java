@@ -2,6 +2,7 @@ package com.ems.Exportdata.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
@@ -17,7 +18,9 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.ems.Exportdata.dto.ExportCriteria;
 import com.ems.inventory.model.Product;
 import com.ems.inventory.repository.ProductRepository;
 import com.ems.loan.model.InterestPayment;
@@ -34,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ExportService {
 
     private final LoanRepository loanRepo;
@@ -42,15 +46,9 @@ public class ExportService {
     private final SaleItemRepository saleItemRepo;
     private final ProductRepository proRepo;
 
-    // ─── Main entry point ─────────────────────────────────────────────────────
+    // ─── Main entry points ───────────────────────────────────────────────────
 
-    public byte[] exportToExcel(boolean includeLoan,
-            boolean includeInventory,
-            boolean includeSales,
-            boolean includeSummary,
-            boolean includeGold,
-            boolean includeSilver) throws IOException {
-
+    public byte[] exportToExcel(ExportCriteria criteria) throws IOException {
         // Streaming workbook with row window of 100 to prevent heap memory exhaustion
         try (SXSSFWorkbook wb = new SXSSFWorkbook(100);
                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -61,39 +59,55 @@ public class ExportService {
             CellStyle currencyStyle = buildCurrencyStyle(wb);
             CellStyle dateStyle = buildDateStyle(wb);
 
-            // Single-pass data query reuse across specific sheets and summary sheet
-            List<Loan> loans = (includeLoan || includeSummary) ? loanRepo.findAll() : null;
-            List<InterestPayment> payments = (includeLoan || includeSummary) ? interestPaymentRepo.findAll() : null;
-            List<Product> products = (includeInventory || includeSummary) ? proRepo.findAll() : null;
-            List<Sales> allSales = (includeSales || includeSummary) ? salesRepo.findAllByOrderBySaleDateDesc() : null;
-            List<Saleitem> allItems = (includeSales || includeSummary) ? saleItemRepo.findAll() : null;
+            // Fetch datasets once based on selected criteria
+            List<Loan> loans = (criteria.loans() || criteria.summary()) ? loanRepo.findAll() : null;
+            List<InterestPayment> payments = (criteria.loans() || criteria.summary()) ? interestPaymentRepo.findAll() : null;
+            List<Product> products = (criteria.inventory() || criteria.summary() || criteria.gold() || criteria.silver())
+                    ? proRepo.findAll()
+                    : null;
+            List<Sales> allSales = (criteria.sales() || criteria.summary()) ? salesRepo.findAllByOrderBySaleDateDesc() : null;
+            List<Saleitem> allItems = (criteria.sales() || criteria.summary()) ? saleItemRepo.findAll() : null;
 
-            if (includeLoan && loans != null && payments != null) {
+            if (criteria.loans() && loans != null && payments != null) {
                 writeLoanSheet(wb, loans, payments, headerStyle, currencyStyle, dateStyle);
             }
-            if (includeInventory && products != null) {
-                writeInventorySheet(wb, products, headerStyle, currencyStyle);
+            if (criteria.inventory() && products != null) {
+                writeProductSheet(wb, "Inventory", products, headerStyle, currencyStyle);
             }
-            if (includeSales && allSales != null && allItems != null) {
+            if (criteria.gold() && products != null) {
+                List<Product> goldProducts = products.stream()
+                        .filter(p -> "Gold".equalsIgnoreCase(p.getMaterial()))
+                        .toList();
+                writeProductSheet(wb, "GoldProduct", goldProducts, headerStyle, currencyStyle);
+            }
+            if (criteria.silver() && products != null) {
+                List<Product> silverProducts = products.stream()
+                        .filter(p -> "Silver".equalsIgnoreCase(p.getMaterial()))
+                        .toList();
+                writeProductSheet(wb, "SilverProduct", silverProducts, headerStyle, currencyStyle);
+            }
+            if (criteria.sales() && allSales != null && allItems != null) {
                 writeSalesSheet(wb, allSales, allItems, headerStyle, currencyStyle, dateStyle);
             }
-            if (includeSummary) {
+            if (criteria.summary()) {
                 writeSummarySheet(wb, loans, payments, products, allSales, allItems,
-                        headerStyle, currencyStyle, includeLoan, includeInventory, includeSales);
-            }
-            if (includeGold) {
-                List<Product> goldProducts = proRepo.findByMaterialGold();
-                writeGoldData(wb, goldProducts, headerStyle, currencyStyle);
-            }
-            if (includeSilver) {
-                List<Product> silverProducts = proRepo.findByMaterialSilver();
-                writeSilverData(wb, silverProducts, headerStyle, currencyStyle);
+                        headerStyle, currencyStyle, criteria.loans(), criteria.inventory(), criteria.sales());
             }
 
             wb.write(out);
             wb.dispose(); // Clean up streaming temporary files on disk
             return out.toByteArray();
         }
+    }
+
+    /** Legacy overload to maintain backward compatibility */
+    public byte[] exportToExcel(boolean includeLoan,
+            boolean includeInventory,
+            boolean includeSales,
+            boolean includeSummary,
+            boolean includeGold,
+            boolean includeSilver) throws IOException {
+        return exportToExcel(new ExportCriteria(includeLoan, includeInventory, includeSales, includeSummary, includeGold, includeSilver));
     }
 
     // ─── Loan sheet ───────────────────────────────────────────────────────────
@@ -114,21 +128,20 @@ public class ExportService {
         int rowIdx = 1;
         for (Loan l : loans) {
             Row row = loanSheet.createRow(rowIdx++);
-            row.createCell(0).setCellValue(l.getId() != null ? l.getId() : 0L);
-            row.createCell(1).setCellValue(nullSafe(l.getName()));
-            row.createCell(2).setCellValue(nullSafe(l.getFatherName()));
-            row.createCell(3).setCellValue(nullSafe(l.getMobileNo()));
-            row.createCell(4).setCellValue(nullSafe(l.getAddress()));
-            row.createCell(5).setCellValue(nullSafe(l.getJewelryDescription()));
-            row.createCell(6).setCellValue(nullSafe(l.getMetal()));
-            row.createCell(7).setCellValue(l.getWeight() != null ? l.getWeight().doubleValue() : 0.0);
+            setNumericCell(row, 0, l.getId());
+            setTextCell(row, 1, l.getName());
+            setTextCell(row, 2, l.getFatherName());
+            setTextCell(row, 3, l.getMobileNo());
+            setTextCell(row, 4, l.getAddress());
+            setTextCell(row, 5, l.getJewelryDescription());
+            setTextCell(row, 6, l.getMetal());
+            setDoubleCell(row, 7, l.getWeight() != null ? l.getWeight().doubleValue() : null);
             setCurrency(row, 8, l.getLoanAmount(), currencyStyle);
-            row.createCell(9).setCellValue(
-                    l.getIssueDate() != null ? l.getIssueDate().toString() : "");
-            row.createCell(10).setCellValue(l.getCloseDate() != null ? l.getCloseDate().toString() : "");
+            setDateCell(row, 9, l.getIssueDate(), dateStyle);
+            setDateCell(row, 10, l.getCloseDate(), dateStyle);
             setCurrency(row, 11, l.getSettlementAmount(), currencyStyle);
-            row.createCell(12).setCellValue(nullSafe(l.getStatus() != null ? l.getStatus().name() : null));
-            row.createCell(13).setCellValue(nullSafe(l.getDescription()));
+            setTextCell(row, 12, l.getStatus() != null ? l.getStatus().name() : null);
+            setTextCell(row, 13, l.getDescription());
         }
         autoSize(loanSheet, loanCols.length);
 
@@ -143,23 +156,22 @@ public class ExportService {
         int payIdx = 1;
         for (InterestPayment p : payments) {
             Row row = paySheet.createRow(payIdx++);
-            row.createCell(0).setCellValue(p.getId() != null ? p.getId() : 0L);
-            row.createCell(1).setCellValue(p.getLoanId() != null ? p.getLoanId() : 0L);
-            row.createCell(2).setCellValue(nullSafe(p.getCustomer_name()));
+            setNumericCell(row, 0, p.getId());
+            setNumericCell(row, 1, p.getLoanId());
+            setTextCell(row, 2, p.getCustomer_name());
             setCurrency(row, 3, p.getAmountPaid(), currencyStyle);
-            row.createCell(4).setCellValue(
-                    p.getPaymentDate() != null ? p.getPaymentDate().toString() : "");
+            setDateCell(row, 4, p.getPaymentDate(), dateStyle);
             setCurrency(row, 5, p.getBalanceAfter(), currencyStyle);
         }
         autoSize(paySheet, payCols.length);
     }
 
-    // ─── Inventory sheet ──────────────────────────────────────────────────────
+    // ─── Product sheet (Unified for Inventory, Gold, Silver) ───────────────────
 
-    private void writeInventorySheet(Workbook wb, List<Product> products,
+    private void writeProductSheet(Workbook wb, String sheetName, List<Product> products,
             CellStyle headerStyle, CellStyle currencyStyle) {
 
-        Sheet sheet = createTrackedSheet(wb, "Inventory");
+        Sheet sheet = createTrackedSheet(wb, sheetName);
         String[] cols = {
                 "Product ID", "Name", "SKU",
                 "Main Category", "Sub Category", "Material",
@@ -170,68 +182,15 @@ public class ExportService {
         int rowIdx = 1;
         for (Product p : products) {
             Row row = sheet.createRow(rowIdx++);
-            row.createCell(0).setCellValue(p.getId() != null ? p.getId() : 0L);
-            row.createCell(1).setCellValue(nullSafe(p.getName()));
-            row.createCell(2).setCellValue(nullSafe(p.getSku()));
-            row.createCell(3).setCellValue(nullSafe(p.getMainCategory()));
-            row.createCell(4).setCellValue(nullSafe(p.getSubCategory()));
-            row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
-            row.createCell(6).setCellValue(nullSafe(p.getPurity()));
-            row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
-            row.createCell(8).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
-        }
-        autoSize(sheet, cols.length);
-    }
-
-    private void writeGoldData(Workbook wb, List<Product> products,
-            CellStyle headerStyle, CellStyle currencyStyle) {
-
-        Sheet sheet = createTrackedSheet(wb, "GoldProduct");
-        String[] cols = {
-                "Product ID", "Name", "SKU",
-                "Main Category", "Sub Category", "Material",
-                "Purity", "Base Weight (g)", "Stock Qty"
-        };
-        writeHeader(sheet, cols, headerStyle);
-
-        int rowIdx = 1;
-        for (Product p : products) {
-            Row row = sheet.createRow(rowIdx++);
-            row.createCell(0).setCellValue(p.getId() != null ? p.getId() : 0L);
-            row.createCell(1).setCellValue(nullSafe(p.getName()));
-            row.createCell(2).setCellValue(nullSafe(p.getSku()));
-            row.createCell(3).setCellValue(nullSafe(p.getMainCategory()));
-            row.createCell(4).setCellValue(nullSafe(p.getSubCategory()));
-            row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
-            row.createCell(6).setCellValue(nullSafe(p.getPurity()));
-            row.createCell(7).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
-            row.createCell(8).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
-        }
-        autoSize(sheet, cols.length);
-    }
-
-    private void writeSilverData(Workbook wb, List<Product> products,
-            CellStyle headerStyle, CellStyle currencyStyle) {
-
-        Sheet sheet = createTrackedSheet(wb, "SilverProduct");
-        String[] cols = {
-                "Product ID", "Name", "SKU",
-                "Main Category", "Sub Category", "Material",
-                "Base Weight (g)", "Stock Qty"
-        };
-        writeHeader(sheet, cols, headerStyle);
-
-        int rowIdx = 1;
-        for (Product p : products) {
-            Row row = sheet.createRow(rowIdx++);
-            row.createCell(0).setCellValue(p.getId() != null ? p.getId() : 0L);
-            row.createCell(1).setCellValue(nullSafe(p.getName()));
-            row.createCell(2).setCellValue(nullSafe(p.getSku()));
-            row.createCell(3).setCellValue(nullSafe(p.getMainCategory()));
-            row.createCell(4).setCellValue(nullSafe(p.getSubCategory()));
-            row.createCell(5).setCellValue(nullSafe(p.getMaterial()));
-            row.createCell(6).setCellValue(p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : 0.0);
-            row.createCell(7).setCellValue(p.getStockQuantity() != null ? p.getStockQuantity() : 0);
+            setNumericCell(row, 0, p.getId());
+            setTextCell(row, 1, p.getName());
+            setTextCell(row, 2, p.getSku());
+            setTextCell(row, 3, p.getMainCategory());
+            setTextCell(row, 4, p.getSubCategory());
+            setTextCell(row, 5, p.getMaterial());
+            setTextCell(row, 6, p.getPurity());
+            setDoubleCell(row, 7, p.getBaseWeight() != null ? p.getBaseWeight().doubleValue() : null);
+            setNumericCell(row, 8, p.getStockQuantity());
         }
         autoSize(sheet, cols.length);
     }
@@ -253,12 +212,11 @@ public class ExportService {
         int rowIdx = 1;
         for (Sales s : allSales) {
             Row row = salesSheet.createRow(rowIdx++);
-            row.createCell(0).setCellValue(s.getId() != null ? s.getId() : 0L);
-            row.createCell(1).setCellValue(
-                    s.getSaleDate() != null ? s.getSaleDate().toString() : "");
-            row.createCell(2).setCellValue(nullSafe(s.getCustomerName()));
-            row.createCell(3).setCellValue(nullSafe(s.getCustomerPhoneNo()));
-            row.createCell(4).setCellValue(nullSafe(s.getCustomerAddress()));
+            setNumericCell(row, 0, s.getId());
+            setDateCell(row, 1, s.getSaleDate(), dateStyle);
+            setTextCell(row, 2, s.getCustomerName());
+            setTextCell(row, 3, s.getCustomerPhoneNo());
+            setTextCell(row, 4, s.getCustomerAddress());
             setCurrency(row, 5, s.getSubtotal(), currencyStyle);
             setCurrency(row, 6, s.getGstAmount(), currencyStyle);
             setCurrency(row, 7, s.getGrandTotal(), currencyStyle);
@@ -277,14 +235,14 @@ public class ExportService {
         int itemRowIdx = 1;
         for (Saleitem item : allItems) {
             Row row = itemSheet.createRow(itemRowIdx++);
-            row.createCell(0).setCellValue(item.getId() != null ? item.getId() : 0L);
-            row.createCell(1).setCellValue(item.getSaleId() != null ? item.getSaleId() : 0L);
-            row.createCell(2).setCellValue(nullSafe(item.getSku()));
-            row.createCell(3).setCellValue(nullSafe(item.getProductName()));
-            row.createCell(4).setCellValue(nullSafe(item.getMaterial()));
-            row.createCell(5).setCellValue(nullSafe(item.getPurity()));
-            row.createCell(6).setCellValue(item.getWeight() != null ? item.getWeight().doubleValue() : 0.0);
-            row.createCell(7).setCellValue(item.getQuantity() != null ? item.getQuantity() : 0);
+            setNumericCell(row, 0, item.getId());
+            setNumericCell(row, 1, item.getSaleId());
+            setTextCell(row, 2, item.getSku());
+            setTextCell(row, 3, item.getProductName());
+            setTextCell(row, 4, item.getMaterial());
+            setTextCell(row, 5, item.getPurity());
+            setDoubleCell(row, 6, item.getWeight() != null ? item.getWeight().doubleValue() : null);
+            setNumericCell(row, 7, item.getQuantity());
             setCurrency(row, 8, item.getPricePerPiece(), currencyStyle);
             setCurrency(row, 9, item.getLineTotal(), currencyStyle);
         }
@@ -399,20 +357,44 @@ public class ExportService {
         return rowIndex + 1;
     }
 
+    private void setTextCell(Row row, int col, String value) {
+        if (value != null && !value.isBlank()) {
+            row.createCell(col).setCellValue(value);
+        }
+    }
+
+    private void setNumericCell(Row row, int col, Number value) {
+        if (value != null) {
+            row.createCell(col).setCellValue(value.longValue());
+        }
+    }
+
+    private void setDoubleCell(Row row, int col, Double value) {
+        if (value != null) {
+            row.createCell(col).setCellValue(value);
+        }
+    }
+
+    private void setDateCell(Row row, int col, LocalDate date, CellStyle dateStyle) {
+        if (date != null) {
+            Cell cell = row.createCell(col);
+            cell.setCellValue(date);
+            cell.setCellStyle(dateStyle);
+        }
+    }
+
     private void setCurrency(Row row, int col, Number value, CellStyle style) {
-        Cell cell = row.createCell(col);
-        cell.setCellValue(value != null ? value.doubleValue() : 0.0);
-        cell.setCellStyle(style);
+        if (value != null) {
+            Cell cell = row.createCell(col);
+            cell.setCellValue(value.doubleValue());
+            cell.setCellStyle(style);
+        }
     }
 
     private void autoSize(Sheet sheet, int colCount) {
         for (int i = 0; i < colCount; i++) {
             sheet.autoSizeColumn(i);
         }
-    }
-
-    private String nullSafe(String value) {
-        return value != null ? value : "";
     }
 
     // ─── Style builders ───────────────────────────────────────────────────────

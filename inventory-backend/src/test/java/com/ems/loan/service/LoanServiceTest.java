@@ -81,8 +81,8 @@ public class LoanServiceTest {
     
     @Test
     void testCloseLoan() {
-        //arrange 
-
+        
+        //assign 
         LocalDate closeDate = LocalDate.now();
         BigDecimal set = new BigDecimal("90000");
 
@@ -110,7 +110,7 @@ public class LoanServiceTest {
     @Test
     void testCountActiveLoans() {
 
-        //arrange
+        //assign
         when(loanRepository.countActiveLoans()).thenReturn(10L);
 
         //act
@@ -127,7 +127,7 @@ public class LoanServiceTest {
     @Test
     void testFindByNameAndFatherName() {
 
-        //arrange 
+        //assign
         String name = "Atharv";
         String fatherName = "AABBS";
         when(loanRepository.findFirstByNameIgnoreCaseAndFatherNameIgnoreCaseOrderByIdDesc(name,fatherName)).thenReturn(Optional.of(loan));
@@ -151,7 +151,7 @@ public class LoanServiceTest {
     @Test
     void testFindByNameAndFatherNameAndAddress() {
 
-        //arrange
+        //assign
         String name = "Atharv";
         String fathername = "AABBS";
         String address = "123 Main St";
@@ -176,7 +176,7 @@ public class LoanServiceTest {
     @Test
     void testGetAll() {
 
-        //arrange 
+        //assign 
         List<Loan> loans = List.of(loan);
         when(loanRepository.findAll()).thenReturn(loans);
         when(modelMapper.map(loan, LoanResponseDTO.class)).thenReturn(loanResponseDTO);

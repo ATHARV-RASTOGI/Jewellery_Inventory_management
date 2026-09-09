@@ -46,16 +46,32 @@ export const LoanLedger = () => {
   const [customerSearch, setCustomerSearch] = useState("");
   const [addressSearch, setAddressSearch] = useState("");
   const [tab, setTab] = useState<"all" | LoanStatus>("all");
-  const [computed, setComputed] = useState<SettlementCalculation | null>(null);
-
-  const displayMonthlyRate = computed
-    ? computed.monthlyInterest * 100
-    : FALLBACK_MONTHLY_INTEREST_RATE * 100;
+  const [baseComputed, setBaseComputed] = useState<SettlementCalculation | null>(null);
 
   // settle state
   const [settleTarget, setSettleTarget] = useState<Loan | null>(null);
   const [closeDate, setCloseDate] = useState(todayIso());
+  const [settleRate, setSettleRate] = useState(2);
   const [settlementAmount, setSettlementAmount] = useState(0);
+
+  // Client-side instant recalculation: when rate changes, compute locally with zero DB queries
+  const computed = useMemo<SettlementCalculation | null>(() => {
+    if (!baseComputed) return null;
+    const baseRate = baseComputed.rate || 2;
+    if (settleRate === baseRate) {
+      return baseComputed;
+    }
+    const interestAmount = Math.round(baseComputed.interestAmount * (settleRate / baseRate));
+    const totalAmount = baseComputed.principal + interestAmount;
+    return {
+      ...baseComputed,
+      interestAmount,
+      totalAmount,
+      rate: settleRate,
+    };
+  }, [baseComputed, settleRate]);
+
+  const displayMonthlyRate = computed?.rate ?? settleRate;
 
   // interest payment state
   const [interestTarget, setInterestTarget] = useState<Loan | null>(null);
@@ -175,9 +191,8 @@ export const LoanLedger = () => {
     if (!settleTarget) return;
     const timer = setTimeout(async () => {
       try {
-        const result = await calculateSettlement(settleTarget.id, closeDate);
-        setComputed(result);
-        setSettlementAmount(result.totalAmount);
+        const result = await calculateSettlement(settleTarget.id, closeDate, 2);
+        setBaseComputed(result);
       } catch (err) {
         console.error("Settlement calc failed:", err);
       }
@@ -185,10 +200,17 @@ export const LoanLedger = () => {
     return () => clearTimeout(timer);
   }, [settleTarget, closeDate]);
 
+  useEffect(() => {
+    if (computed) {
+      setSettlementAmount(computed.totalAmount);
+    }
+  }, [computed]);
+
   const openSettle = (l: Loan) => {
     setSettleTarget(l);
-    setComputed(null);
+    setBaseComputed(null);
     setCloseDate(todayIso());
+    setSettleRate(2);
   };
 
   const openInterest = (l: Loan) => {
@@ -285,7 +307,7 @@ export const LoanLedger = () => {
   const columns = [
     { header: "ID" },
     { header: "Customer" },
-    { header: "Father's Name" },
+    { header: "Care of" },
     { header: "Collateral" },
     { header: "Weight", align: "right" as const },
     { header: "Description" },
@@ -783,19 +805,31 @@ export const LoanLedger = () => {
               </div>
             </div>
 
-            <Input
-              label="Settlement Closing Date"
-              type="date"
-              value={closeDate}
-              min={settleTarget.issueDate}
-              onChange={(e) => setCloseDate(e.target.value)}
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Settlement Closing Date"
+                type="date"
+                value={closeDate}
+                min={settleTarget.issueDate}
+                onChange={(e) => setCloseDate(e.target.value)}
+              />
+              <Input
+                label="Interest Rate (% / mo)"
+                type="number"
+                step="0.1"
+                min={0}
+                value={settleRate || ""}
+                onChange={(e) => setSettleRate(parseFloat(e.target.value) || 0)}
+              />
+            </div>
 
             <div className="rounded-xl bg-surface-2 p-3.5 space-y-2 text-xs border border-border/60">
               <div className="flex justify-between text-muted-foreground">
                 <span>Duration</span>
                 <span className="tabular-nums font-medium text-foreground">
-                  {computed.months} month(s)
+                  {computed.isMinimumMonthApplied
+                    ? "1 month (min. 1 month applied)"
+                    : `${computed.months} month(s)`}
                 </span>
               </div>
               <div className="flex justify-between text-muted-foreground">

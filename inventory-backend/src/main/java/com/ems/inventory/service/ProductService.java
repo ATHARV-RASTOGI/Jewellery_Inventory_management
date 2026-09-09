@@ -158,7 +158,7 @@ public class ProductService {
             return latestRate.getRates().getInr();
         }
     }
-    return java.math.BigDecimal.ZERO; // Default if no rate found
+    return BigDecimal.ZERO; // Default if no rate found
     }
 
     public BigDecimal getlivesilverDouble() {
@@ -169,7 +169,7 @@ public class ProductService {
             return latestRate.getRates().getInr();
         }
     }
-    return java.math.BigDecimal.ZERO; // Default if no rate found
+    return BigDecimal.ZERO; // Default if no rate found
     }
 
 
