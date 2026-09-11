@@ -69,6 +69,7 @@ public class Sales {
     @Transient
     private Integer itemCount;
 
+    
 
 
     @PrePersist

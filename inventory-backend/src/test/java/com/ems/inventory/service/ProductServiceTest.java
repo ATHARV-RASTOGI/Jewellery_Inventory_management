@@ -287,10 +287,10 @@ public class ProductServiceTest {
         String purity = "22K";
         BigDecimal maxWeight = new BigDecimal("5.0");
 
-        when(productRepository.findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(mainCat,subCat,purity,maxWeight)).thenReturn(List.of(product));
+        when(productRepository.findByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual(mainCat,subCat,purity,maxWeight)).thenReturn(List.of(product));
         List<ProductResponseDTO> filterProducts = productService.getFilterProducts(mainCat, subCat, purity, maxWeight);
         assertEquals(1, filterProducts.size());
-        verify(productRepository).findByMainCategoryAndSubCategoryAndPurityAndBaseWeightLessThanEqual(mainCat,subCat,purity,maxWeight);
+        verify(productRepository).findByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual(mainCat,subCat,purity,maxWeight);
     }
 
     @Test

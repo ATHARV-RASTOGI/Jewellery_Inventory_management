@@ -57,6 +57,14 @@ public class GlobalExceptionClass {
         return buildResponse(message, "Validation Failed", HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorMessage> handleMethodArgumentNotValid(org.springframework.web.bind.MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(java.util.stream.Collectors.joining(", "));
+        return buildResponse(message, "Validation Failed", HttpStatus.BAD_REQUEST);
+    }
+
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<ErrorMessage> NoSuchElement(NoSuchElementException ex) {
