@@ -41,10 +41,10 @@ export const PrintSlip: React.FC<PrintSlipProps> = ({
           Gold, Silver &amp; Diamond Merchants · Bankers
         </p>
         <p className="text-xs text-gray-700 mt-1">
-          Nehru Road, Farrukhabad, U.P. — 209625
+          123, Sarafa Bazar, City, U.P. — 200001
         </p>
         <p className="text-xs text-gray-600 font-medium">
-          Phone: +91 94151 88470 / 98380 12345
+          Phone: +91 98765 43210 / 91234 56789
         </p>
       </div>
 

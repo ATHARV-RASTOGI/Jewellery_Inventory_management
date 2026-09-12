@@ -13,4 +13,5 @@ public class SalesRequestDTO {
     private String customerPhoneNo;
 
     private List<SalesitemRequestDTO> items;
+    private String customerGstin;
 }

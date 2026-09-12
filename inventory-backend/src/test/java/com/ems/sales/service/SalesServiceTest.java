@@ -36,6 +36,9 @@ import com.ems.sales.model.Saleitem;
 import com.ems.sales.model.Sales;
 import com.ems.sales.repository.SaleItemRepository;
 import com.ems.sales.repository.SalesRepository;
+import com.ems.gst.model.HsnMaster;
+import com.ems.gst.repository.HsnMasterRepository;
+
 
 @ExtendWith(MockitoExtension.class)
 public class SalesServiceTest {
@@ -50,6 +53,9 @@ public class SalesServiceTest {
     private GoldRateRepository goldRateRepository;
     @Mock 
     private SilverRateRepository silverRateRepository;
+    @Mock 
+    private HsnMasterRepository hsnMasterRepository;
+
     
     @Mock 
     private ModelMapper modelMapper;
@@ -89,7 +95,14 @@ public class SalesServiceTest {
         when(saleItemRepository.countBySale_Id(ArgumentMatchers.any())).thenReturn(1L);
         when(modelMapper.map(ArgumentMatchers.any(Sales.class), ArgumentMatchers.eq(SalesResponseDTO.class)))
                 .thenReturn(expectedresponse);
-    
+
+        when(hsnMasterRepository.findByMaterialKeyIgnoreCase("Gold"))
+        .thenReturn(Optional.of(HsnMaster.builder()
+                .materialKey("Gold")
+                .hsnCode("7113")
+                .gstRate(new BigDecimal("3.0"))
+                .build()));
+
         SalesResponseDTO actualresponse = salesService.createsales(requestDTO);
 
         assertNotNull(actualresponse);

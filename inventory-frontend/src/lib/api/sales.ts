@@ -14,6 +14,7 @@ export type SaleItem = {
   makingChargeAmount?: number;
   pricePerPiece: number;
   lineTotal: number;
+  hsnCode?: string;
 };
 
 export type Sale = {
@@ -21,9 +22,13 @@ export type Sale = {
   customerName: string;
   customerPhoneNo: string;
   customerAddress: string;
+  customerGstin?: string;
   subtotal: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
   gstAmount: number;
   grandTotal: number;
+  invoiceNumber?: string;
   saleDate: string;
   itemCount: number;
 };
@@ -32,6 +37,7 @@ export type CreateSaleInput = {
   customerName: string;
   customerPhone: string;
   customerAddress: string;
+  customerGstin?: string;
   items: {
     sku: string;
     quantity: number;

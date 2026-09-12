@@ -868,7 +868,7 @@ export const CustomOrderForm = () => {
           open={!!slipOrder}
           onClose={() => setSlipOrder(null)}
           title={`Order #${slipOrder.id} Voucher`}
-          subtitle="Nehru Road, Farrukhabad official bespoke order voucher"
+          subtitle="Official bespoke order voucher"
           maxWidth="2xl"
           footer={
             <>

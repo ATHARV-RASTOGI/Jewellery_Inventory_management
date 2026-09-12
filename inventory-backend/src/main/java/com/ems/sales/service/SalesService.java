@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ems.Exception.Custom_Exception.InsufficientQuantity;
 import com.ems.Exception.Custom_Exception.ItemNotFoundException;
+import com.ems.gst.model.HsnMaster;
+import com.ems.gst.repository.HsnMasterRepository;
 import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.model.Product;
 import com.ems.inventory.model.Silver;
@@ -51,6 +53,7 @@ public class SalesService {
     private final GoldRateRepository goldRateRepository;
     private final SilverRateRepository silverRateRepository;
     private final ModelMapper modelMapper;
+    private final HsnMasterRepository hsnMasterRepository;
 
     private static final BigDecimal GST_RATE = new BigDecimal("0.03");
     private static final int CURRENCY_SCALE = 2;
@@ -77,6 +80,7 @@ public class SalesService {
         sale.setCustomerName(request.getCustomerName());
         sale.setCustomerPhoneNo(request.getCustomerPhoneNo());
         sale.setCustomerAddress(request.getCustomerAddress());
+        sale.setCustomerGstin(request.getCustomerGstin());
         Sales savedSale = saleRepository.save(sale);
         BigDecimal subtotal = BigDecimal.ZERO;
 
@@ -136,6 +140,9 @@ public class SalesService {
                         : DEFAULT_GOLD_MAKING_PERCENT;
             }
 
+            HsnMaster hsnCode = hsnMasterRepository.findByMaterialKeyIgnoreCase(material)
+                    .orElseThrow(() -> new ItemNotFoundException("HSN Master not found for material: " + material));
+            
             // 3. Resolve pricePerPiece and makingChargeAmount if not supplied
             BigDecimal purityFactor = getPurityFactor(material, purity);
             BigDecimal ratePerGram = appliedRatePer10g.divide(BigDecimal.TEN, 4, RoundingMode.HALF_UP);
@@ -166,6 +173,7 @@ public class SalesService {
             saleitem.setMakingChargeAmount(makingChargeAmount);
             saleitem.setPricePerPiece(pricePerPiece);
             saleitem.setLineTotal(lineTotal);
+            saleitem.setHsnCode(hsnCode.getHsnCode());
 
             saleItemRepository.save(saleitem);
             savedSale.getItems().add(saleitem);
@@ -173,17 +181,41 @@ public class SalesService {
             subtotal = subtotal.add(lineTotal);
         }
 
-        BigDecimal gst = subtotal.multiply(GST_RATE).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
+       BigDecimal gst = subtotal.multiply(GST_RATE).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
+        BigDecimal cgst = gst.divide(BigDecimal.valueOf(2), CURRENCY_SCALE, RoundingMode.HALF_UP);
+        BigDecimal sgst = gst.subtract(cgst); 
         BigDecimal grandTotal = subtotal.add(gst).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
 
+        String invoiceNumber = generateInvoiceNumber();
+
         savedSale.setSubtotal(subtotal);
+        savedSale.setCgstAmount(cgst);
+        savedSale.setSgstAmount(sgst);
         savedSale.setGstAmount(gst);
         savedSale.setGrandTotal(grandTotal);
+        savedSale.setInvoiceNumber(invoiceNumber);
 
-        Sales finalSale = saleRepository.save(savedSale);
+         Sales finalSale = saleRepository.save(savedSale);
         finalSale.setItemCount((int) saleItemRepository.countBySale_Id(finalSale.getId()));
+        
         return modelMapper.map(finalSale, SalesResponseDTO.class);
     }
+
+
+     private String generateInvoiceNumber() {
+        LocalDate today = LocalDate.now();
+        int year = today.getYear();
+        int month = today.getMonthValue();
+
+        int startYear = (month >= 4) ? year : year - 1;
+        int endYear = (startYear + 1) % 100; 
+
+        String financialYear = startYear + "-" + String.format("%02d", endYear); 
+        
+        long count = saleRepository.count() + 1;
+        return String.format("INV/%s/%04d", financialYear, count); // e.g., "INV/2026-27/0001"
+    }
+
 
     private BigDecimal getPurityFactor(String material, String purity) {
         if ("Silver".equalsIgnoreCase(material)) {

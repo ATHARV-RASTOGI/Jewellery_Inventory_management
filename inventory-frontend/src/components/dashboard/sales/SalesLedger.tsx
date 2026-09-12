@@ -46,6 +46,7 @@ const NewSaleModal = ({
     customerName: "",
     customerPhone: "",
     customerAddress: "",
+    customerGstin: "",
   });
   const [isSkuFocused, setIsSkuFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -132,7 +133,7 @@ const NewSaleModal = ({
       onCreated(sale);
       onClose();
       resetCart();
-      setCustomer({ customerName: "", customerPhone: "", customerAddress: "" });
+      setCustomer({ customerName: "", customerPhone: "", customerAddress: "", customerGstin: "" });
     },
     onError: (e: any) => toast.error(e.message ?? "Failed to record sale"),
   });
@@ -199,6 +200,7 @@ const NewSaleModal = ({
     mutation.mutate({
       ...customer,
       customerPhone: cleanPhone,
+      customerGstin: customer.customerGstin || undefined,
       items: cart.map(({ sku, quantity, weight, pricePerPiece, appliedRatePer10g, makingChargePercent, makingChargeAmount }) => ({
         sku,
         quantity,
@@ -307,6 +309,20 @@ const NewSaleModal = ({
                   }))
                 }
                 className="py-2.5 text-sm"
+              />
+            </div>
+            <div>
+              <Input
+                label="Customer GSTIN (Optional)"
+                placeholder="e.g. 09AAAAA0000A1Z5"
+                value={customer.customerGstin}
+                onChange={(e) =>
+                  setCustomer((p) => ({
+                    ...p,
+                    customerGstin: e.target.value.toUpperCase(),
+                  }))
+                }
+                className="py-2.5 text-sm font-mono tracking-wider"
               />
             </div>
           </div>
@@ -548,7 +564,7 @@ export const SalesLedger = () => {
         renderRow={(sale) => (
           <tr className="hover:bg-surface-2/50 transition-colors">
             <td className="px-4 py-3 text-xs font-mono text-muted-foreground">
-              #{sale.id}
+              {sale.invoiceNumber ?? `#${sale.id}`}
             </td>
             <td className="px-4 py-3 whitespace-nowrap">
               <p className="font-semibold text-[13px] text-foreground">
@@ -594,8 +610,8 @@ export const SalesLedger = () => {
         <Modal
           open={!!receiptSale}
           onClose={() => setReceiptSale(null)}
-          title={`Tax Invoice & Cash Receipt #${receiptSale.id}`}
-          subtitle={`${receiptSale.customerName} · Nehru Road, Farrukhabad official tax voucher`}
+          title={`Tax Invoice ${receiptSale.invoiceNumber ?? `#${receiptSale.id}`}`}
+          subtitle={`${receiptSale.customerName} · GST-compliant sales invoice`}
           maxWidth="3xl"
           footer={
             <>

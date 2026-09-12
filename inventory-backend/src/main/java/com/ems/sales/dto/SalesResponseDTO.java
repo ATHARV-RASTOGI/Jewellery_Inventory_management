@@ -24,4 +24,8 @@ public class SalesResponseDTO {
     private LocalDate saleDate;
     private Integer itemCount;
     private List<SalesitemResponseDTO> items;
+    private BigDecimal cgstAmount;
+    private BigDecimal sgstAmount;
+    private String invoiceNumber;
+    private String customerGstin;
 }

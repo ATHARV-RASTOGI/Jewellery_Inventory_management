@@ -50,6 +50,10 @@ public class Sales {
     @Column(precision = 12, scale = 2)
     private BigDecimal subtotal;
 
+
+    private BigDecimal cgstAmount;
+    private BigDecimal sgstAmount;
+
     @Column(precision = 12, scale = 2)
     private BigDecimal gstAmount;
 
@@ -69,9 +73,9 @@ public class Sales {
     @Transient
     private Integer itemCount;
 
+    private String invoiceNumber;
+    private String customerGstin;
     
-
-
     @PrePersist
     public void prePersist() {
         if (this.saleDate == null) this.saleDate = LocalDate.now();

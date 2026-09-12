@@ -162,7 +162,7 @@ export const Sidebar = ({
                 K.K Jewellers
               </h2>
               <p className="text-[11px] text-muted-foreground truncate">
-                Nehru Road · Farrukhabad
+                Jewellery &amp; Bullion ERP
               </p>
             </div>
           )}

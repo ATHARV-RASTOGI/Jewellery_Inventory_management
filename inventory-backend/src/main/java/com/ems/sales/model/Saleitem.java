@@ -58,4 +58,6 @@ public class Saleitem {
     private BigDecimal makingChargeAmount;
 
     private BigDecimal lineTotal;
+
+    private String hsnCode;
 }   

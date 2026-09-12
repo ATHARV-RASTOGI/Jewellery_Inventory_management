@@ -18,4 +18,5 @@ public class SalesitemResponseDTO {
     private BigDecimal makingChargePercent;
     private BigDecimal makingChargeAmount;
     private BigDecimal lineTotal;
+    private String hsnCode;
 }

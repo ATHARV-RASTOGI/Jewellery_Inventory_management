@@ -1,5 +1,6 @@
 import { ExportButton } from "../../ui/ExportButton";
 import { CategorySettings } from "./CategorySettings";
+import { StoreProfileSettings } from "./StoreProfileSettings";
 import { ThemeSelector } from "@/components/settings/ThemeSelector";
 import { PageHeader } from "@/components/layout/PageHeader";
 
@@ -12,6 +13,19 @@ export const SettingsPage = () => (
     />
 
     <div className="space-y-8 pt-2">
+      {/* ── Store Profile & Invoice Details ─────────────────── */}
+      <div className="space-y-4">
+        <div className="pb-2 border-b border-border/60">
+          <h2 className="text-[15px] font-bold tracking-tight text-foreground">
+            Store Profile &amp; Invoice Details
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Configure your shop name, address, GSTIN, and other details printed on sales invoices.
+          </p>
+        </div>
+        <StoreProfileSettings />
+      </div>
+
       {/* ── Theme & Appearance ───────────────────────────────── */}
       <div className="space-y-4">
         <div className="pb-2 border-b border-border/60">
