@@ -12,6 +12,7 @@ import { TopStats } from "../analytics/TopStats";
 import { LoanLedger } from "../loans/LoanLedger";
 import { LoanIssueForm } from "../loans/LoanIssueForm";
 import { SalesLedger } from "../sales/SalesLedger";
+import { PurchaseLedger } from "../purchases/PurchaseLedger";
 import { InventoryView } from "../inventory/InventoryView";
 import { RevenueOverview } from "../analytics/RevenueOverview";
 import { SalesByMaterial } from "../analytics/SalesByMaterial";
@@ -68,6 +69,10 @@ export const DashboardShell = () => {
       title: "Sales Ledger",
       subtitle: "Record counter sales, generate GST receipts, and track customer history.",
     },
+    "purchase-ledger": {
+      title: "Purchase Register",
+      subtitle: "Record wholesale purchases, track supplier invoices, and manage stock acquisition.",
+    },
     "custom-order": {
       title: "Custom Orders",
       subtitle: "Manage bespoke jewelry orders, advance payments, and pickup schedules.",
@@ -117,6 +122,9 @@ export const DashboardShell = () => {
 
       case "sales-ledger":
         return <SalesLedger />;
+
+      case "purchase-ledger":
+        return <PurchaseLedger />;
 
       case "custom-order":
         return <CustomOrderForm />;

@@ -26,8 +26,8 @@ import org.springframework.data.domain.PageRequest;
 
 import com.ems.inventory.model.Product;
 import com.ems.inventory.repository.GoldRateRepository;
-import com.ems.inventory.repository.ProductRepository;
 import com.ems.inventory.repository.SilverRateRepository;
+import com.ems.inventory.service.StockService;
 import com.ems.sales.dto.SalesRequestDTO;
 import com.ems.sales.dto.SalesResponseDTO;
 import com.ems.sales.dto.SalesitemRequestDTO;
@@ -44,7 +44,7 @@ import com.ems.gst.repository.HsnMasterRepository;
 public class SalesServiceTest {
 
     @Mock 
-    private ProductRepository productRepository;
+    private StockService stockService;
     @Mock 
     private SaleItemRepository  saleItemRepository;
     @Mock 
@@ -91,7 +91,7 @@ public class SalesServiceTest {
         expectedresponse.setCustomerName("Karen");
 
         when(saleRepository.save(ArgumentMatchers.any(Sales.class))).thenReturn(savedSales);
-        when(productRepository.findBySkuForUpdate("SKU-RING-01")).thenReturn(Optional.of(product));
+        when(stockService.reserveAndDeduct("SKU-RING-01", 3, null)).thenReturn(product);
         when(saleItemRepository.countBySale_Id(ArgumentMatchers.any())).thenReturn(1L);
         when(modelMapper.map(ArgumentMatchers.any(Sales.class), ArgumentMatchers.eq(SalesResponseDTO.class)))
                 .thenReturn(expectedresponse);
@@ -107,10 +107,9 @@ public class SalesServiceTest {
 
         assertNotNull(actualresponse);
         assertEquals("Karen", actualresponse.getCustomerName());
-        assertEquals(7, product.getStockQuantity());
 
         verify(saleRepository, times(2)).save(ArgumentMatchers.any(Sales.class));
-        verify(productRepository).findBySkuForUpdate("SKU-RING-01");
+        verify(stockService).reserveAndDeduct("SKU-RING-01", 3, null);
         verify(saleItemRepository).countBySale_Id(ArgumentMatchers.any());
         verify(modelMapper).map(ArgumentMatchers.any(Sales.class), ArgumentMatchers.eq(SalesResponseDTO.class));
     }

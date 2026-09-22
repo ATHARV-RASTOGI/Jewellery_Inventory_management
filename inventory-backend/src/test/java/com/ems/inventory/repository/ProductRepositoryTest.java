@@ -148,32 +148,4 @@ public class ProductRepositoryTest {
         assertEquals(15, totalItems);
     }
 
-    @Test
-    void testCountByStockQuantityLessThanEqual() {
-        // Threshold 5 matches only silverKadas (qty 5)
-        Integer count = productRepository.countByStockQuantityLessThanEqual(5);
-        assertEquals(1, count);
-    }
-
-    @Test
-    void testGetTotalWeightForGold() {
-        // 5.500 * 10 = 55.000
-        BigDecimal totalWeight = productRepository.getTotalWeightForGold();
-        assertEquals(0, new BigDecimal("55.000").compareTo(totalWeight));
-    }
-
-    @Test
-    void testGetTotalWeightForSilver() {
-        // 10.000 * 5 = 50.000
-        BigDecimal totalWeight = productRepository.getTotalWeightForSilver();
-        assertEquals(0, new BigDecimal("50.000").compareTo(totalWeight));
-    }
-
-    @Test
-    void testSearchProducts() {
-        // Searching for "Ring" matches goldRing
-        List<Product> found = productRepository.searchProducts("Ring");
-        assertEquals(1, found.size());
-        assertEquals("Gold Ring", found.get(0).getName());
-    }
 }

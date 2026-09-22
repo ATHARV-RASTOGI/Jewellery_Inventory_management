@@ -8,6 +8,7 @@ import {
   Settings,
   LogOut,
   ShoppingBag,
+  PackagePlus,
   ClipboardList,
   PanelLeftClose,
   PanelLeftOpen,
@@ -44,6 +45,12 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: "Sales",
     items: [{ id: "sales-ledger", label: "Sales Ledger", icon: ShoppingBag }],
+  },
+  {
+    title: "Procurement",
+    items: [
+      { id: "purchase-ledger", label: "Purchases", icon: PackagePlus },
+    ],
   },
   {
     title: "Orders",

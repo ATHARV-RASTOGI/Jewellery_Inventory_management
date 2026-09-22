@@ -22,7 +22,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.ems.Exception.Custom_Exception.InsufficientQuantity;
 import com.ems.Exception.Custom_Exception.ItemNotFoundException;
 import com.ems.gst.model.HsnMaster;
 import com.ems.gst.repository.HsnMasterRepository;
@@ -30,8 +29,8 @@ import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.model.Product;
 import com.ems.inventory.model.Silver;
 import com.ems.inventory.repository.GoldRateRepository;
-import com.ems.inventory.repository.ProductRepository;
 import com.ems.inventory.repository.SilverRateRepository;
+import com.ems.inventory.service.StockService;
 import com.ems.sales.dto.SalesRequestDTO;
 import com.ems.sales.dto.SalesResponseDTO;
 import com.ems.sales.dto.SalesitemRequestDTO;
@@ -47,7 +46,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SalesService {
 
-    private final ProductRepository productRepository;
+    private final StockService stockService;
     private final SalesRepository saleRepository;
     private final SaleItemRepository saleItemRepository;
     private final GoldRateRepository goldRateRepository;
@@ -88,31 +87,7 @@ public class SalesService {
             String sku = item.getSku();
             int quantity = item.getQuantity() != null ? item.getQuantity() : 0;
 
-            if (quantity <= 0) {
-                throw new IllegalArgumentException("Invalid Sales: Quantity must be greater than zero!");
-            }
-
-            Product product = productRepository.findBySkuForUpdate(sku)
-                    .orElseThrow(() -> new ItemNotFoundException("Item not found for sku : " + sku));
-
-            int availableStock = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
-
-            if (availableStock < quantity) {
-                throw new InsufficientQuantity(
-                        "Insufficient stock for: " + sku + " (Available: " + availableStock + ")");
-            }
-
-            product.setStockQuantity(availableStock - quantity);
-
-            BigDecimal soldWeight = item.getWeight();
-            BigDecimal currentTotal = product.getTotalweight() != null ? product.getTotalweight() : BigDecimal.ZERO;
-            if (soldWeight != null) {
-                if (soldWeight.compareTo(currentTotal) > 0) {
-                    // Log warning: sold weight exceeds available total weight
-                }
-                product.setTotalweight(currentTotal.subtract(soldWeight));
-            }
-            productRepository.save(product);
+            Product product = stockService.reserveAndDeduct(sku, quantity, item.getWeight());
 
             // Extract pricing parameters from payload if provided
             BigDecimal appliedRatePer10g = item.getAppliedRatePer10g();
