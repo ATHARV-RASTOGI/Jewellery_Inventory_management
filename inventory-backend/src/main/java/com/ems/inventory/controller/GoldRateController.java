@@ -25,7 +25,7 @@ public class GoldRateController {
     @GetMapping("/fetch-now")
     public ResponseEntity<String> fetchNow() {
         log.info("Manual gold rate fetch triggered");
-        goldRateService.fetchOnStartupAsync();
+        goldRateService.fetchAndSaveGoldRate();
         return ResponseEntity.ok("Gold rate fetch initiated in the background.");
     }
 
@@ -46,7 +46,7 @@ public class GoldRateController {
     if (request == null || request.getRate() == null) {
         throw new IllegalArgumentException("rate is required");
     }
-    goldRateService.updateManualGoldRate(request.getRate().doubleValue());
+    goldRateService.updateManualGoldRate(request.getRate());
     return ResponseEntity.ok("Gold rate updated successfully");
 }
 

@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
@@ -19,14 +20,19 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
-@Table(name = "product")
+@Table(name = "product", indexes = {
+    @Index(name = "ix_product_sku", columnList = "sku", unique = true)
+})
 public class Product {
 
     @Id
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
+
+    @Column(nullable = false, unique = true, length = 64)
     private String sku;
 
     private String mainCategory;
@@ -38,6 +44,7 @@ public class Product {
 
     private String purity;
 
+    @Column(name = "stock_quantity", nullable = false)
     private Integer stockQuantity;
 
    

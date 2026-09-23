@@ -3,7 +3,6 @@ package com.ems.Exception.Controller;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 
-import org.springframework.boot.actuate.autoconfigure.observation.ObservationProperties.Http;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -76,6 +75,15 @@ public class GlobalExceptionClass {
     return buildResponse (ex.getMessage(),"Loan not found" , HttpStatus.NOT_FOUND);
 
     }
+
+   @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+   public ResponseEntity<ErrorMessage> handleDataIntegrity(org.springframework.dao.DataIntegrityViolationException ex) {
+       String message = "A database constraint was violated. This usually means a duplicate or missing required value.";
+       if (ex.getMessage() != null && ex.getMessage().toLowerCase().contains("sku")) {
+           message = "A product with this SKU already exists.";
+       }
+       return buildResponse(message, "Conflict", HttpStatus.CONFLICT);
+   }
 
    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class, DateTimeParseException.class, HttpMessageNotReadableException.class})
    public ResponseEntity<ErrorMessage> handleBadRequest(Exception ex) {

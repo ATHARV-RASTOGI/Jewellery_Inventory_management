@@ -2,6 +2,7 @@ package com.ems.component;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +30,7 @@ public class CacheWarmup {
 
     @Async
     @EventListener(ApplicationReadyEvent.class)
+    @Order(3)
     public void warmUpCaches() {
         log.info(">>> Cache warm-up started...");
 
@@ -44,8 +46,6 @@ public class CacheWarmup {
         loanService.countActiveLoans();
 
         // Full lists (preload so first page visit is instant)
-        loanService.getAll();
-        salesService.getAllSales();
         productService.getFilterProducts(null, null, null, null);
 
         // Dashboard charts

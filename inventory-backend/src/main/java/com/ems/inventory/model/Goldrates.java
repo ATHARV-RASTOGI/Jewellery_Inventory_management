@@ -7,6 +7,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,6 +21,9 @@ import lombok.Setter;
 @AllArgsConstructor
 @Data
 @Setter
+@Table(name = "goldrates", indexes = {
+    @Index(name = "ix_goldrates_timestamp", columnList = "timestamp")
+})
 public class Goldrates {
 
     @Id

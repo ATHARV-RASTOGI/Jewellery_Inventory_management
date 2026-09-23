@@ -20,6 +20,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
@@ -35,7 +36,9 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "loan") 
+@Table(name = "loan", indexes = {
+    @Index(name = "ix_loan_status", columnList = "status")
+})
 public class Loan {
 
     @Id
@@ -60,6 +63,7 @@ public class Loan {
     private String description;
 
     // New fields to match frontend payload
+    @Column(precision = 10, scale = 3)
     private BigDecimal weight;
 
     private String metal;

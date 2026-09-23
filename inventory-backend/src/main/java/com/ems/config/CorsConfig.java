@@ -15,9 +15,4 @@ public class CorsConfig implements WebMvcConfigurer {
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }
-
-    // @Bean
-    // public RestTemplate restTemplate() {
-    //     return new RestTemplate();
-    // }
 }

@@ -100,16 +100,6 @@ public class ExportService {
         }
     }
 
-    /** Legacy overload to maintain backward compatibility */
-    public byte[] exportToExcel(boolean includeLoan,
-            boolean includeInventory,
-            boolean includeSales,
-            boolean includeSummary,
-            boolean includeGold,
-            boolean includeSilver) throws IOException {
-        return exportToExcel(new ExportCriteria(includeLoan, includeInventory, includeSales, includeSummary, includeGold, includeSilver));
-    }
-
     // ─── Loan sheet ───────────────────────────────────────────────────────────
 
     private void writeLoanSheet(Workbook wb, List<Loan> loans, List<InterestPayment> payments,

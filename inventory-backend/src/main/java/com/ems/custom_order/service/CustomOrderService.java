@@ -37,9 +37,11 @@ public class CustomOrderService {
     }
 
     @CacheEvict(value = "custom_orders", allEntries = true)
+    @Transactional
     public CustomOrderResponseDTO saveCustomOrder(CustomOrderRequestDTO  order) {
 
         CustomOrder entity = modelMapper.map(order , CustomOrder.class);
+        entity.setOrderId(null);
         
         if (entity.getAdvanceAmount() != null
                 && entity.getAdvanceAmount().compareTo(BigDecimal.ZERO) < 0) {
@@ -48,13 +50,6 @@ public class CustomOrderService {
         if (entity.getTotalAmount() != null
                 && entity.getTotalAmount().compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Total amount cannot be negative");
-        }
-
-        if (entity.getOrderId() != null) {
-            CustomOrder existing = customRepository.findById(entity.getOrderId()).orElse(null);
-            if (existing != null && existing.getStatus() == OrderStatus.PICKED_UP) {
-                throw new IllegalStateException("Cannot modify an order that has already been marked as PICKED_UP");
-            } 
         }
 
         if (entity.getStatus() == null) {
@@ -101,6 +96,7 @@ public class CustomOrderService {
 }
    
     @CacheEvict(value = "custom_orders", allEntries = true)
+    @Transactional
     public void deleteCustomOrder(Long id) {
         if (!customRepository.existsById(id)) {
             throw new CustomOrderNotFoundException(id);

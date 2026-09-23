@@ -73,19 +73,4 @@ public class LoanController {
                 : loanService.findByNameAndFatherName(name, fathername).orElse(null);
         return ResponseEntity.ok(loan);
     }
-
-    @GetMapping("/{name}/{fathername}/{address}")
-    public ResponseEntity<LoanResponseDTO> findByNameAndFatherNameAndAddress(
-            @PathVariable String name,
-            @PathVariable String fathername,
-            @PathVariable String address) {
-        return ResponseEntity.ok(loanService.findByNameAndFatherNameAndAddress(name, fathername, address).orElse(null));
-    }
-
-    @GetMapping("/{name}/{fathername}")
-    public ResponseEntity<LoanResponseDTO> findByNameAndFatherName(
-            @PathVariable String name,
-            @PathVariable String fathername) {
-        return ResponseEntity.ok(loanService.findByNameAndFatherName(name, fathername).orElse(null));
-    }
 }

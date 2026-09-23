@@ -201,22 +201,6 @@ public class ProductServiceTest {
     }
 
     @Test
-    void testSearchProduct() {
-
-        String keyword = "ring";
-        when(productRepository.searchProducts(keyword)).thenReturn(List.of(product));
-
-        List<Product> result = productService.searchProduct(keyword);
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals("ring", result.get(0).getName());
-        assertEquals("SKU001", result.get(0).getSku());
-
-        verify(productRepository).searchProducts(keyword);
-    }
-
-    @Test
     void testUpdateProduct() {
 
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
@@ -237,14 +221,60 @@ public class ProductServiceTest {
     }
 
     @Test
+    void testUpdateProduct_WhenSkuChanged_AndSkuAlreadyExists_ThrowsException() {
+        Product existingProduct = Product.builder().id(1L).sku("OLD-SKU").build();
+        ProductRequestDTO updateReq = new ProductRequestDTO();
+        updateReq.setSku("EXISTING-SKU");
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existingProduct));
+        when(productRepository.findBySku("EXISTING-SKU")).thenReturn(Optional.of(Product.builder().sku("EXISTING-SKU").build()));
+
+        assertThrows(IllegalStateException.class, () -> productService.updateProduct(1L, updateReq));
+
+        verify(productRepository).findById(1L);
+        verify(productRepository).findBySku("EXISTING-SKU");
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    void testUpdateProduct_CopiesMaterial() {
+        Product existingProduct = Product.builder().id(1L).sku("SKU001").material("Gold").build();
+        ProductRequestDTO updateReq = new ProductRequestDTO();
+        updateReq.setSku("SKU001");
+        updateReq.setMaterial("Silver");
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(existingProduct));
+        when(productRepository.save(existingProduct)).thenReturn(existingProduct);
+        when(modelMapper.map(existingProduct, ProductResponseDTO.class)).thenReturn(responseDTO);
+
+        productService.updateProduct(1L, updateReq);
+
+        assertEquals("Silver", existingProduct.getMaterial());
+        verify(productRepository).save(existingProduct);
+    }
+
+    @Test
     void testGetliveGoldRate() {
 
         Goldrates rate = createGoldRate(LocalDate.now(), new BigDecimal("51989"));
 
-        when(goldRateRepository.findFirstByOrderByTimestampDesc()).thenReturn(Optional.of(rate));
+        when(goldRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.of(rate));
         BigDecimal goldrate = productService.getliveGoldRate();
         assertEquals(new BigDecimal("51989"), goldrate);
-        verify(goldRateRepository).findFirstByOrderByTimestampDesc();
+        verify(goldRateRepository).findFirstByOrderByTimestampDescIdDesc();
+    }
+
+    @Test
+    void testGetliveGoldRate_WhenMissing_ReturnsZero() {
+        when(goldRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.empty());
+        assertEquals(BigDecimal.ZERO, productService.getliveGoldRate());
+    }
+
+    @Test
+    void testGetliveGoldRate_WhenZeroOrNegative_ReturnsZero() {
+        Goldrates rate = createGoldRate(LocalDate.now(), BigDecimal.ZERO);
+        when(goldRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.of(rate));
+        assertEquals(BigDecimal.ZERO, productService.getliveGoldRate());
     }
 
     @Test
@@ -252,10 +282,23 @@ public class ProductServiceTest {
 
         Silver rate = createSilverRate(LocalDate.now(), new BigDecimal("71989"));
 
-        when(silverRateRepository.findFirstByOrderByTimestampDesc()).thenReturn(Optional.of(rate));
+        when(silverRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.of(rate));
         BigDecimal silverrate = productService.getlivesilverDouble();
         assertEquals(new BigDecimal("71989"), silverrate);
-        verify(silverRateRepository).findFirstByOrderByTimestampDesc();
+        verify(silverRateRepository).findFirstByOrderByTimestampDescIdDesc();
+    }
+
+    @Test
+    void testGetlivesilverDouble_WhenMissing_ReturnsZero() {
+        when(silverRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.empty());
+        assertEquals(BigDecimal.ZERO, productService.getlivesilverDouble());
+    }
+
+    @Test
+    void testGetlivesilverDouble_WhenZeroOrNegative_ReturnsZero() {
+        Silver rate = createSilverRate(LocalDate.now(), BigDecimal.ZERO);
+        when(silverRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.of(rate));
+        assertEquals(BigDecimal.ZERO, productService.getlivesilverDouble());
     }
 
     @Test
@@ -287,15 +330,17 @@ public class ProductServiceTest {
         String purity = "22K";
         BigDecimal maxWeight = new BigDecimal("5.0");
 
-        when(productRepository.findByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual(mainCat,subCat,purity,maxWeight)).thenReturn(List.of(product));
+        when(productRepository.filterProducts(mainCat, subCat, purity, maxWeight)).thenReturn(List.of(product));
+        when(modelMapper.map(product, ProductResponseDTO.class)).thenReturn(responseDTO);
+
         List<ProductResponseDTO> filterProducts = productService.getFilterProducts(mainCat, subCat, purity, maxWeight);
         assertEquals(1, filterProducts.size());
-        verify(productRepository).findByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual(mainCat,subCat,purity,maxWeight);
+        verify(productRepository).filterProducts(mainCat, subCat, purity, maxWeight);
     }
 
     @Test
     void testGetFilterProducts_WhenNoFilters_ReturnsAll() {
-        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(productRepository.filterProducts(null, null, null, null)).thenReturn(List.of(product));
         when(modelMapper.map(product, ProductResponseDTO.class)).thenReturn(responseDTO);
 
         List<ProductResponseDTO> result = productService.getFilterProducts(null, null, null, null);
@@ -304,7 +349,7 @@ public class ProductServiceTest {
         assertEquals(1, result.size());
         assertEquals("ring", result.get(0).getName());
 
-        verify(productRepository).findAll();
+        verify(productRepository).filterProducts(null, null, null, null);
         verify(modelMapper).map(product, ProductResponseDTO.class);
     }
 
@@ -322,8 +367,8 @@ public class ProductServiceTest {
 
         when(productRepository.getTotalWeightForGold()).thenReturn(goldWeight);
         when(productRepository.getTotalWeightForSilver()).thenReturn(silverWeight);
-        when(goldRateRepository.findFirstByOrderByTimestampDesc()).thenReturn(Optional.of(goldRate));
-        when(silverRateRepository.findFirstByOrderByTimestampDesc()).thenReturn(Optional.of(silverRate));
+        when(goldRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.of(goldRate));
+        when(silverRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.of(silverRate));
 
         BigDecimal totalvalue = productService.getTotalvalue();
 
@@ -332,8 +377,8 @@ public class ProductServiceTest {
 
         verify(productRepository).getTotalWeightForGold();
         verify(productRepository).getTotalWeightForSilver();
-        verify(goldRateRepository).findFirstByOrderByTimestampDesc();
-        verify(silverRateRepository).findFirstByOrderByTimestampDesc();
+        verify(goldRateRepository).findFirstByOrderByTimestampDescIdDesc();
+        verify(silverRateRepository).findFirstByOrderByTimestampDescIdDesc();
     }
 
 }

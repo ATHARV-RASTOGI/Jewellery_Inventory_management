@@ -27,6 +27,7 @@ import com.ems.gst.model.HsnMaster;
 import com.ems.gst.repository.HsnMasterRepository;
 import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.model.Product;
+import com.ems.inventory.model.Rates;
 import com.ems.inventory.model.Silver;
 import com.ems.inventory.repository.GoldRateRepository;
 import com.ems.inventory.repository.SilverRateRepository;
@@ -58,6 +59,7 @@ public class SalesService {
     private static final int CURRENCY_SCALE = 2;
     private static final BigDecimal DEFAULT_GOLD_MAKING_PERCENT = new BigDecimal("12.0");
     private static final BigDecimal DEFAULT_SILVER_MAKING_PERCENT = new BigDecimal("8.0");
+    private static final BigDecimal MIN_PRICE_FACTOR = new BigDecimal("0.80");
 
     @Cacheable(value = "sales_analytics", key = "'all_sales'")
     public List<SalesResponseDTO> getAllSales() {
@@ -89,51 +91,11 @@ public class SalesService {
 
             Product product = stockService.reserveAndDeduct(sku, quantity, item.getWeight());
 
-            // Extract pricing parameters from payload if provided
-            BigDecimal appliedRatePer10g = item.getAppliedRatePer10g();
-            BigDecimal makingChargePercent = item.getMakingChargePercent();
-            BigDecimal makingChargeAmount = item.getMakingChargeAmount();
-            BigDecimal pricePerPiece = item.getPricePerPiece();
-
             String material = product.getMaterial() != null ? product.getMaterial().trim() : "Gold";
-            BigDecimal weight = item.getWeight() != null ? item.getWeight() : BigDecimal.ZERO;
-            String purity = product.getPurity();
-
-            // 1. Resolve applied rate per 10g
-            if (appliedRatePer10g == null || appliedRatePer10g.compareTo(BigDecimal.ZERO) <= 0) {
-                if ("Silver".equalsIgnoreCase(material)) {
-                    appliedRatePer10g = getLatestLiveSilverRate();
-                } else {
-                    appliedRatePer10g = getLatestLiveGoldRate();
-                }
-            }
-
-            // 2. Resolve making charge %
-            if (makingChargePercent == null) {
-                makingChargePercent = "Silver".equalsIgnoreCase(material)
-                        ? DEFAULT_SILVER_MAKING_PERCENT
-                        : DEFAULT_GOLD_MAKING_PERCENT;
-            }
-
             HsnMaster hsnCode = hsnMasterRepository.findByMaterialKeyIgnoreCase(material)
                     .orElseThrow(() -> new ItemNotFoundException("HSN Master not found for material: " + material));
-            
-            // 3. Resolve pricePerPiece and makingChargeAmount if not supplied
-            BigDecimal purityFactor = getPurityFactor(material, purity);
-            BigDecimal ratePerGram = appliedRatePer10g.divide(BigDecimal.TEN, 4, RoundingMode.HALF_UP);
-            BigDecimal metalValue = weight.multiply(ratePerGram).multiply(purityFactor);
 
-            if (makingChargeAmount == null) {
-                makingChargeAmount = metalValue.multiply(makingChargePercent)
-                        .divide(BigDecimal.valueOf(100), CURRENCY_SCALE, RoundingMode.HALF_UP);
-            }
-
-            if (pricePerPiece == null || pricePerPiece.compareTo(BigDecimal.ZERO) <= 0) {
-                pricePerPiece = metalValue.add(makingChargeAmount).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
-            }
-
-            BigDecimal lineTotal = pricePerPiece.multiply(BigDecimal.valueOf(quantity)).setScale(CURRENCY_SCALE,
-                    RoundingMode.HALF_UP);
+            PricedLine priced = priceLine(product, item, quantity);
 
             Saleitem saleitem = new Saleitem();
             saleitem.setSale(savedSale);
@@ -141,19 +103,19 @@ public class SalesService {
             saleitem.setProductName(product.getName());
             saleitem.setMaterial(product.getMaterial());
             saleitem.setPurity(product.getPurity());
-            saleitem.setWeight(weight);
+            saleitem.setWeight(item.getWeight() != null ? item.getWeight() : BigDecimal.ZERO);
             saleitem.setQuantity(quantity);
-            saleitem.setAppliedRatePer10g(appliedRatePer10g);
-            saleitem.setMakingChargePercent(makingChargePercent);
-            saleitem.setMakingChargeAmount(makingChargeAmount);
-            saleitem.setPricePerPiece(pricePerPiece);
-            saleitem.setLineTotal(lineTotal);
+            saleitem.setAppliedRatePer10g(priced.appliedRatePer10g());
+            saleitem.setMakingChargePercent(priced.makingChargePercent());
+            saleitem.setMakingChargeAmount(priced.makingChargeAmount());
+            saleitem.setPricePerPiece(priced.pricePerPiece());
+            saleitem.setLineTotal(priced.lineTotal());
             saleitem.setHsnCode(hsnCode.getHsnCode());
 
             saleItemRepository.save(saleitem);
             savedSale.getItems().add(saleitem);
 
-            subtotal = subtotal.add(lineTotal);
+            subtotal = subtotal.add(priced.lineTotal());
         }
 
        BigDecimal gst = subtotal.multiply(GST_RATE).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
@@ -176,6 +138,80 @@ public class SalesService {
         return modelMapper.map(finalSale, SalesResponseDTO.class);
     }
 
+    record PricedLine(
+        BigDecimal appliedRatePer10g,
+        BigDecimal makingChargePercent,
+        BigDecimal makingChargeAmount,
+        BigDecimal pricePerPiece,
+        BigDecimal lineTotal
+    ) {}
+
+    private PricedLine priceLine(Product product, SalesitemRequestDTO item, int quantity) {
+        BigDecimal appliedRatePer10g = item.getAppliedRatePer10g();
+        BigDecimal makingChargePercent = item.getMakingChargePercent();
+        BigDecimal makingChargeAmount = item.getMakingChargeAmount();
+        BigDecimal pricePerPiece = item.getPricePerPiece();
+        boolean cashierSuppliedPrice = pricePerPiece != null && pricePerPiece.compareTo(BigDecimal.ZERO) > 0;
+
+        String material = product.getMaterial() != null ? product.getMaterial().trim() : "Gold";
+        BigDecimal weight = item.getWeight() != null ? item.getWeight() : BigDecimal.ZERO;
+        String purity = product.getPurity();
+
+        // 1. Resolve applied rate per 10g
+        if (appliedRatePer10g == null || appliedRatePer10g.compareTo(BigDecimal.ZERO) <= 0) {
+            appliedRatePer10g = "Silver".equalsIgnoreCase(material)
+                    ? getLatestLiveSilverRate()
+                    : getLatestLiveGoldRate();
+        }
+
+        // 2. Resolve making charge %
+        if (makingChargePercent == null) {
+            makingChargePercent = "Silver".equalsIgnoreCase(material)
+                    ? DEFAULT_SILVER_MAKING_PERCENT
+                    : DEFAULT_GOLD_MAKING_PERCENT;
+        }
+
+        // 3. Resolve pricePerPiece and makingChargeAmount if not supplied
+        BigDecimal purityFactor = getPurityFactor(material, purity);
+        BigDecimal ratePerGram = appliedRatePer10g.divide(BigDecimal.TEN, 4, RoundingMode.HALF_UP);
+        BigDecimal metalValue = weight.multiply(ratePerGram).multiply(purityFactor);
+
+        if (makingChargeAmount == null) {
+            makingChargeAmount = metalValue.multiply(makingChargePercent)
+                    .divide(BigDecimal.valueOf(100), CURRENCY_SCALE, RoundingMode.HALF_UP);
+        }
+
+        if (!cashierSuppliedPrice) {
+            pricePerPiece = metalValue.add(makingChargeAmount).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
+        }
+
+        // 4. Price floor check: cashier's price must be >= 80% of server-computed reference
+        if (cashierSuppliedPrice) {
+            BigDecimal liveRate = "Silver".equalsIgnoreCase(material)
+                    ? getLatestLiveSilverRate()
+                    : getLatestLiveGoldRate();
+            BigDecimal refRatePerGram = liveRate.divide(BigDecimal.TEN, 4, RoundingMode.HALF_UP);
+            BigDecimal refMetalValue = weight.multiply(refRatePerGram).multiply(purityFactor);
+            BigDecimal refMakingPercent = "Silver".equalsIgnoreCase(material)
+                    ? DEFAULT_SILVER_MAKING_PERCENT
+                    : DEFAULT_GOLD_MAKING_PERCENT;
+            BigDecimal refMaking = refMetalValue.multiply(refMakingPercent)
+                    .divide(BigDecimal.valueOf(100), CURRENCY_SCALE, RoundingMode.HALF_UP);
+            BigDecimal referencePrice = refMetalValue.add(refMaking).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
+            BigDecimal floorPrice = referencePrice.multiply(MIN_PRICE_FACTOR).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
+
+            if (pricePerPiece.compareTo(floorPrice) < 0) {
+                throw new IllegalArgumentException(
+                        "Price per piece \u20b9" + pricePerPiece + " is below the minimum allowed \u20b9" + floorPrice
+                                + " (80% of computed \u20b9" + referencePrice + " for SKU " + item.getSku() + ")");
+            }
+        }
+
+        BigDecimal lineTotal = pricePerPiece.multiply(BigDecimal.valueOf(quantity)).setScale(CURRENCY_SCALE,
+                RoundingMode.HALF_UP);
+
+        return new PricedLine(appliedRatePer10g, makingChargePercent, makingChargeAmount, pricePerPiece, lineTotal);
+    }
 
      private String generateInvoiceNumber() {
         LocalDate today = LocalDate.now();
@@ -213,19 +249,21 @@ public class SalesService {
     }
 
     private BigDecimal getLatestLiveGoldRate() {
-        Optional<Goldrates> opt = goldRateRepository.findFirstByOrderByTimestampDesc();
-        if (opt.isPresent() && opt.get().getRates() != null && opt.get().getRates().getInr() != null) {
-            return opt.get().getRates().getInr();
-        }
-        return BigDecimal.ZERO;
+        return goldRateRepository.findFirstByOrderByTimestampDescIdDesc()
+                .map(Goldrates::getRates)
+                .map(Rates::getInr)
+                .filter(r -> r.compareTo(BigDecimal.ZERO) > 0)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No valid gold rate available; cannot price sale"));
     }
 
     private BigDecimal getLatestLiveSilverRate() {
-        Optional<Silver> opt = silverRateRepository.findFirstByOrderByTimestampDesc();
-        if (opt.isPresent() && opt.get().getRates() != null && opt.get().getRates().getInr() != null) {
-            return opt.get().getRates().getInr();
-        }
-        return BigDecimal.ZERO;
+        return silverRateRepository.findFirstByOrderByTimestampDescIdDesc()
+                .map(Silver::getRates)
+                .map(Rates::getInr)
+                .filter(r -> r.compareTo(BigDecimal.ZERO) > 0)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No valid silver rate available; cannot price sale"));
     }
 
     @Cacheable(value = "sales_analytics", key = "'monthly_revenue'")
@@ -234,24 +272,25 @@ public class SalesService {
         LocalDate start = LocalDate.of(currentYear, 1, 1);
         LocalDate end = LocalDate.now();
 
-        Map<Month, Double> monthlyTotal = new LinkedHashMap<>();
+        Map<Month, BigDecimal> monthlyTotal = new LinkedHashMap<>();
         for (Month m : Month.values()) {
-            monthlyTotal.put(m, 0.0);
+            monthlyTotal.put(m, BigDecimal.ZERO);
         }
 
         List<Object[]> rows = saleRepository.findMonthlyRevenueBetween(start, end);
         for (Object[] r : rows) {
             Integer monthIndex = ((Number) r[0]).intValue();
-            Double sum = ((Number) r[1]).doubleValue();
+            BigDecimal sum = r[1] == null ? BigDecimal.ZERO
+                    : (r[1] instanceof BigDecimal bd ? bd : new BigDecimal(r[1].toString()));
             Month m = Month.of(monthIndex);
             monthlyTotal.put(m, sum);
         }
 
         List<Map<String, Object>> result = new ArrayList<>();
-        for (Map.Entry<Month, Double> entry : monthlyTotal.entrySet()) {
+        for (Map.Entry<Month, BigDecimal> entry : monthlyTotal.entrySet()) {
             Map<String, Object> point = new HashMap<>();
             point.put("month", entry.getKey().getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
-            point.put("revenue", Math.round(entry.getValue()));
+            point.put("revenue", entry.getValue());
             result.add(point);
         }
         return result;
@@ -267,10 +306,11 @@ public class SalesService {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object[] r : rows) {
             String material = (String) r[0];
-            Double value = ((Number) r[1]).doubleValue();
+            BigDecimal value = r[1] == null ? BigDecimal.ZERO
+                    : (r[1] instanceof BigDecimal bd ? bd : new BigDecimal(r[1].toString()));
             Map<String, Object> point = new HashMap<>();
             point.put("material", material);
-            point.put("value", Math.round(value));
+            point.put("value", value);
             result.add(point);
         }
         return result;
@@ -281,23 +321,24 @@ public class SalesService {
         LocalDate today = LocalDate.now();
         LocalDate weekStart = today.minusDays(6);
 
-        Map<LocalDate, Double> dailyTotals = new LinkedHashMap<>();
+        Map<LocalDate, BigDecimal> dailyTotals = new LinkedHashMap<>();
         for (int i = 0; i < 7; i++) {
-            dailyTotals.put(weekStart.plusDays(i), 0.0);
+            dailyTotals.put(weekStart.plusDays(i), BigDecimal.ZERO);
         }
 
         List<Object[]> rows = saleRepository.findDailyRevenueBetween(weekStart, today);
         for (Object[] r : rows) {
             LocalDate date = (LocalDate) r[0];
-            Double sum = ((Number) r[1]).doubleValue();
+            BigDecimal sum = r[1] == null ? BigDecimal.ZERO
+                    : (r[1] instanceof BigDecimal bd ? bd : new BigDecimal(r[1].toString()));
             dailyTotals.put(date, sum);
         }
 
         List<Map<String, Object>> result = new ArrayList<>();
-        for (Map.Entry<LocalDate, Double> entry : dailyTotals.entrySet()) {
+        for (Map.Entry<LocalDate, BigDecimal> entry : dailyTotals.entrySet()) {
             Map<String, Object> point = new HashMap<>();
             point.put("day", entry.getKey().getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
-            point.put("sales", Math.round(entry.getValue()));
+            point.put("sales", entry.getValue());
             result.add(point);
         }
         return result;

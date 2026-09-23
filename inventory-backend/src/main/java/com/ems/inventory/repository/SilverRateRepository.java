@@ -7,8 +7,7 @@ import com.ems.inventory.model.Silver;
 
 
 public interface  SilverRateRepository extends JpaRepository<Silver, Long>{
-    // @Query (value = "SELECT * FROM Silver ORDER BY timestamp DESC LIMIT 1", nativeQuery=true)
-    Optional<Silver> findFirstByOrderByTimestampDesc();
+    Optional<Silver> findFirstByOrderByTimestampDescIdDesc();
 
 
 }

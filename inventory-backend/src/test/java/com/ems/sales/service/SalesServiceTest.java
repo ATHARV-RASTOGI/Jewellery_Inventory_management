@@ -2,6 +2,8 @@ package com.ems.sales.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,6 +38,9 @@ import com.ems.sales.model.Saleitem;
 import com.ems.sales.model.Sales;
 import com.ems.sales.repository.SaleItemRepository;
 import com.ems.sales.repository.SalesRepository;
+import com.ems.inventory.model.Goldrates;
+import com.ems.inventory.model.Rates;
+import com.ems.inventory.model.Silver;
 import com.ems.gst.model.HsnMaster;
 import com.ems.gst.repository.HsnMasterRepository;
 
@@ -102,6 +107,8 @@ public class SalesServiceTest {
                 .hsnCode("7113")
                 .gstRate(new BigDecimal("3.0"))
                 .build()));
+        when(goldRateRepository.findFirstByOrderByTimestampDescIdDesc())
+                .thenReturn(Optional.of(goldRateWith(new BigDecimal("60000"))));
 
         SalesResponseDTO actualresponse = salesService.createsales(requestDTO);
 
@@ -169,7 +176,7 @@ public class SalesServiceTest {
         LocalDate end = LocalDate.now();
 
         List<Object[]> mockRows = new ArrayList<>();
-        mockRows.add(new Object[]{1, 5000.0}); // Month 1 (January), revenue 5000.0
+        mockRows.add(new Object[]{1, new BigDecimal("5000.00")}); // Month 1 (January), revenue 5000.00
 
         when(saleRepository.findMonthlyRevenueBetween(start, end)).thenReturn(mockRows);
 
@@ -180,11 +187,11 @@ public class SalesServiceTest {
 
         Map<String, Object> jan = result.get(0);
         assertEquals("Jan", jan.get("month"));
-        assertEquals(5000L, jan.get("revenue"));
+        assertEquals(new BigDecimal("5000.00"), jan.get("revenue"));
 
         Map<String, Object> feb = result.get(1);
         assertEquals("Feb", feb.get("month"));
-        assertEquals(0L, feb.get("revenue"));
+        assertEquals(BigDecimal.ZERO, feb.get("revenue"));
 
         verify(saleRepository).findMonthlyRevenueBetween(start, end);
     }
@@ -225,7 +232,7 @@ public class SalesServiceTest {
         LocalDate end = LocalDate.now();
 
         List<Object[]> mock = new ArrayList<>();
-        mock.add(new Object[]{"Gold", 1000.0});
+        mock.add(new Object[]{"Gold", new BigDecimal("1000.00")});
         when(saleItemRepository.findMaterialTotalsBetween(start, end)).thenReturn(mock);
 
         List<Map<String,Object>> result = salesService.getSalesByMaterial();
@@ -233,7 +240,7 @@ public class SalesServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("Gold", result.get(0).get("material"));
-        assertEquals(1000L, result.get(0).get("value")); // Math.round returns Long
+        assertEquals(new BigDecimal("1000.00"), result.get(0).get("value"));
         // 4. Verify: verify repository was queried with expected date range
         verify(saleItemRepository).findMaterialTotalsBetween(start, end);
     }
@@ -245,7 +252,7 @@ public class SalesServiceTest {
         LocalDate weekstart = today.minusDays(6);
 
         List<Object[]> mockrows = new ArrayList<>();
-        mockrows.add(new Object[]{weekstart , 1500.0 });
+        mockrows.add(new Object[]{weekstart , new BigDecimal("1500.00")});
 
         when(saleRepository.findDailyRevenueBetween(weekstart, today)).thenReturn(mockrows);
 
@@ -256,7 +263,195 @@ public class SalesServiceTest {
         Map<String, Object> firstEntry = result.get(0);
         String expectedDayName = weekstart.getDayOfWeek().getDisplayName(java.time.format.TextStyle.SHORT, java.util.Locale.ENGLISH);
         assertEquals(expectedDayName, firstEntry.get("day"));
-        assertEquals(1500L, firstEntry.get("sales"));
+        assertEquals(new BigDecimal("1500.00"), firstEntry.get("sales"));
+
+        Map<String, Object> secondEntry = result.get(1);
+        assertEquals(BigDecimal.ZERO, secondEntry.get("sales"));
+
         verify(saleRepository).findDailyRevenueBetween(weekstart, today);
+    }
+
+    // --- Price floor validation tests ---
+
+    /**
+     * Helper: build a Goldrates with a known INR rate for mocking.
+     */
+    private Goldrates goldRateWith(BigDecimal inr) {
+        Rates rates = new Rates();
+        rates.setInr(inr);
+        return Goldrates.builder().rates(rates).build();
+    }
+
+    @Test
+    void testCreatesales_WhenPricePerPieceBelowFloor_ThrowsException() {
+     
+        SalesitemRequestDTO itemReq = new SalesitemRequestDTO();
+        itemReq.setSku("GOLD-22K-01");
+        itemReq.setQuantity(1);
+        itemReq.setWeight(new BigDecimal("10"));
+        itemReq.setPricePerPiece(new BigDecimal("1000")); // far below floor
+
+        SalesRequestDTO request = new SalesRequestDTO();
+        request.setCustomerName("Test");
+        request.setCustomerPhoneNo("1234567890");
+        request.setItems(List.of(itemReq));
+
+        Product product = Product.builder()
+                .sku("GOLD-22K-01").name("Gold Ring").material("Gold")
+                .purity("22K").stockQuantity(10).baseWeight(new BigDecimal("10"))
+                .build();
+
+        Sales savedSale = Sales.builder().id(1L).customerName("Test").items(new ArrayList<>()).build();
+
+        when(saleRepository.save(ArgumentMatchers.any(Sales.class))).thenReturn(savedSale);
+        when(stockService.reserveAndDeduct("GOLD-22K-01", 1, new BigDecimal("10"))).thenReturn(product);
+        when(hsnMasterRepository.findByMaterialKeyIgnoreCase("Gold"))
+                .thenReturn(Optional.of(HsnMaster.builder().materialKey("Gold").hsnCode("7113")
+                        .gstRate(new BigDecimal("3.0")).build()));
+
+        // Stub gold rate for the floor check
+        when(goldRateRepository.findFirstByOrderByTimestampDescIdDesc())
+                .thenReturn(Optional.of(goldRateWith(new BigDecimal("60000"))));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> salesService.createsales(request));
+
+        assertTrue(ex.getMessage().contains("below the minimum allowed"));
+        assertTrue(ex.getMessage().contains("GOLD-22K-01"));
+    }
+
+    @Test
+    void testCreatesales_WhenPricePerPieceAtFloor_Succeeds() {
+       
+        SalesitemRequestDTO itemReq = new SalesitemRequestDTO();
+        itemReq.setSku("GOLD-22K-01");
+        itemReq.setQuantity(1);
+        itemReq.setWeight(new BigDecimal("10"));
+        itemReq.setPricePerPiece(new BigDecimal("50000")); // above floor
+
+        SalesRequestDTO request = new SalesRequestDTO();
+        request.setCustomerName("Test");
+        request.setCustomerPhoneNo("1234567890");
+        request.setItems(List.of(itemReq));
+
+        Product product = Product.builder()
+                .sku("GOLD-22K-01").name("Gold Ring").material("Gold")
+                .purity("22K").stockQuantity(10).baseWeight(new BigDecimal("10"))
+                .build();
+
+        Sales savedSale = Sales.builder().id(1L).customerName("Test").items(new ArrayList<>()).build();
+        SalesResponseDTO expectedResponse = new SalesResponseDTO();
+        expectedResponse.setId(1L);
+        expectedResponse.setCustomerName("Test");
+
+        when(saleRepository.save(ArgumentMatchers.any(Sales.class))).thenReturn(savedSale);
+        when(stockService.reserveAndDeduct("GOLD-22K-01", 1, new BigDecimal("10"))).thenReturn(product);
+        when(hsnMasterRepository.findByMaterialKeyIgnoreCase("Gold"))
+                .thenReturn(Optional.of(HsnMaster.builder().materialKey("Gold").hsnCode("7113")
+                        .gstRate(new BigDecimal("3.0")).build()));
+        when(goldRateRepository.findFirstByOrderByTimestampDescIdDesc())
+                .thenReturn(Optional.of(goldRateWith(new BigDecimal("60000"))));
+        when(saleItemRepository.countBySale_Id(ArgumentMatchers.any())).thenReturn(1L);
+        when(modelMapper.map(ArgumentMatchers.any(Sales.class), ArgumentMatchers.eq(SalesResponseDTO.class)))
+                .thenReturn(expectedResponse);
+
+        SalesResponseDTO result = salesService.createsales(request);
+
+        assertNotNull(result);
+        assertEquals("Test", result.getCustomerName());
+    }
+
+    private Silver silverRateWith(BigDecimal inr) {
+        Rates rates = new Rates();
+        rates.setInr(inr);
+        return Silver.builder().rates(rates).build();
+    }
+
+    @Test
+    void testCreatesales_WhenGoldRateMissing_ThrowsIllegalStateException() {
+        SalesitemRequestDTO itemReq = new SalesitemRequestDTO();
+        itemReq.setSku("GOLD-22K-01");
+        itemReq.setQuantity(1);
+        itemReq.setWeight(new BigDecimal("10"));
+
+        SalesRequestDTO request = new SalesRequestDTO();
+        request.setCustomerName("Test");
+        request.setCustomerPhoneNo("1234567890");
+        request.setItems(List.of(itemReq));
+
+        Product product = Product.builder()
+                .sku("GOLD-22K-01").name("Gold Ring").material("Gold")
+                .purity("22K").stockQuantity(10).baseWeight(new BigDecimal("10"))
+                .build();
+
+        when(stockService.reserveAndDeduct("GOLD-22K-01", 1, new BigDecimal("10"))).thenReturn(product);
+        when(hsnMasterRepository.findByMaterialKeyIgnoreCase("Gold"))
+                .thenReturn(Optional.of(HsnMaster.builder().materialKey("Gold").hsnCode("7113")
+                        .gstRate(new BigDecimal("3.0")).build()));
+        when(goldRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.empty());
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> salesService.createsales(request));
+
+        assertTrue(ex.getMessage().contains("No valid gold rate available"));
+    }
+
+    @Test
+    void testCreatesales_WhenGoldRateZero_ThrowsIllegalStateException() {
+        SalesitemRequestDTO itemReq = new SalesitemRequestDTO();
+        itemReq.setSku("GOLD-22K-01");
+        itemReq.setQuantity(1);
+        itemReq.setWeight(new BigDecimal("10"));
+
+        SalesRequestDTO request = new SalesRequestDTO();
+        request.setCustomerName("Test");
+        request.setCustomerPhoneNo("1234567890");
+        request.setItems(List.of(itemReq));
+
+        Product product = Product.builder()
+                .sku("GOLD-22K-01").name("Gold Ring").material("Gold")
+                .purity("22K").stockQuantity(10).baseWeight(new BigDecimal("10"))
+                .build();
+
+        when(stockService.reserveAndDeduct("GOLD-22K-01", 1, new BigDecimal("10"))).thenReturn(product);
+        when(hsnMasterRepository.findByMaterialKeyIgnoreCase("Gold"))
+                .thenReturn(Optional.of(HsnMaster.builder().materialKey("Gold").hsnCode("7113")
+                        .gstRate(new BigDecimal("3.0")).build()));
+        when(goldRateRepository.findFirstByOrderByTimestampDescIdDesc())
+                .thenReturn(Optional.of(goldRateWith(BigDecimal.ZERO)));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> salesService.createsales(request));
+
+        assertTrue(ex.getMessage().contains("No valid gold rate available"));
+    }
+
+    @Test
+    void testCreatesales_WhenSilverRateMissing_ThrowsIllegalStateException() {
+        SalesitemRequestDTO itemReq = new SalesitemRequestDTO();
+        itemReq.setSku("SILVER-RING-01");
+        itemReq.setQuantity(1);
+        itemReq.setWeight(new BigDecimal("20"));
+
+        SalesRequestDTO request = new SalesRequestDTO();
+        request.setCustomerName("Test");
+        request.setCustomerPhoneNo("1234567890");
+        request.setItems(List.of(itemReq));
+
+        Product product = Product.builder()
+                .sku("SILVER-RING-01").name("Silver Ring").material("Silver")
+                .purity("925").stockQuantity(10).baseWeight(new BigDecimal("20"))
+                .build();
+
+        when(stockService.reserveAndDeduct("SILVER-RING-01", 1, new BigDecimal("20"))).thenReturn(product);
+        when(hsnMasterRepository.findByMaterialKeyIgnoreCase("Silver"))
+                .thenReturn(Optional.of(HsnMaster.builder().materialKey("Silver").hsnCode("7113")
+                        .gstRate(new BigDecimal("3.0")).build()));
+        when(silverRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.empty());
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> salesService.createsales(request));
+
+        assertTrue(ex.getMessage().contains("No valid silver rate available"));
     }
 }

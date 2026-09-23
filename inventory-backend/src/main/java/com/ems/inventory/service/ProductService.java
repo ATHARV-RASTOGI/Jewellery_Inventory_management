@@ -14,6 +14,7 @@ import com.ems.inventory.dto.ProductRequestDTO;
 import com.ems.inventory.dto.ProductResponseDTO;
 import com.ems.inventory.model.Goldrates;
 import com.ems.inventory.model.Product;
+import com.ems.inventory.model.Rates;
 import com.ems.inventory.model.Silver;
 import com.ems.inventory.repository.GoldRateRepository;
 import com.ems.inventory.repository.ProductRepository;
@@ -61,48 +62,43 @@ public class ProductService {
     @CacheEvict(value = {"products" , "inventory_metrics"} , allEntries = true)
     @Transactional
     public ProductResponseDTO updateProduct(long id, ProductRequestDTO updatedDetails) {
-       Product existingProduct= productRepository.findById(id).orElseThrow(() -> new ItemNotFoundException("Product not found with id: " + id));
+        Product existingProduct = productRepository.findById(id)
+                .orElseThrow(() -> new ItemNotFoundException("Product not found with id: " + id));
 
-    existingProduct.setName(updatedDetails.getName());
-    existingProduct.setSku(updatedDetails.getSku());
-    existingProduct.setMainCategory(updatedDetails.getMainCategory());
-    existingProduct.setSubCategory(updatedDetails.getSubCategory());
-    existingProduct.setPurity(updatedDetails.getPurity());
-    existingProduct.setTotalweight(updatedDetails.getTotalWeight());
-   
-    // Deliberately NOT updating stockQuantity here to avoid clobbering concurrent sale deductions
-    Product saved = productRepository.save(existingProduct);
-    return modelMapper.map(saved, ProductResponseDTO.class);
+        String newSku = updatedDetails.getSku();
+        if (newSku != null && !newSku.equals(existingProduct.getSku())) {
+            if (productRepository.findBySku(newSku).isPresent()) {
+                throw new IllegalStateException("Product already exists with SKU: " + newSku);
+            }
+            existingProduct.setSku(newSku);
+        }
 
-}
+        existingProduct.setName(updatedDetails.getName());
+        existingProduct.setMainCategory(updatedDetails.getMainCategory());
+        existingProduct.setSubCategory(updatedDetails.getSubCategory());
+        existingProduct.setPurity(updatedDetails.getPurity());
+        existingProduct.setTotalweight(updatedDetails.getTotalWeight());
+        if (updatedDetails.getMaterial() != null) {
+            existingProduct.setMaterial(updatedDetails.getMaterial());
+        }
+
+        // Deliberately NOT updating stockQuantity here to avoid clobbering concurrent sale deductions
+        Product saved = productRepository.save(existingProduct);
+        return modelMapper.map(saved, ProductResponseDTO.class);
+    }
 
     @Cacheable(value  = "products", key = "{#mainCategory,#subCategory,#purity,#maxWeight}")
     public List<ProductResponseDTO> getFilterProducts(String mainCategory, String subCategory, String purity , BigDecimal maxWeight){
 
-        List<Product> products;
-        
-        if (mainCategory != null && subCategory != null && purity != null && maxWeight != null) {
-            products = productRepository.findByMainCategoryAndSubCategoryAndPurityAndTotalweightLessThanEqual(
-                mainCategory, subCategory, purity, maxWeight);
-        }
-        else if(mainCategory != null && subCategory != null){
-            products = productRepository.findByMainCategoryAndSubCategory(mainCategory, subCategory);
-        }
-        else if(mainCategory != null){
-            products = productRepository.findByMainCategory(mainCategory);
-        }
-        else{
-            products = productRepository.findAll();
-        }
-        
+        String cleanMainCategory = (mainCategory != null && !mainCategory.isBlank()) ? mainCategory.trim() : null;
+        String cleanSubCategory = (subCategory != null && !subCategory.isBlank()) ? subCategory.trim() : null;
+        String cleanPurity = (purity != null && !purity.isBlank()) ? purity.trim() : null;
+
+        List<Product> products = productRepository.filterProducts(cleanMainCategory, cleanSubCategory, cleanPurity, maxWeight);
+
         return products.stream()
             .map(prod -> modelMapper.map(prod, ProductResponseDTO.class))
             .toList();
-    }
-
-    @Cacheable(value = "products", key = "'search_' + #keyword")
-    public List<Product> searchProduct(String keyword) {
-        return productRepository.searchProducts(keyword);
     }
 
     @CacheEvict(value = {"products" ,"inventory_metrics"} , allEntries = true)
@@ -151,25 +147,19 @@ public class ProductService {
     }
 
     public BigDecimal getliveGoldRate() {
-    Optional<Goldrates> goldOptional = goldRateRepository.findFirstByOrderByTimestampDesc();
-    if (goldOptional.isPresent()) {
-        Goldrates latestRate = goldOptional.get();
-        if (latestRate.getRates() != null) {
-            return latestRate.getRates().getInr();
-        }
-    }
-    return BigDecimal.ZERO; // Default if no rate found
+        return goldRateRepository.findFirstByOrderByTimestampDescIdDesc()
+                .map(Goldrates::getRates)
+                .map(Rates::getInr)
+                .filter(r -> r.compareTo(BigDecimal.ZERO) > 0)
+                .orElse(BigDecimal.ZERO);
     }
 
     public BigDecimal getlivesilverDouble() {
-    Optional<Silver> silverOptional = silverRateRepository.findFirstByOrderByTimestampDesc();
-    if (silverOptional.isPresent()) {
-        Silver latestRate = silverOptional.get();
-        if (latestRate.getRates() != null) {
-            return latestRate.getRates().getInr();
-        }
-    }
-    return BigDecimal.ZERO; // Default if no rate found
+        return silverRateRepository.findFirstByOrderByTimestampDescIdDesc()
+                .map(Silver::getRates)
+                .map(Rates::getInr)
+                .filter(r -> r.compareTo(BigDecimal.ZERO) > 0)
+                .orElse(BigDecimal.ZERO);
     }
 
 

@@ -50,15 +50,6 @@ public class ProductRepositoryTest {
     }
 
     @Test
-    void testFindByIdForUpdate() {
-        Optional<Product> found = productRepository.findByIdForUpdate(goldRing.getId());
-
-        assertTrue(found.isPresent());
-        assertEquals(goldRing.getId(), found.get().getId());
-        assertEquals("SKU-RING-01", found.get().getSku());
-    }
-
-    @Test
     void testFindBySku() {
         Optional<Product> found = productRepository.findBySku("SKU-RING-01");
 
@@ -126,26 +117,38 @@ public class ProductRepositoryTest {
     }
 
     @Test
-    void testFindByMaterialGold() {
-        List<Product> found = productRepository.findByMaterialGold();
-
-        assertEquals(1, found.size());
-        assertEquals("Gold", found.get(0).getMaterial());
-    }
-
-    @Test
-    void testFindByMaterialSilver() {
-        List<Product> found = productRepository.findByMaterialSilver();
-
-        assertEquals(1, found.size());
-        assertEquals("Silver", found.get(0).getMaterial());
-    }
-
-    @Test
     void testCalculateTotalItemsInStock() {
         // 10 gold rings + 5 silver kadas = 15
         Integer totalItems = productRepository.calculateTotalItemsInStock();
         assertEquals(15, totalItems);
+    }
+
+    @Test
+    void testFilterProducts_SingleFilterPurity() {
+        List<Product> found = productRepository.filterProducts(null, null, "22K", null);
+        assertEquals(1, found.size());
+        assertEquals(goldRing.getId(), found.get(0).getId());
+        assertEquals("22K", found.get(0).getPurity());
+    }
+
+    @Test
+    void testFilterProducts_SingleFilterMaxWeight() {
+        List<Product> found = productRepository.filterProducts(null, null, null, new BigDecimal("6.000"));
+        assertEquals(1, found.size());
+        assertEquals(goldRing.getId(), found.get(0).getId());
+    }
+
+    @Test
+    void testFilterProducts_AllNull_ReturnsAll() {
+        List<Product> found = productRepository.filterProducts(null, null, null, null);
+        assertEquals(2, found.size());
+    }
+
+    @Test
+    void testFilterProducts_Combined() {
+        List<Product> found = productRepository.filterProducts("Rings", "Wedding", "22K", new BigDecimal("6.000"));
+        assertEquals(1, found.size());
+        assertEquals(goldRing.getId(), found.get(0).getId());
     }
 
 }

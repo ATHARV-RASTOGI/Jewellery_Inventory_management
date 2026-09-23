@@ -27,10 +27,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         BigDecimal maxWeight);
 
         @Query("SELECT p FROM Product p WHERE " +
-                        "LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-                        "LOWER(p.sku) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-                        "LOWER(p.mainCategory) LIKE LOWER(CONCAT('%', :keyword, '%'))")
-        List<Product> searchProducts(@Param("keyword") String keyword);
+               "(:mainCategory IS NULL OR p.mainCategory = :mainCategory) AND " +
+               "(:subCategory IS NULL OR p.subCategory = :subCategory) AND " +
+               "(:purity IS NULL OR p.purity = :purity) AND " +
+               "(:maxWeight IS NULL OR p.totalweight <= :maxWeight)")
+        List<Product> filterProducts(
+                @Param("mainCategory") String mainCategory,
+                @Param("subCategory") String subCategory,
+                @Param("purity") String purity,
+                @Param("maxWeight") BigDecimal maxWeight);
 
         @Query("SELECT COALESCE(SUM(p.totalweight), 0) FROM Product p WHERE p.material = 'Gold'")
         BigDecimal getTotalWeightForGold();
@@ -46,16 +51,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         @Query("SELECT p FROM Product p WHERE p.sku = :sku")
         Optional<Product> findBySkuForUpdate(@Param("sku") String sku);
-
-        @Lock(LockModeType.PESSIMISTIC_WRITE)
-        @Query("SELECT p FROM Product p WHERE p.id = :id")
-        Optional<Product> findByIdForUpdate(@Param("id") Long id);
-
-        @Query("SELECT p FROM Product p WHERE p.material = 'Gold' ")
-        List<Product> findByMaterialGold();
-
-        @Query("SELECT p FROM Product p WHERE p.material = 'Silver' ")
-        List<Product> findByMaterialSilver();
 
         @Query("SELECT p FROM Product p WHERE p.sku = :sku ")
         Optional<Product> findBySku(@Param("sku") String sku);       

@@ -2,7 +2,9 @@ package com.ems.custom_order.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,6 +17,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -115,31 +118,66 @@ public class CustomOrderServiceTest {
 
     @Test
     void testSaveCustomOrder() {
+        CustomOrder newOrder = CustomOrder.builder()
+                .customerName("Atharv")
+                .advanceAmount(new BigDecimal("1000"))
+                .status(OrderStatus.PENDING)
+                .build();
+        CustomOrder savedOrder = CustomOrder.builder()
+                .orderId(1L)
+                .customerName("Atharv")
+                .advanceAmount(new BigDecimal("1000"))
+                .status(OrderStatus.PENDING)
+                .build();
 
-    // Stub modelMapper: request DTO -> entity
-    when(modelMapper.map(requestDTO, CustomOrder.class)).thenReturn(order);
-    
-    // Stub repository: save entity -> entity
-    when(customOrderRepository.save(order)).thenReturn(order);
-    
-    // Stub modelMapper: entity -> response DTO
-    when(modelMapper.map(order, CustomOrderResponseDTO.class)).thenReturn(responseDTO);
+        // Stub modelMapper: request DTO -> entity
+        when(modelMapper.map(requestDTO, CustomOrder.class)).thenReturn(newOrder);
+        
+        // Stub repository: save entity -> entity
+        when(customOrderRepository.save(newOrder)).thenReturn(savedOrder);
+        
+        // Stub modelMapper: entity -> response DTO
+        when(modelMapper.map(savedOrder, CustomOrderResponseDTO.class)).thenReturn(responseDTO);
 
-    // 2. Act
-    CustomOrderResponseDTO result = customOrderService.saveCustomOrder(requestDTO);
+        // 2. Act
+        CustomOrderResponseDTO result = customOrderService.saveCustomOrder(requestDTO);
 
-    // 3. Assert
-    assertNotNull(result);
-    assertEquals(order.getOrderId(), result.getOrderId());
-    assertEquals(order.getCustomerName(), result.getCustomerName());
+        // 3. Assert
+        assertNotNull(result);
+        assertEquals(responseDTO.getOrderId(), result.getOrderId());
+        assertEquals(responseDTO.getCustomerName(), result.getCustomerName());
 
-    // 4. Verify
-    verify(customOrderRepository).save(order);
-    verify(modelMapper).map(requestDTO, CustomOrder.class);
-    verify(modelMapper).map(order, CustomOrderResponseDTO.class);
-
+        // 4. Verify
+        verify(customOrderRepository).save(newOrder);
+        verify(modelMapper).map(requestDTO, CustomOrder.class);
+        verify(modelMapper).map(savedOrder, CustomOrderResponseDTO.class);
     }
 
+    @Test
+    void testSaveCustomOrder_EnforcesCreateOnly_NullsSuppliedId() {
+        CustomOrder preExistingOrder = CustomOrder.builder()
+                .orderId(999L)
+                .customerName("Existing")
+                .advanceAmount(new BigDecimal("500"))
+                .status(OrderStatus.PENDING)
+                .build();
+        CustomOrder savedOrder = CustomOrder.builder()
+                .orderId(100L)
+                .customerName("Existing")
+                .advanceAmount(new BigDecimal("500"))
+                .status(OrderStatus.PENDING)
+                .build();
+
+        when(modelMapper.map(requestDTO, CustomOrder.class)).thenReturn(preExistingOrder);
+        when(customOrderRepository.save(any(CustomOrder.class))).thenReturn(savedOrder);
+        when(modelMapper.map(savedOrder, CustomOrderResponseDTO.class)).thenReturn(responseDTO);
+
+        customOrderService.saveCustomOrder(requestDTO);
+
+        ArgumentCaptor<CustomOrder> captor = ArgumentCaptor.forClass(CustomOrder.class);
+        verify(customOrderRepository).save(captor.capture());
+        assertNull(captor.getValue().getOrderId(), "saveCustomOrder must clear orderId to enforce create-only semantics");
+    }
 
     @Test
     void testUpdateCustomOrder() {

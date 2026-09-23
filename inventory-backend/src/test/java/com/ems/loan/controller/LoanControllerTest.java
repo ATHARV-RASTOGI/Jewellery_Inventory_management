@@ -89,7 +89,7 @@ public class LoanControllerTest {
     }
 
     @Test
-    void testFindByNameAndFatherName() throws Exception {
+    void testFindCustomer_WithoutAddress() throws Exception {
         String name = "Rohan Sharma";
         String fatherName = "Vijay Sharma";
 
@@ -101,29 +101,9 @@ public class LoanControllerTest {
 
         when(loanService.findByNameAndFatherName(name, fatherName)).thenReturn(Optional.of(responseDTO));
 
-        mockMvc.perform(get("/api/loans/{name}/{fathername}", name, fatherName))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.name").value("Rohan Sharma"))
-                .andExpect(jsonPath("$.fatherName").value("Vijay Sharma"))
-                .andExpect(jsonPath("$.address").value("Civil Lines, Kanpur"));
-    }
-
-    @Test
-    void testFindByNameAndFatherNameAndAddress() throws Exception {
-        String name = "Rohan Sharma";
-        String fatherName = "Vijay Sharma";
-        String address = "Civil Lines, Kanpur";
-
-        LoanResponseDTO responseDTO = new LoanResponseDTO();
-        responseDTO.setId(1L);
-        responseDTO.setName(name);
-        responseDTO.setFatherName(fatherName);
-        responseDTO.setAddress(address);
-
-        when(loanService.findByNameAndFatherNameAndAddress(name, fatherName, address)).thenReturn(Optional.of(responseDTO));
-
-        mockMvc.perform(get("/api/loans/{name}/{fathername}/{address}", name, fatherName, address))
+        mockMvc.perform(get("/api/loans/customer")
+                .param("name", name)
+                .param("fathername", fatherName))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Rohan Sharma"))

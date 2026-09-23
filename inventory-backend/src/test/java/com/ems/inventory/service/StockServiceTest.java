@@ -42,11 +42,12 @@ public class StockServiceTest {
         when(productRepository.findBySkuForUpdate("SKU-001")).thenReturn(Optional.of(product));
         when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Product result = stockService.reserveAndDeduct("SKU-001", 3, new BigDecimal("15.000"));
+        // 3 pieces sold at 10.000g each = 30.000g sold, leaving 20.000g
+        Product result = stockService.reserveAndDeduct("SKU-001", 3, new BigDecimal("10.000"));
 
         assertNotNull(result);
         assertEquals(7, result.getStockQuantity());
-        assertEquals(new BigDecimal("35.000"), result.getTotalweight());
+        assertEquals(new BigDecimal("20.000"), result.getTotalweight());
         verify(productRepository).save(product);
     }
 
@@ -112,9 +113,28 @@ public class StockServiceTest {
 
         when(productRepository.findBySkuForUpdate("SKU-001")).thenReturn(Optional.of(product));
 
-        assertThrows(InsufficientQuantity.class, () -> {
+        InsufficientQuantity ex = assertThrows(InsufficientQuantity.class, () -> {
             stockService.reserveAndDeduct("SKU-001", 1, new BigDecimal("15.000"));
         });
+        assertEquals("Sold weight 15.000g exceeds stock weight 10.000g for SKU-001", ex.getMessage());
+        verify(productRepository, never()).save(any());
+    }
+
+    @Test
+    void testReserveAndDeduct_MultiQuantity_InsufficientWeight() {
+        Product product = Product.builder()
+                .sku("SKU-001")
+                .stockQuantity(10)
+                .totalweight(new BigDecimal("50.000"))
+                .build();
+
+        when(productRepository.findBySkuForUpdate("SKU-001")).thenReturn(Optional.of(product));
+
+        // 3 pieces sold at 20.000g each = 60.000g, exceeding stock weight 50.000g
+        InsufficientQuantity ex = assertThrows(InsufficientQuantity.class, () -> {
+            stockService.reserveAndDeduct("SKU-001", 3, new BigDecimal("20.000"));
+        });
+        assertEquals("Sold weight 60.000g exceeds stock weight 50.000g for SKU-001", ex.getMessage());
         verify(productRepository, never()).save(any());
     }
 

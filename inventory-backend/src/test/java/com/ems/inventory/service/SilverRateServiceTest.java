@@ -6,6 +6,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -18,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.http.HttpEntity;
@@ -58,11 +61,22 @@ public class SilverRateServiceTest {
         when(restTemplate.exchange(anyString(),eq(HttpMethod.GET),any(HttpEntity.class),eq(Map.class))).thenReturn(fakeresponse);
 
         silverRateService.fetchAndSaveSilverRate();
-
-        verify(silverRateRepository).save(any(Silver.class));
+        ArgumentCaptor<Silver> captor = ArgumentCaptor.forClass(Silver.class);
+        verify(silverRateRepository).save(captor.capture());
+        assertEquals(new BigDecimal("948.45"), captor.getValue().getRates().getInr());
 
         
         
+    }
+
+    @Test
+    void testFetchAndSaveSilverRate_WhenRepositorySaveFails_PropagatesException() {
+        Map<String, Object> fakebody = Map.of("price", 2500.0);
+        ResponseEntity<Map> fakeresponse = ResponseEntity.ok(fakebody);
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class))).thenReturn(fakeresponse);
+        when(silverRateRepository.save(any(Silver.class))).thenThrow(new RuntimeException("Database error during silver rate save"));
+
+        assertThrows(RuntimeException.class, () -> silverRateService.fetchAndSaveSilverRate());
     }
 
     @Test
@@ -85,15 +99,20 @@ public class SilverRateServiceTest {
         Silver rate = new Silver();
         rate.setTimestamp(LocalDate.now());
 
-        when(silverRateRepository.findFirstByOrderByTimestampDesc()).thenReturn(Optional.of(rate));
+        when(silverRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.of(rate));
 
         Silver result = silverRateService.getLatestSilverRate();
 
         assertNotNull(result);
         assertEquals(rate.getTimestamp(), result.getTimestamp());
 
-        verify(silverRateRepository).findFirstByOrderByTimestampDesc();
+        verify(silverRateRepository).findFirstByOrderByTimestampDescIdDesc();
+    }
 
+    @Test
+    void testGetLatestSilverRate_WhenNotFound_ReturnsNull() {
+        when(silverRateRepository.findFirstByOrderByTimestampDescIdDesc()).thenReturn(Optional.empty());
+        assertNull(silverRateService.getLatestSilverRate());
     }
 
     @Test

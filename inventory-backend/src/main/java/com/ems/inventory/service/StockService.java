@@ -22,7 +22,7 @@ public class StockService {
 
     @CacheEvict(value = {"products", "inventory_metrics"}, allEntries = true)
     @Transactional(propagation = Propagation.REQUIRED)
-    public Product reserveAndDeduct(String sku, int quantity, BigDecimal weight) {
+    public Product reserveAndDeduct(String sku, int quantity, BigDecimal weightPerPiece) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("Invalid Sales: Quantity must be greater than zero!");
         }
@@ -38,16 +38,17 @@ public class StockService {
 
         product.setStockQuantity(availableStock - quantity);
 
-        if (weight != null) {
-            if (weight.compareTo(BigDecimal.ZERO) < 0) {
+        if (weightPerPiece != null) {
+            if (weightPerPiece.compareTo(BigDecimal.ZERO) < 0) {
                 throw new IllegalArgumentException("Weight cannot be negative");
             }
             BigDecimal currentTotal = product.getTotalweight() != null ? product.getTotalweight() : BigDecimal.ZERO;
-            if (weight.compareTo(currentTotal) > 0) {
+            BigDecimal totalSoldWeight = weightPerPiece.multiply(BigDecimal.valueOf(quantity));
+            if (totalSoldWeight.compareTo(currentTotal) > 0) {
                 throw new InsufficientQuantity(
-                        "Insufficient weight for SKU: " + sku + " (Available: " + currentTotal + ", Requested: " + weight + ")");
+                        "Sold weight " + totalSoldWeight + "g exceeds stock weight " + currentTotal + "g for " + sku);
             }
-            product.setTotalweight(currentTotal.subtract(weight));
+            product.setTotalweight(currentTotal.subtract(totalSoldWeight));
         }
 
         return productRepository.save(product);

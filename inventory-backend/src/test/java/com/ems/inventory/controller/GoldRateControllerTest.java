@@ -42,13 +42,13 @@ public class GoldRateControllerTest {
 
     @Test
     void testFetchNow() throws Exception {
-        doNothing().when(goldRateService).fetchOnStartupAsync();
+        doNothing().when(goldRateService).fetchOnStartup();
 
         mockMvc.perform(get("/api/gold-rate/fetch-now"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Gold rate fetch initiated in the background."));
 
-        verify(goldRateService).fetchOnStartupAsync();
+        verify(goldRateService).fetchOnStartup();
     }
 
     @Test
@@ -84,7 +84,7 @@ public class GoldRateControllerTest {
         RateUpdateRequestDTO request = new RateUpdateRequestDTO();
         request.setRate(new BigDecimal("76000.00"));
 
-        doNothing().when(goldRateService).updateManualGoldRate(76000.0);
+        doNothing().when(goldRateService).updateManualGoldRate(new BigDecimal("76000.00"));
 
         mockMvc.perform(post("/api/gold-rate/update")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -92,7 +92,7 @@ public class GoldRateControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Gold rate updated successfully"));
 
-        verify(goldRateService).updateManualGoldRate(76000.0);
+        verify(goldRateService).updateManualGoldRate(new BigDecimal("76000.00"));
     }
 
     @Test

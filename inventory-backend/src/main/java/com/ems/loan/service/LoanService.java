@@ -35,6 +35,7 @@ public class LoanService {
     }
 
     @CacheEvict(value = "loans" , allEntries = true)
+    @Transactional
     public LoanResponseDTO saveLoan(LoanRequestDTO loanData) {
         Loan loan = modelMapper.map(loanData, Loan.class);
         if (loan.getStatus() == null) {
