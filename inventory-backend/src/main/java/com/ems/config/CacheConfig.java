@@ -20,7 +20,6 @@ public class CacheConfig {
     public static final String CACHE_LOANS = "loans";
     public static final String CACHE_SALES_ANALYTICS = "sales_analytics";
     public static final String CACHE_INVENTORY_METRICS = "inventory_metrics";
-    public static final String CACHE_CUSTOM_ORDERS = "custom_orders";
 
     @Bean
     public CacheManager cacheManager(){
@@ -30,8 +29,7 @@ public class CacheConfig {
             CACHE_PRODUCTS,
             CACHE_LOANS,
             CACHE_SALES_ANALYTICS,
-            CACHE_INVENTORY_METRICS,
-            CACHE_CUSTOM_ORDERS
+            CACHE_INVENTORY_METRICS
         );
 
         cacheManager.setCaffeine(Caffeine.newBuilder()

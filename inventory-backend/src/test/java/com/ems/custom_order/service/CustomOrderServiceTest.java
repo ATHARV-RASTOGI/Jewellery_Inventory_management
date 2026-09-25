@@ -200,4 +200,16 @@ public class CustomOrderServiceTest {
     verify(modelMapper).map(order, CustomOrderResponseDTO.class);
 }
 
+    @Test
+    void testUpdateCustomOrder_PickedUp_ThrowsIllegalStateException() {
+        CustomOrder pickedUpOrder = CustomOrder.builder()
+                .orderId(1L)
+                .status(OrderStatus.PICKED_UP)
+                .build();
+        when(customOrderRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(pickedUpOrder));
+
+        assertThrows(IllegalStateException.class,
+                () -> customOrderService.updateCustomOrder(1L, requestDTO));
+    }
+
 }

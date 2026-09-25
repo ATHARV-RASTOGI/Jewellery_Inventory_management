@@ -29,6 +29,8 @@ public class SalesRepositoryTest {
     private Sales saved,saved2;
     private Saleitem salesitem;
 
+    private static long invoiceSeq = 1;
+
     private Sales createSales( String name , String fathername, String PhoneNo, String Address, double subtotal, double GstAmount, double grandTotal, LocalDate date) {
             return Sales.builder()
                 .customerName(name)
@@ -38,6 +40,7 @@ public class SalesRepositoryTest {
                 .gstAmount(BigDecimal.valueOf(GstAmount))
                 .grandTotal(BigDecimal.valueOf(grandTotal))
                 .saleDate(date)
+                .invoiceNumber("INV/2026-27/" + String.format("%04d", invoiceSeq++))
                 .build();
     }
 

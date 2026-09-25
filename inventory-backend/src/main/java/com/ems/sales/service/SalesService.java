@@ -36,20 +36,25 @@ import com.ems.sales.dto.SalesRequestDTO;
 import com.ems.sales.dto.SalesResponseDTO;
 import com.ems.sales.dto.SalesitemRequestDTO;
 import com.ems.sales.dto.SalesitemResponseDTO;
+import com.ems.sales.model.InvoiceSequence;
 import com.ems.sales.model.Saleitem;
 import com.ems.sales.model.Sales;
+import com.ems.sales.repository.InvoiceSequenceRepository;
 import com.ems.sales.repository.SaleItemRepository;
 import com.ems.sales.repository.SalesRepository;
 
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class SalesService {
 
     private final StockService stockService;
     private final SalesRepository saleRepository;
     private final SaleItemRepository saleItemRepository;
+    private final InvoiceSequenceRepository invoiceSequenceRepository;
     private final GoldRateRepository goldRateRepository;
     private final SilverRateRepository silverRateRepository;
     private final ModelMapper modelMapper;
@@ -61,7 +66,6 @@ public class SalesService {
     private static final BigDecimal DEFAULT_SILVER_MAKING_PERCENT = new BigDecimal("8.0");
     private static final BigDecimal MIN_PRICE_FACTOR = new BigDecimal("0.80");
 
-    @Cacheable(value = "sales_analytics", key = "'all_sales'")
     public List<SalesResponseDTO> getAllSales() {
         List<Sales> sales = saleRepository.findAllByOrderBySaleDateDesc();
         return sales.stream().map(sale -> modelMapper.map(sale, SalesResponseDTO.class)).toList();
@@ -77,7 +81,10 @@ public class SalesService {
     @Transactional(rollbackFor = Exception.class)
     public SalesResponseDTO createsales(SalesRequestDTO request) {
 
+        String invoiceNumber = generateInvoiceNumber();
+
         Sales sale = new Sales();
+        sale.setInvoiceNumber(invoiceNumber);
         sale.setCustomerName(request.getCustomerName());
         sale.setCustomerPhoneNo(request.getCustomerPhoneNo());
         sale.setCustomerAddress(request.getCustomerAddress());
@@ -123,14 +130,11 @@ public class SalesService {
         BigDecimal sgst = gst.subtract(cgst); 
         BigDecimal grandTotal = subtotal.add(gst).setScale(CURRENCY_SCALE, RoundingMode.HALF_UP);
 
-        String invoiceNumber = generateInvoiceNumber();
-
         savedSale.setSubtotal(subtotal);
         savedSale.setCgstAmount(cgst);
         savedSale.setSgstAmount(sgst);
         savedSale.setGstAmount(gst);
         savedSale.setGrandTotal(grandTotal);
-        savedSale.setInvoiceNumber(invoiceNumber);
 
          Sales finalSale = saleRepository.save(savedSale);
         finalSale.setItemCount((int) saleItemRepository.countBySale_Id(finalSale.getId()));
@@ -213,18 +217,23 @@ public class SalesService {
         return new PricedLine(appliedRatePer10g, makingChargePercent, makingChargeAmount, pricePerPiece, lineTotal);
     }
 
-     private String generateInvoiceNumber() {
+    private String generateInvoiceNumber() {
+        String fy = currentFinancialYear();
+        InvoiceSequence seq = invoiceSequenceRepository.findByFinancialYearForUpdate(fy)
+                .orElseGet(() -> new InvoiceSequence(fy, 0L));
+        long next = seq.getLastSequenceNumber() + 1;
+        seq.setLastSequenceNumber(next);
+        invoiceSequenceRepository.save(seq);
+        return String.format("INV/%s/%04d", fy, next);
+    }
+
+    private String currentFinancialYear() {
         LocalDate today = LocalDate.now();
         int year = today.getYear();
         int month = today.getMonthValue();
-
         int startYear = (month >= 4) ? year : year - 1;
-        int endYear = (startYear + 1) % 100; 
-
-        String financialYear = startYear + "-" + String.format("%02d", endYear); 
-        
-        long count = saleRepository.count() + 1;
-        return String.format("INV/%s/%04d", financialYear, count); // e.g., "INV/2026-27/0001"
+        int endYear = (startYear + 1) % 100;
+        return startYear + "-" + String.format("%02d", endYear);
     }
 
 

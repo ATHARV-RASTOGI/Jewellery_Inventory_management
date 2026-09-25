@@ -23,6 +23,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,9 +36,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "sales", indexes = {
-    @Index(name = "ix_sales_sale_date", columnList = "sale_date")
-})
+@Table(name = "sales",
+       uniqueConstraints = @UniqueConstraint(name = "uk_sales_invoice_number",
+                                             columnNames = "invoice_number"),
+       indexes = @Index(name = "ix_sales_sale_date", columnList = "sale_date"))
 public class Sales {
  
     @Id
@@ -76,6 +78,7 @@ public class Sales {
     @Transient
     private Integer itemCount;
 
+    @Column(name = "invoice_number", nullable = false, length = 32)
     private String invoiceNumber;
     private String customerGstin;
     

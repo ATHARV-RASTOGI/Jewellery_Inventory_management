@@ -42,13 +42,13 @@ public class GoldRateControllerTest {
 
     @Test
     void testFetchNow() throws Exception {
-        doNothing().when(goldRateService).fetchOnStartup();
+        doNothing().when(goldRateService).fetchAndSaveGoldRate();
 
         mockMvc.perform(get("/api/gold-rate/fetch-now"))
                 .andExpect(status().isOk())
                 .andExpect(content().string("Gold rate fetch initiated in the background."));
 
-        verify(goldRateService).fetchOnStartup();
+        verify(goldRateService).fetchAndSaveGoldRate();
     }
 
     @Test

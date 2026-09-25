@@ -36,6 +36,7 @@ import com.ems.sales.dto.SalesitemRequestDTO;
 import com.ems.sales.dto.SalesitemResponseDTO;
 import com.ems.sales.model.Saleitem;
 import com.ems.sales.model.Sales;
+import com.ems.sales.repository.InvoiceSequenceRepository;
 import com.ems.sales.repository.SaleItemRepository;
 import com.ems.sales.repository.SalesRepository;
 import com.ems.inventory.model.Goldrates;
@@ -54,6 +55,8 @@ public class SalesServiceTest {
     private SaleItemRepository  saleItemRepository;
     @Mock 
     private SalesRepository saleRepository;
+    @Mock
+    private InvoiceSequenceRepository invoiceSequenceRepository;
     @Mock 
     private GoldRateRepository goldRateRepository;
     @Mock 

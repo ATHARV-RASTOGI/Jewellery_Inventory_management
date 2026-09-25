@@ -4,8 +4,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.modelmapper.ModelMapper;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import com.ems.Exception.Custom_Exception.CustomOrderNotFoundException;
@@ -29,14 +27,12 @@ public class CustomOrderService {
         this.modelMapper=modelMapper;
     }
 
-    @Cacheable(value = "custom_orders", key = "'all_custom_orders'")
     public List<CustomOrderResponseDTO> getAllCustomOrder() {
         List<CustomOrder> order=customRepository.findAll();
         return order.stream().map(e -> modelMapper.map(e , CustomOrderResponseDTO.class))
         .toList();
     }
 
-    @CacheEvict(value = "custom_orders", allEntries = true)
     @Transactional
     public CustomOrderResponseDTO saveCustomOrder(CustomOrderRequestDTO  order) {
 
@@ -70,14 +66,13 @@ public class CustomOrderService {
 
 
 
-    @CacheEvict(value = "custom_orders", allEntries = true)
     @Transactional
     public CustomOrderResponseDTO updateCustomOrder(Long id, CustomOrderRequestDTO incoming) {
     CustomOrder exorder = customRepository.findByIdForUpdate(id)
             .orElseThrow(() -> new CustomOrderNotFoundException(id));
 
     if (exorder.getStatus() == OrderStatus.PICKED_UP) {
-            throw new RuntimeException("Cannot update a picked up order");
+            throw new IllegalStateException("Cannot update a picked up order");
         }
 
     if (incoming.getAdvanceAmount() != null && incoming.getAdvanceAmount().compareTo(BigDecimal.ZERO) < 0) {
@@ -95,7 +90,6 @@ public class CustomOrderService {
     return modelMapper.map(exorder, CustomOrderResponseDTO.class);
 }
    
-    @CacheEvict(value = "custom_orders", allEntries = true)
     @Transactional
     public void deleteCustomOrder(Long id) {
         if (!customRepository.existsById(id)) {

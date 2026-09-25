@@ -6,7 +6,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-import com.ems.custom_order.service.CustomOrderService;
 import com.ems.inventory.service.GoldRateService;
 import com.ems.inventory.service.ProductService;
 import com.ems.inventory.service.SilverRateService;
@@ -26,7 +25,6 @@ public class CacheWarmup {
     private final ProductService productService;
     private final LoanService loanService;
     private final SalesService salesService;
-    private final CustomOrderService customerOrderService;
 
     @Async
     @EventListener(ApplicationReadyEvent.class)
@@ -53,9 +51,6 @@ public class CacheWarmup {
         salesService.getSalesByMaterial();
         salesService.getWeeklySales();
         salesService.getRecentSales(5);
-
-        // Customer orders
-        customerOrderService.getAllCustomOrder();
 
         log.info(">>> Cache warm-up complete!");
     }

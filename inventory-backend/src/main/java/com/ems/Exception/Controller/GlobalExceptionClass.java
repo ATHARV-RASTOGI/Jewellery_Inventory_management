@@ -20,6 +20,10 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 
 
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -76,19 +80,38 @@ public class GlobalExceptionClass {
 
     }
 
+   @ExceptionHandler({ObjectOptimisticLockingFailureException.class,
+                      PessimisticLockingFailureException.class,
+                      CannotAcquireLockException.class})
+   public ResponseEntity<ErrorMessage> handleLockFailure(Exception ex) {
+       return buildResponse("The record was modified or locked. Please retry.",
+                            "Conflict", HttpStatus.CONFLICT);
+   }
+
    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
    public ResponseEntity<ErrorMessage> handleDataIntegrity(org.springframework.dao.DataIntegrityViolationException ex) {
+       String causeMsg = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage().toLowerCase() : "";
        String message = "A database constraint was violated. This usually means a duplicate or missing required value.";
-       if (ex.getMessage() != null && ex.getMessage().toLowerCase().contains("sku")) {
+       if (causeMsg.contains("ix_product_sku") || (causeMsg.contains("sku") && causeMsg.contains("duplicate"))) {
            message = "A product with this SKU already exists.";
+       } else if (causeMsg.contains("uk_sales_invoice_number") || (causeMsg.contains("invoice") && causeMsg.contains("duplicate"))) {
+           message = "A sale with this invoice number already exists.";
        }
        return buildResponse(message, "Conflict", HttpStatus.CONFLICT);
    }
 
-   @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class, DateTimeParseException.class, HttpMessageNotReadableException.class})
-   public ResponseEntity<ErrorMessage> handleBadRequest(Exception ex) {
-    return buildResponse(ex.getMessage(), "Malformed Request or Invalid Operation", HttpStatus.BAD_REQUEST);
-   }
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorMessage> handleIllegalState(IllegalStateException ex) {
+        if (ex.getMessage() != null && (ex.getMessage().toLowerCase().contains("already exists") || ex.getMessage().toLowerCase().contains("sku"))) {
+            return buildResponse(ex.getMessage(), "Conflict", HttpStatus.CONFLICT);
+        }
+        return buildResponse(ex.getMessage(), "Malformed Request or Invalid Operation", HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, DateTimeParseException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<ErrorMessage> handleBadRequest(Exception ex) {
+        return buildResponse(ex.getMessage(), "Malformed Request or Invalid Operation", HttpStatus.BAD_REQUEST);
+    }
     
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorMessage> handleGenericException(Exception ex) {

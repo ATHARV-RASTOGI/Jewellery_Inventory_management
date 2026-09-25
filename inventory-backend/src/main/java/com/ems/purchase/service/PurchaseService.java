@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ems.Exception.Custom_Exception.ItemNotFoundException;
 import com.ems.gst.repository.HsnMasterRepository;
 import com.ems.inventory.model.Product;
-import com.ems.inventory.repository.ProductRepository;
+import com.ems.inventory.service.StockService;
 import com.ems.purchase.dto.PurchaseItemRequestDTO;
 import com.ems.purchase.dto.PurchaseItemResponseDTO;
 import com.ems.purchase.dto.PurchaseRequestDTO;
@@ -32,7 +32,7 @@ public class PurchaseService {
 
     private final PurchaseRepository purchaseRepository;
     private final PurchaseItemRepository purchaseItemRepository;
-    private final ProductRepository productRepository;
+    private final StockService stockService;
     private final HsnMasterRepository hsnMasterRepository;
 
     @Transactional
@@ -73,17 +73,7 @@ public class PurchaseService {
             BigDecimal weight = itemReq.getWeight() != null ? itemReq.getWeight() : BigDecimal.ZERO;
             BigDecimal costPerGram = itemReq.getCostPerGram() != null ? itemReq.getCostPerGram() : BigDecimal.ZERO;
 
-            Product product = productRepository.findBySkuForUpdate(sku)
-                    .orElseThrow(() -> new ItemNotFoundException("Product not found with SKU: " + sku));
-
-            // Auto Stock-In: Update Product Quantity & Weight
-            int currentQty = product.getStockQuantity() != null ? product.getStockQuantity() : 0;
-            product.setStockQuantity(currentQty + qty);
-
-            BigDecimal currentWeight = product.getTotalweight() != null ? product.getTotalweight() : BigDecimal.ZERO;
-            product.setTotalweight(currentWeight.add(weight));
-
-            productRepository.save(product);
+            Product product = stockService.increaseStock(sku, qty, weight);
 
             // Compute Line Total
             BigDecimal lineTotal = itemReq.getLineTotal();

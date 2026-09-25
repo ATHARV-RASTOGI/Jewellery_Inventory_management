@@ -22,7 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.ems.gst.model.HsnMaster;
 import com.ems.gst.repository.HsnMasterRepository;
 import com.ems.inventory.model.Product;
-import com.ems.inventory.repository.ProductRepository;
+import com.ems.inventory.service.StockService;
 import com.ems.purchase.dto.PurchaseItemRequestDTO;
 import com.ems.purchase.dto.PurchaseItemResponseDTO;
 import com.ems.purchase.dto.PurchaseRequestDTO;
@@ -42,7 +42,7 @@ public class PurchaseServiceTest {
     private PurchaseItemRepository purchaseItemRepository;
 
     @Mock
-    private ProductRepository productRepository;
+    private StockService stockService;
 
     @Mock
     private HsnMasterRepository hsnMasterRepository;
@@ -63,7 +63,7 @@ public class PurchaseServiceTest {
                 .totalweight(new BigDecimal("50.000"))
                 .build();
 
-        when(productRepository.findBySkuForUpdate("SKU-GOLD-RING-01")).thenReturn(Optional.of(product));
+        when(stockService.increaseStock("SKU-GOLD-RING-01", 5, new BigDecimal("25.000"))).thenReturn(product);
         when(hsnMasterRepository.findByMaterialKeyIgnoreCase("Gold")).thenReturn(Optional.of(
                 HsnMaster.builder().materialKey("Gold").hsnCode("7113").build()
         ));
@@ -109,12 +109,7 @@ public class PurchaseServiceTest {
         assertEquals("INV-SUP-999", response.getSupplierInvoiceNo());
         assertEquals(1, response.getItemCount());
 
-        // Stock quantity should be updated: 10 + 5 = 15
-        assertEquals(15, product.getStockQuantity());
-        // Total weight should be updated: 50.000 + 25.000 = 75.000
-        assertEquals(0, new BigDecimal("75.000").compareTo(product.getTotalweight()));
-
-        verify(productRepository).save(product);
+        verify(stockService).increaseStock("SKU-GOLD-RING-01", 5, new BigDecimal("25.000"));
     }
 
     @Test
