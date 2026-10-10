@@ -11,8 +11,12 @@ import {
   Scale,
   PackagePlus,
   ClipboardList,
+  LogOut,
+  KeyRound,
+  ChevronDown,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Sidebar } from "./Sidebar";
 import { TopStats } from "../analytics/TopStats";
 import { LoanLedger } from "../loans/LoanLedger";
@@ -27,16 +31,22 @@ import { RecentSales } from "../analytics/RecentSales";
 import { CustomOrderForm } from "../orders/CustomOrderForm";
 import { SettingsPage } from "../settings/SettingsPage";
 import { RateUpdateModal } from "../analytics/RateUpdateModal";
+import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 import { fetchDashboardStats } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/api/query-keys";
 import { formatINR } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
+import { useAuth } from "@/lib/authContext";
 import { Button } from "@/components/ui/Button";
 
 export const DashboardShell = () => {
   const [activeView, setActiveView] = useState<string>("dashboard");
   const [rateModalOpen, setRateModalOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { isDark, setTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const { data: stats } = useQuery({
     queryKey: queryKeys.dashboardStats,
@@ -324,6 +334,70 @@ export const DashboardShell = () => {
             >
               <Bell className="w-3.5 h-3.5" />
             </button>
+
+            <div className="h-4 w-px bg-border my-auto mx-0.5" />
+
+            {/* User Account Menu Pill */}
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen((prev) => !prev)}
+                className="flex items-center gap-2 pl-1.5 pr-2 h-7.5 rounded bg-surface-2 border border-border hover:bg-surface-3 transition-colors cursor-pointer text-xs"
+                title="Account Settings"
+              >
+                <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-[10px] uppercase select-none">
+                  {user?.username?.charAt(0) || "A"}
+                </div>
+                <span className="font-semibold text-foreground max-w-[90px] truncate">
+                  {user?.username || "admin"}
+                </span>
+                <span className="text-[9.5px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                  {user?.role?.replace("ROLE_", "") || "ADMIN"}
+                </span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              </button>
+
+              {userMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setUserMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 mt-1.5 w-48 rounded-lg bg-surface border border-border shadow-elevated p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
+                    <div className="px-2.5 py-2 border-b border-border/60 mb-1">
+                      <p className="font-semibold text-foreground truncate">
+                        {user?.username}
+                      </p>
+                      <p className="text-[10.5px] text-muted-foreground uppercase font-mono tracking-wider">
+                        {user?.role || "ROLE_ADMIN"}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                        setPasswordModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-surface-2 text-foreground transition-colors cursor-pointer text-left"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Change Password</span>
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        setUserMenuOpen(false);
+                        await logout();
+                        navigate({ to: "/login" });
+                      }}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-danger-soft text-danger transition-colors cursor-pointer text-left"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
@@ -341,6 +415,11 @@ export const DashboardShell = () => {
           currentSilver={stats.silverRatePerGram * 10}
         />
       )}
+
+      <ChangePasswordModal
+        open={passwordModalOpen}
+        onClose={() => setPasswordModalOpen(false)}
+      />
     </div>
   );
 };
