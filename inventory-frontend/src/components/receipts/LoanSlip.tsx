@@ -1,6 +1,7 @@
 import React from "react";
 import { formatINR, fmtDate } from "@/lib/utils";
-import { numberToIndianWords } from "@/lib/numberToWords";
+import { numberToIndianWords, numberToHindiWords } from "@/lib/numberToWords";
+import { SLIP_TEXT, type SlipLanguage } from "@/lib/receiptTranslations";
 import { type Loan, type InterestPayment, type PendingDisbursement } from "@/lib/api/loans";
 import { PrintSlip } from "./PrintSlip";
 
@@ -9,6 +10,8 @@ interface LoanSlipProps {
   payments?: InterestPayment[];
   pendingDisbursements?: PendingDisbursement[];
   currentBalance?: number;
+  language?: SlipLanguage;
+  onLanguageChange?: (lang: SlipLanguage) => void;
 }
 
 export const LoanSlip: React.FC<LoanSlipProps> = ({
@@ -16,51 +19,53 @@ export const LoanSlip: React.FC<LoanSlipProps> = ({
   payments = [],
   pendingDisbursements = [],
   currentBalance,
+  language = "bilingual",
+  onLanguageChange,
 }) => {
+  const t = SLIP_TEXT[language] || SLIP_TEXT.bilingual;
   const hasHistory = payments.length > 0 || pendingDisbursements.length > 0;
   const totalPaid = payments.reduce((s, p) => s + p.amountPaid, 0);
 
   return (
     <PrintSlip
-      title={hasHistory ? "Loan Statement & Payment Record" : "Collateral Loan Pledge Voucher"}
-      idLabel="Loan Account No"
+      title={hasHistory ? t.titleStatement : t.titleLoanPledge}
+      idLabel={t.accountNo}
       id={loan.id}
+      language={language}
+      onLanguageChange={onLanguageChange}
       customer={{
         name: loan.name,
         fatherName: loan.fatherName,
         phone: loan.mobileNo,
         address: loan.address,
         date: loan.issueDate,
-        dateLabel: "Origination Date",
+        dateLabel: t.originationDate,
         statusBadge: (
           <span className="font-bold uppercase px-2 py-0.5 rounded border border-black inline-block text-[11px]">
-            {loan.status === "ACTIVE" ? "Active" : "Closed / Settled"}
+            {loan.status === "ACTIVE" ? t.activeStatus : t.closedStatus}
           </span>
         ),
       }}
       footerNotes={
         <div className="py-3 text-[11px] text-gray-700 leading-relaxed space-y-1 text-left">
-          <p className="font-bold text-gray-800">Terms &amp; Conditions:</p>
-          <p>
-            1. The borrower has pledged the jewelry ornaments mentioned above in sound physical condition as collateral against the received principal loan amount.
-          </p>
-          <p>
-            2. Interest is calculated monthly as agreed. Collateral shall be safely redeemed upon full clearance of principal and accrued interest.
-          </p>
+          <p className="font-bold text-gray-800">{t.termsTitle}:</p>
+          <p>{t.term1}</p>
+          <p>{t.term2}</p>
+          <p>{t.term3}</p>
         </div>
       }
     >
       {/* ── Collateral Details Table ── */}
       <div className="py-3.5 border-b border-gray-300">
         <p className="text-xs font-bold uppercase tracking-wider text-gray-800 mb-2">
-          Collateral Pledged (Girvi)
+          {t.collateralHeader}
         </p>
         <table className="w-full text-xs border border-collapse border-black">
           <thead>
             <tr className="bg-gray-100 border-b border-black">
-              <th className="border border-black p-2 text-left">Metal</th>
-              <th className="border border-black p-2 text-right">Net Weight</th>
-              <th className="border border-black p-2 text-left">Item Description &amp; Marks</th>
+              <th className="border border-black p-2 text-left">{t.metal}</th>
+              <th className="border border-black p-2 text-right">{t.netWeight}</th>
+              <th className="border border-black p-2 text-left">{t.itemDescription}</th>
             </tr>
           </thead>
           <tbody>
@@ -70,7 +75,7 @@ export const LoanSlip: React.FC<LoanSlipProps> = ({
                 {loan.weight ? `${loan.weight} g` : "—"}
               </td>
               <td className="border border-black p-2">
-                {loan.description || "As per physical assessment"}
+                {loan.description || (language === "hi" ? "शारीरिक निरीक्षणानुसार" : "As per physical assessment")}
               </td>
             </tr>
           </tbody>
@@ -81,30 +86,48 @@ export const LoanSlip: React.FC<LoanSlipProps> = ({
       <div className="py-3.5 border-b border-gray-300 bg-gray-50/70 p-3 rounded my-2 border border-gray-200">
         <div className="flex justify-between items-baseline">
           <span className="text-xs uppercase font-bold text-gray-700">
-            Principal Loan Amount Disbursed:
+            {t.principalAmount}:
           </span>
           <span className="text-lg sm:text-xl font-extrabold font-mono text-black">
             {formatINR(loan.loanAmount)}
           </span>
         </div>
-        <p className="text-xs font-medium text-gray-800 mt-1 italic">
-          Amount in words: <span className="font-bold not-italic">{numberToIndianWords(loan.loanAmount)}</span>
-        </p>
+        <div className="text-xs font-medium text-gray-800 mt-1">
+          <span className="font-semibold text-gray-700">{t.amountInWords}: </span>
+          {language === "en" && (
+            <span className="font-bold text-gray-900">{numberToIndianWords(loan.loanAmount)}</span>
+          )}
+          {language === "hi" && (
+            <span className="font-bold text-gray-900">{numberToHindiWords(loan.loanAmount)}</span>
+          )}
+          {language === "bilingual" && (
+            <span className="inline-flex flex-wrap items-baseline gap-1.5">
+              <span className="font-bold text-gray-900">{numberToHindiWords(loan.loanAmount)}</span>
+              <span className="text-[11px] text-gray-600 font-sans">({numberToIndianWords(loan.loanAmount)})</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* ── Payment History & Account Statement Table ── */}
       {hasHistory && (
         <div className="py-3.5 border-b border-gray-300">
           <p className="text-xs font-bold uppercase tracking-wider text-gray-800 mb-2">
-            Payment History &amp; Settlements Till Date
+            {t.paymentHistoryHeader}
           </p>
           <table className="w-full text-xs border border-collapse border-black">
             <thead>
               <tr className="bg-gray-100 border-b border-black">
-                <th className="border border-black p-1.5 text-left">Date</th>
-                <th className="border border-black p-1.5 text-left">Transaction Type</th>
-                <th className="border border-black p-1.5 text-right">Amount Deposited</th>
-                <th className="border border-black p-1.5 text-right">Balance Remaining</th>
+                <th className="border border-black p-1.5 text-left">{t.paidDate}</th>
+                <th className="border border-black p-1.5 text-left">
+                  {language === "hi"
+                    ? "लेनदेन का प्रकार"
+                    : language === "bilingual"
+                    ? "Transaction / विवरण"
+                    : "Transaction Type"}
+                </th>
+                <th className="border border-black p-1.5 text-right">{t.interestPaid}</th>
+                <th className="border border-black p-1.5 text-right">{t.balanceRemaining}</th>
               </tr>
             </thead>
             <tbody>
@@ -112,7 +135,11 @@ export const LoanSlip: React.FC<LoanSlipProps> = ({
                 <tr key={d.id}>
                   <td className="border border-black p-1.5">{fmtDate(d.disbursedDate)}</td>
                   <td className="border border-black p-1.5 font-medium text-blue-800">
-                    Additional Collateral Disbursement
+                    {language === "hi"
+                      ? "अतिरिक्त मूलधन वितरण"
+                      : language === "bilingual"
+                      ? "Additional Collateral / अतिरिक्त वितरण"
+                      : "Additional Collateral Disbursement"}
                   </td>
                   <td className="border border-black p-1.5 text-right font-mono font-semibold text-blue-800">
                     + {formatINR(d.amount)}
@@ -124,7 +151,13 @@ export const LoanSlip: React.FC<LoanSlipProps> = ({
               {payments.map((p) => (
                 <tr key={p.id}>
                   <td className="border border-black p-1.5">{fmtDate(p.paymentDate)}</td>
-                  <td className="border border-black p-1.5 font-medium">Interest / Part Payment</td>
+                  <td className="border border-black p-1.5 font-medium">
+                    {language === "hi"
+                      ? "ब्याज / आंशिक भुगतान"
+                      : language === "bilingual"
+                      ? "Interest / ब्याज भुगतान"
+                      : "Interest / Part Payment"}
+                  </td>
                   <td className="border border-black p-1.5 text-right font-mono font-bold text-green-800">
                     − {formatINR(p.amountPaid)}
                   </td>
@@ -137,7 +170,7 @@ export const LoanSlip: React.FC<LoanSlipProps> = ({
             <tfoot>
               <tr className="bg-gray-100 font-bold border-t border-black">
                 <td colSpan={2} className="border border-black p-2 text-right uppercase">
-                  Total Payments Applied Till Date:
+                  {t.totalPaid}:
                 </td>
                 <td className="border border-black p-2 text-right font-mono text-green-900">
                   {formatINR(totalPaid)}

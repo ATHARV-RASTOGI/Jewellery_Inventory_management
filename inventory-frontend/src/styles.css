@@ -57,108 +57,138 @@
 
 /* ── Light Theme Defaults ──────────────────────────────── */
 :root {
-  --radius: 0.375rem;
+  --radius: 0.25rem;
 
-  --background: oklch(0.985 0.003 265);        /* Crisp light slate bg */
-  --foreground: oklch(0.18 0.015 265);         /* Deep charcoal slate */
+  --background: oklch(0.978 0.004 260);
+  /* Warm neutral workstation canvas (#f8fafc) */
+  --foreground: oklch(0.18 0.015 260);
+  /* Deep charcoal text (#0f172a) */
 
-  --surface: oklch(1 0 0);                     /* Pure white card surface */
-  --surface-2: oklch(0.96 0.005 265);          /* Inputs, table headers */
-  --surface-3: oklch(0.92 0.008 265);          /* Hover state */
+  --surface: oklch(1 0 0);
+  /* Pure white document & table surface (#ffffff) */
+  --surface-2: oklch(0.962 0.005 260);
+  /* Toolbars, table headers, form inputs (#f1f5f9) */
+  --surface-3: oklch(0.925 0.007 260);
+  /* Active rows, tab background (#e2e8f0) */
 
   --card: var(--surface);
   --card-foreground: var(--foreground);
   --popover: oklch(1 0 0);
   --popover-foreground: var(--foreground);
 
-  --primary: oklch(0.55 0.22 265);             /* Rich Indigo accent */
+  --primary: oklch(0.40 0.14 260);
+  /* Deep Navy (#1e3a8a) — quiet enterprise authority */
   --primary-foreground: oklch(0.99 0 0);
 
-  --accent: oklch(0.55 0.22 265);
-  --accent-soft: oklch(0.55 0.22 265 / 0.10);
+  --accent: oklch(0.40 0.14 260);
+  --accent-soft: oklch(0.40 0.14 260 / 0.08);
   --accent-foreground: oklch(0.99 0 0);
 
-  --gold: oklch(0.72 0.16 80);                 /* Gold for light mode */
-  --gold-soft: oklch(0.72 0.16 80 / 0.14);
-  --gold-foreground: oklch(0.25 0.04 80);
+  --gold: oklch(0.65 0.15 75);
+  /* Refined Amber-Gold (#b45309) for 24K rates & hallmarks */
+  --gold-soft: oklch(0.95 0.04 80);
+  /* Soft gold pill background (#fef3c7) */
+  --gold-foreground: oklch(0.32 0.08 75);
+  /* Dark amber text (#78350f) */
 
-  --secondary: oklch(0.94 0.005 265);
-  --secondary-foreground: oklch(0.25 0.01 265);
+  --secondary: oklch(0.95 0.005 260);
+  --secondary-foreground: oklch(0.20 0.01 260);
 
-  --muted: oklch(0.94 0.005 265);
-  --muted-foreground: oklch(0.48 0.02 265);
+  --muted: oklch(0.95 0.005 260);
+  --muted-foreground: oklch(0.46 0.02 260);
+  /* (#64748b) */
 
-  --destructive: oklch(0.58 0.22 25);
+  --destructive: oklch(0.52 0.20 25);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --success: oklch(0.60 0.18 150);
-  --success-soft: oklch(0.60 0.18 150 / 0.12);
-  --warning: oklch(0.68 0.17 70);
-  --warning-soft: oklch(0.68 0.17 70 / 0.14);
-  --danger: oklch(0.58 0.22 25);
-  --danger-soft: oklch(0.58 0.22 25 / 0.12);
-  --info: oklch(0.60 0.16 240);
-  --info-soft: oklch(0.60 0.16 240 / 0.12);
+  --success: oklch(0.50 0.14 150);
+  /* Accounting emerald (#15803d) */
+  --success-soft: oklch(0.96 0.03 150);
+  /* (#dcfce7) */
+  --warning: oklch(0.65 0.16 70);
+  /* Amber warning (#b45309) */
+  --warning-soft: oklch(0.96 0.04 70);
+  /* (#fef3c7) */
+  --danger: oklch(0.52 0.20 25);
+  /* Crimson (#b91c1c) */
+  --danger-soft: oklch(0.96 0.03 25);
+  /* (#fee2e2) */
+  --info: oklch(0.50 0.14 240);
+  /* Info slate (#0369a1) */
+  --info-soft: oklch(0.96 0.03 240);
+  /* (#e0f2fe) */
 
-  --border: oklch(0 0 0 / 0.10);
-  --border-subtle: oklch(0 0 0 / 0.05);
-  --input: oklch(0 0 0 / 0.06);
-  --ring: oklch(0.55 0.22 265 / 0.35);
+  --border: oklch(0.85 0.006 260);
+  /* Crisp 1px division line (#cbd5e1) */
+  --border-subtle: oklch(0.91 0.004 260);
+  /* Table row separator (#e2e8f0) */
+  --input: oklch(0.85 0.006 260);
+  --ring: oklch(0.40 0.14 260 / 0.35);
 
-  --shadow-card-val: 0 1px 2px 0 oklch(0 0 0 / 0.05);
-  --shadow-elevated-val: 0 8px 20px -4px oklch(0 0 0 / 0.08);
+  --shadow-card-val: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-elevated-val: 0 4px 16px -2px rgb(0 0 0 / 0.08);
 }
 
-/* ── Dark Theme Overrides ──────────────────────────────── */
+/* ── Dark Theme Overrides (Enterprise Quiet Slate) ─────────────────── */
 .dark {
-  --background: oklch(0.125 0.005 260);        /* Deep, stable enterprise canvas */
-  --foreground: oklch(0.96 0.005 260);
+  --radius: 0.25rem;
 
-  --surface: oklch(0.155 0.005 260);          /* Integrated enterprise surface */
-  --surface-2: oklch(0.19 0.006 260);         /* Table headers, controls, inputs */
-  --surface-3: oklch(0.23 0.007 260);         /* Subtle row hover state */
+  --background: oklch(0.12 0.005 260);
+  /* Deep, stable enterprise canvas (#0f1118) */
+  --foreground: oklch(0.95 0.005 260);
+
+  --surface: oklch(0.145 0.006 260);
+  /* Primary enterprise surface (#151824) */
+  --surface-2: oklch(0.180 0.007 260);
+  /* Table headers, controls, inputs (#1c2130) */
+  --surface-3: oklch(0.225 0.008 260);
+  /* Row hover, active items (#262c3e) */
 
   --card: var(--surface);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.17 0.006 260);
+  --popover: oklch(0.16 0.006 260);
   --popover-foreground: var(--foreground);
 
-  --primary: oklch(0.62 0.17 260);            /* Crisp corporate blue accent */
+  --primary: oklch(0.60 0.18 255);
+  /* Crisp corporate blue accent */
   --primary-foreground: oklch(0.99 0 0);
 
-  --accent: oklch(0.62 0.17 260);
-  --accent-soft: oklch(0.62 0.17 260 / 0.12);
+  --accent: oklch(0.60 0.18 255);
+  --accent-soft: oklch(0.60 0.18 255 / 0.12);
   --accent-foreground: oklch(0.99 0 0);
 
-  --gold: oklch(0.80 0.13 85);
-  --gold-soft: oklch(0.80 0.13 85 / 0.12);
-  --gold-foreground: oklch(0.2 0.02 80);
+  --gold: oklch(0.78 0.13 85);
+  /* Refined jewellery gold */
+  --gold-soft: oklch(0.78 0.13 85 / 0.12);
+  --gold-foreground: oklch(0.95 0.05 85);
 
-  --secondary: oklch(0.22 0.006 260);
-  --secondary-foreground: oklch(0.92 0.005 260);
+  --secondary: oklch(0.20 0.006 260);
+  --secondary-foreground: oklch(0.90 0.005 260);
 
-  --muted: oklch(0.22 0.006 260);
-  --muted-foreground: oklch(0.65 0.01 260);   /* Readable metadata */
+  --muted: oklch(0.20 0.006 260);
+  --muted-foreground: oklch(0.62 0.01 260);
+  /* Readable, high-contrast metadata */
 
-  --destructive: oklch(0.62 0.20 25);
+  --destructive: oklch(0.60 0.20 25);
   --destructive-foreground: oklch(0.98 0 0);
 
-  --success: oklch(0.70 0.14 150);
-  --success-soft: oklch(0.70 0.14 150 / 0.12);
-  --warning: oklch(0.76 0.14 75);
-  --warning-soft: oklch(0.76 0.14 75 / 0.12);
-  --danger: oklch(0.62 0.20 25);
-  --danger-soft: oklch(0.62 0.20 25 / 0.12);
-  --info: oklch(0.68 0.14 235);
-  --info-soft: oklch(0.68 0.14 235 / 0.12);
+  --success: oklch(0.68 0.15 150);
+  --success-soft: oklch(0.68 0.15 150 / 0.12);
+  --warning: oklch(0.75 0.15 75);
+  --warning-soft: oklch(0.75 0.15 75 / 0.12);
+  --danger: oklch(0.60 0.20 25);
+  --danger-soft: oklch(0.60 0.20 25 / 0.12);
+  --info: oklch(0.65 0.15 235);
+  --info-soft: oklch(0.65 0.15 235 / 0.12);
 
-  --border: oklch(1 0 0 / 0.08);              /* Clean 1px division, zero glow */
+  --border: oklch(1 0 0 / 0.09);
+  /* Clean 1px division, zero glow */
   --border-subtle: oklch(1 0 0 / 0.04);
   --input: oklch(1 0 0 / 0.06);
-  --ring: oklch(0.62 0.17 260 / 0.40);
+  --ring: oklch(0.60 0.18 255 / 0.40);
 
-  --shadow-card-val: 0 1px 2px 0 oklch(0 0 0 / 0.3);
-  --shadow-elevated-val: 0 8px 24px -4px oklch(0 0 0 / 0.5);
+  --shadow-card-val: 0 1px 2px 0 oklch(0 0 0 / 0.35);
+  --shadow-elevated-val: 0 6px 18px -2px oklch(0 0 0 / 0.55);
 }
 
 @layer base {
@@ -166,7 +196,9 @@
     border-color: var(--color-border);
   }
 
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
   }
 
@@ -184,7 +216,7 @@
   input[type="date"] {
     min-height: 2.35rem;
   }
-  
+
   .dark input[type="date"]::-webkit-calendar-picker-indicator {
     filter: invert(0.8) brightness(1.2);
     cursor: pointer;
@@ -196,17 +228,21 @@
     scrollbar-width: thin;
     scrollbar-color: oklch(1 0 0 / 0.1) transparent;
   }
+
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
+
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
+
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: oklch(1 0 0 / 0.1);
     border-radius: 9999px;
   }
+
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: oklch(1 0 0 / 0.2);
   }
@@ -219,7 +255,10 @@
     color: #000000 !important;
   }
 
-  aside, header, nav, .print-hidden {
+  aside,
+  header,
+  nav,
+  .print-hidden {
     display: none !important;
   }
 

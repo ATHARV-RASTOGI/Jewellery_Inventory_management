@@ -25,17 +25,17 @@ export const WeeklySales = () => {
   const hasData = data.some((d) => d.sales > 0);
 
   return (
-    <div className="flex flex-col justify-between p-5 rounded-lg border border-border/60 bg-surface/50 h-full">
-      <div className="pb-2 border-b border-border/40 mb-3">
-        <h3 className="text-sm font-bold tracking-tight text-foreground">
-          Weekly Sales
+    <div className="flex flex-col justify-between p-3.5 rounded border border-border bg-surface shadow-xs h-full">
+      <div className="pb-2 border-b border-border/60 mb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground select-none">
+          Weekly Counter Turnover
         </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Daily transaction revenue across the past 7 days
+        <p className="text-[11px] text-muted-foreground">
+          Daily sales comparison across the past 7 days
         </p>
       </div>
 
-      <div className="h-56 mt-2">
+      <div className="h-48 mt-1">
         {isError ? (
           <ErrorState
             title="Failed to load weekly trends"

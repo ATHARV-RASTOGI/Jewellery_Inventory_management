@@ -36,27 +36,27 @@ export const ThemeSelector = () => {
             type="button"
             onClick={() => setTheme(id)}
             className={cn(
-              "flex flex-col text-left p-4 rounded-xl border transition-all duration-200 relative select-none",
+              "flex flex-col text-left p-3.5 rounded-md border transition-colors relative select-none cursor-pointer",
               isSelected
-                ? "bg-surface-2 border-primary/60 shadow-sm ring-2 ring-primary/25"
-                : "bg-surface-2/60 border-border/60 hover:border-border hover:bg-surface-2"
+                ? "bg-surface-2 border-primary shadow-xs"
+                : "bg-surface border-border hover:border-border/80 hover:bg-surface-2/60"
             )}
           >
             {isSelected && (
-              <span className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                <Check className="w-3 h-3 stroke-[3]" />
+              <span className="absolute top-3 right-3 w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                <Check className="w-2.5 h-2.5 stroke-[3]" />
               </span>
             )}
 
             <div
               className={cn(
-                "w-9 h-9 rounded-xl flex items-center justify-center mb-3 border",
+                "w-7.5 h-7.5 rounded-sm flex items-center justify-center mb-2.5 border",
                 isSelected
                   ? "bg-primary/15 text-primary border-primary/30"
-                  : "bg-surface text-muted-foreground border-border/50"
+                  : "bg-surface-2 text-muted-foreground border-border/50"
               )}
             >
-              <Icon className="w-4.5 h-4.5" />
+              <Icon className="w-4 h-4" />
             </div>
 
             <p className="text-sm font-semibold text-foreground tracking-tight">

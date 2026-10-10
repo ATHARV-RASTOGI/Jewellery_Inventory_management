@@ -230,7 +230,7 @@ export const AddProductModal = ({
     >
       <form id="product-modal-form" onSubmit={submit} className="space-y-4">
         {/* Category & Metal Section */}
-        <div className="bg-surface-2/40 border border-border/70 rounded-2xl p-4 space-y-3.5">
+        <div className="bg-surface-2/40 border border-border/70 rounded-md p-4 space-y-3.5">
           <p className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
             Metal &amp; Category Classification
           </p>
@@ -350,7 +350,7 @@ export const AddProductModal = ({
         </div>
 
         {/* Lot Details: Quantity and Scale Weight */}
-        <div className="bg-surface-2/40 border border-border/70 rounded-2xl p-4 space-y-3.5">
+        <div className="bg-surface-2/40 border border-border/70 rounded-md p-4 space-y-3.5">
           <div className="flex items-center justify-between">
             <p className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
               Stock Lot &amp; Weight Details

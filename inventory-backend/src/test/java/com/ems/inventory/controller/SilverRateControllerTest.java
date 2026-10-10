@@ -13,7 +13,7 @@ import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -24,10 +24,11 @@ import com.ems.inventory.dto.RateUpdateRequestDTO;
 import com.ems.inventory.model.Rates;
 import com.ems.inventory.model.Silver;
 import com.ems.inventory.service.SilverRateService;
+import com.ems.config.JacksonConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @WebMvcTest(SilverRateController.class)
-@Import(GlobalExceptionClass.class)
+@Import({GlobalExceptionClass.class, JacksonConfig.class})
 public class SilverRateControllerTest {
 
     @Autowired

@@ -24,29 +24,29 @@ export const StatCard: React.FC<StatCardProps> = ({
   return (
     <div
       className={cn(
-        "group relative rounded-xl bg-surface border border-border/80 p-5 transition-all duration-200 hover:border-border hover:bg-surface-2/60 shadow-[var(--shadow-card)]",
+        "group relative rounded-md bg-surface border border-border p-3.5 sm:p-4 shadow-xs transition-colors hover:border-border/90",
         className
       )}
     >
-      <div className="flex items-start justify-between">
-        <p className="text-[12px] font-medium text-muted-foreground tracking-wide">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           {title}
         </p>
         {Icon && (
-          <div className="w-8 h-8 rounded-lg bg-surface-2 text-muted-foreground flex items-center justify-center group-hover:text-primary group-hover:bg-primary/10 transition-colors border border-border/40">
-            <Icon className="w-4 h-4" />
+          <div className="w-7 h-7 rounded-sm bg-surface-2 text-muted-foreground flex items-center justify-center shrink-0 border border-border/50">
+            <Icon className="w-3.5 h-3.5" />
           </div>
         )}
       </div>
 
-      <div className="mt-3 text-2xl md:text-[26px] font-semibold tracking-tight text-foreground leading-none">
+      <div className="mt-2 text-xl sm:text-2xl font-semibold tracking-tight text-foreground leading-none font-mono">
         {value}
       </div>
 
       {trend && (
         <div
           className={cn(
-            "mt-3 flex items-center gap-1 text-[11.5px] font-medium",
+            "mt-2 flex items-center gap-1 text-[11px] font-medium",
             trendPositive ? "text-success" : "text-warning"
           )}
         >

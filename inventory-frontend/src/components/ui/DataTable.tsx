@@ -40,9 +40,9 @@ export function DataTable<T>({
 
   return (
     <div className={cn(tableContainer, className)}>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border bg-surface-2/80">
+      <table className="w-full text-left text-xs sm:text-[13px] border-collapse">
+        <thead className="sticky top-0 z-10 bg-surface-2/95 backdrop-blur-xs border-b border-border">
+          <tr>
             {columns.map((col, idx) => {
               const def: ColumnDef =
                 typeof col === "string" ? { header: col } : col;
@@ -62,7 +62,7 @@ export function DataTable<T>({
             })}
           </tr>
         </thead>
-        <tbody className="divide-y divide-border/50">
+        <tbody className="divide-y divide-border/40 bg-surface">
           {data.map((item, index) => (
             <React.Fragment key={keyExtractor(item, index)}>
               {renderRow(item, index)}

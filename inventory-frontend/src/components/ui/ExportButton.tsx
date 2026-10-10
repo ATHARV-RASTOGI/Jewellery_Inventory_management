@@ -54,7 +54,7 @@ export function ExportButton() {
         {exportOptions.map(({ label, val, set }) => (
           <label
             key={label}
-            className="flex items-center gap-2.5 p-2.5 rounded-lg bg-surface-2/60 border border-border/50 hover:bg-surface-2 cursor-pointer transition-colors text-xs text-foreground select-none"
+            className="flex items-center gap-2.5 p-2.5 rounded-md bg-surface-2/60 border border-border hover:bg-surface-2 cursor-pointer transition-colors text-xs text-foreground select-none"
           >
             <input
               type="checkbox"

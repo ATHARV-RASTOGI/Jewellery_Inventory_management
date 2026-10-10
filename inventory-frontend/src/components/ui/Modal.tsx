@@ -55,22 +55,22 @@ export const Modal: React.FC<ModalProps> = ({
     >
       <div
         className={cn(
-          "w-full rounded-2xl bg-surface border border-border/80 p-6 space-y-5 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto shadow-[var(--shadow-elevated)]",
+          "w-full rounded-md bg-surface border border-border p-5 space-y-4 animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto shadow-elevated",
           maxWidthStyles[maxWidth],
           className
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-4 pb-3 border-b border-border/50">
           <div>
             {title && (
-              <h3 className="text-base md:text-lg font-semibold tracking-tight text-foreground">
+              <h3 className="text-sm md:text-base font-semibold tracking-tight text-foreground">
                 {title}
               </h3>
             )}
             {subtitle && (
-              <p className="text-[12px] text-muted-foreground mt-0.5">
+              <p className="text-[11.5px] text-muted-foreground mt-0.5">
                 {subtitle}
               </p>
             )}
@@ -78,7 +78,7 @@ export const Modal: React.FC<ModalProps> = ({
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors shrink-0"
+            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors shrink-0"
           >
             <X className="w-4 h-4" />
           </button>

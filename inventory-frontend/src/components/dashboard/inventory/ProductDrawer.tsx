@@ -1,8 +1,9 @@
-import { X, ImageIcon, Pencil } from "lucide-react";
-import { formatINR, formatWeight, getStockStatus, cn } from "@/lib/utils";
+import { ImageIcon, Pencil, Tag, Scale, Package, ShieldCheck } from "lucide-react";
+import { formatWeight, getStockStatus } from "@/lib/utils";
 import { type Product } from "@/lib/api/inventory";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { DetailDrawer } from "@/components/ui/DetailDrawer";
 
 type Props = {
   product: Product | null;
@@ -10,21 +11,10 @@ type Props = {
   onEdit: (product: Product) => void;
 };
 
-const Chip = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="rounded-xl bg-surface-2 p-3 border border-border/60 min-w-0">
-    <p className="text-[10.5px] uppercase tracking-wider font-semibold text-muted-foreground">
-      {label}
-    </p>
-    <p className="text-[13.5px] font-semibold text-foreground mt-1 truncate">
-      {value}
-    </p>
-  </div>
-);
-
 export const ProductDrawer = ({ product, onClose, onEdit }: Props) => {
-  const open = !!product;
+  if (!product) return null;
 
-  const status = product ? getStockStatus(product.stockQuantity) : "in-stock";
+  const status = getStockStatus(product.stockQuantity);
   const statusMap: Record<
     string,
     { variant: "success" | "warning" | "danger"; label: string }
@@ -38,91 +28,157 @@ export const ProductDrawer = ({ product, onClose, onEdit }: Props) => {
     label: status,
   };
 
+  const isGold = product.material.toLowerCase() === "gold";
+
   return (
-    <>
-      <div
-        className={cn(
-          "fixed inset-0 z-40 bg-background/70 backdrop-blur-sm transition-opacity duration-200",
-          open ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-        onClick={onClose}
-      />
-      <aside
-        className={cn(
-          "fixed top-0 right-0 z-50 h-full w-full max-w-md bg-surface border-l border-border/80 flex flex-col transition-transform duration-300 ease-out shadow-[var(--shadow-elevated)]",
-          open ? "translate-x-0" : "translate-x-full"
-        )}
-      >
-        {product && (
-          <>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-              <h3 className="text-[15px] font-semibold tracking-tight text-foreground">
-                Product Details
-              </h3>
-              <button
-                onClick={onClose}
-                aria-label="Close product drawer"
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
+    <DetailDrawer
+      open={!!product}
+      onClose={onClose}
+      title={product.name}
+      subtitle={`SKU: ${product.sku} · ${product.material.toUpperCase()} · ${product.purity}`}
+      badge={
+        <StatusBadge variant={currentBadge.variant} withDot>
+          {currentBadge.label}
+        </StatusBadge>
+      }
+      actions={
+        <Button
+          onClick={() => onEdit(product)}
+          variant="primary"
+          size="sm"
+          leftIcon={<Pencil className="w-3.5 h-3.5" />}
+        >
+          Edit Product
+        </Button>
+      }
+    >
+      <div className="space-y-4 text-xs">
+        {/* Product Visual / Image Container */}
+        <div className="aspect-[16/9] bg-surface-2 border border-border flex flex-col items-center justify-center text-muted-foreground">
+          <ImageIcon className="w-8 h-8 stroke-[1.25] text-muted-foreground/60" />
+          <span className="text-[11px] font-medium mt-1.5">No catalog photo uploaded</span>
+        </div>
+
+        {/* Stock & Material Overview Strip */}
+        <div className="grid grid-cols-3 divide-x divide-border bg-surface-2 border border-border text-center">
+          <div className="p-2.5">
+            <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground block font-medium">
+              Purity
+            </span>
+            <span className="font-mono font-bold text-foreground mt-0.5 block text-xs">
+              {product.purity}
+            </span>
+          </div>
+          <div className="p-2.5">
+            <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground block font-medium">
+              Unit Weight
+            </span>
+            <span className="font-mono font-bold text-foreground mt-0.5 block text-xs">
+              {formatWeight(product.totalWeight ?? product.baseWeight)}
+            </span>
+          </div>
+          <div className="p-2.5">
+            <span className="text-[10.5px] uppercase tracking-wider text-muted-foreground block font-medium">
+              Stock On Hand
+            </span>
+            <span
+              className={`font-mono font-bold mt-0.5 block text-xs ${
+                product.stockQuantity <= 2 ? "text-warning" : "text-foreground"
+              }`}
+            >
+              {product.stockQuantity} pcs
+            </span>
+          </div>
+        </div>
+
+        {/* Technical Asset Specifications */}
+        <div className="border border-border p-3.5 space-y-2.5 bg-surface">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground uppercase tracking-wider">
+            <Tag className="w-3.5 h-3.5 text-primary" />
+            Article Specifications
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs pt-1">
+            <div>
+              <span className="text-muted-foreground block text-[11px]">SKU / Barcode ID</span>
+              <span className="font-mono font-semibold text-primary">{product.sku}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block text-[11px]">Precious Metal</span>
+              <span
+                className={`font-semibold uppercase ${
+                  isGold ? "text-amber-700" : "text-slate-700"
+                }`}
               >
-                <X className="w-4 h-4" />
-              </button>
+                {product.material}
+              </span>
             </div>
-
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* Product Hero Image / Placeholder */}
-              <div className="aspect-[4/3] rounded-2xl bg-surface-2 border border-border/60 flex flex-col items-center justify-center text-muted-foreground/60 shadow-inner">
-                <ImageIcon className="w-12 h-12 stroke-[1.5]" />
-                <span className="text-xs font-medium mt-2">No photo attached</span>
-              </div>
-
-              <div>
-                <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
-                  {product.sku}
-                </p>
-                <h2 className="text-lg font-bold tracking-tight text-foreground mt-0.5">
-                  {product.name}
-                </h2>
-                <div className="mt-2.5 flex items-center gap-2">
-                  <StatusBadge variant={currentBadge.variant} withDot>
-                    {currentBadge.label}
-                  </StatusBadge>
-                  <StatusBadge
-                    variant={
-                      product.material.toLowerCase() === "gold"
-                        ? "gold"
-                        : "info"
-                    }
-                  >
-                    {product.material} · {product.purity}
-                  </StatusBadge>
-                </div>
-              </div>
-
-              {/* Summary metadata chips */}
-              <div className="grid grid-cols-3 gap-2.5">
-                <Chip label="Purity" value={product.purity} />
-                <Chip
-                  label="Total Weight"
-                  value={formatWeight(product.totalWeight ?? product.baseWeight)}
-                />
-                <Chip label="In Stock" value={`${product.stockQuantity} pcs`} />
-              </div>
+            <div>
+              <span className="text-muted-foreground block text-[11px]">Primary Category</span>
+              <span className="font-medium text-foreground capitalize">
+                {product.mainCategory ? product.mainCategory.replace(/-/g, " ") : "General"}
+              </span>
             </div>
-
-            <div className="border-t border-border/50 px-6 py-4 flex items-center gap-3">
-              <Button
-                onClick={() => onEdit(product)}
-                variant="secondary"
-                size="md"
-                className="flex-1"
-                leftIcon={<Pencil className="w-3.5 h-3.5" />}
-              >
-                Edit Product
-              </Button>
+            <div>
+              <span className="text-muted-foreground block text-[11px]">Sub-Classification</span>
+              <span className="font-medium text-foreground capitalize">
+                {product.subCategory ? product.subCategory.replace(/-/g, " ") : "Standard"}
+              </span>
             </div>
-          </>
-        )}
-      </aside>
-    </>
+          </div>
+        </div>
+
+        {/* Weights & Calculation Breakdown */}
+        <div className="border border-border p-3.5 space-y-2.5 bg-surface">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground uppercase tracking-wider">
+            <Scale className="w-3.5 h-3.5 text-amber-600" />
+            Weight &amp; Purity Ledger
+          </div>
+          <div className="divide-y divide-border/60 text-xs font-mono">
+            <div className="py-1.5 flex justify-between">
+              <span className="text-muted-foreground font-sans">Gross / Total Weight</span>
+              <span className="font-bold text-foreground tabular-nums">
+                {formatWeight(product.totalWeight ?? product.baseWeight)}
+              </span>
+            </div>
+            <div className="py-1.5 flex justify-between">
+              <span className="text-muted-foreground font-sans">Net Metal Weight</span>
+              <span className="text-foreground tabular-nums">
+                {formatWeight(product.baseWeight ?? product.totalWeight)}
+              </span>
+            </div>
+            <div className="py-1.5 flex justify-between">
+              <span className="text-muted-foreground font-sans">Alloy / Stone Deduction</span>
+              <span className="text-muted-foreground tabular-nums">
+                {product.totalWeight && product.baseWeight && product.totalWeight > product.baseWeight
+                  ? formatWeight(product.totalWeight - product.baseWeight)
+                  : "0.000 g"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Inventory Inventory Status */}
+        <div className="border border-border p-3.5 space-y-2 bg-surface">
+          <div className="flex items-center justify-between text-xs font-semibold text-foreground uppercase tracking-wider">
+            <span className="flex items-center gap-1.5">
+              <Package className="w-3.5 h-3.5 text-primary" />
+              Stock Availability
+            </span>
+            <StatusBadge variant={currentBadge.variant} withDot>
+              {currentBadge.label}
+            </StatusBadge>
+          </div>
+          <p className="text-[11.5px] text-muted-foreground pt-1">
+            Current showroom and back-office stock count is{" "}
+            <strong className="text-foreground font-mono">{product.stockQuantity} pieces</strong>.
+            {product.stockQuantity <= 2 && (
+              <span className="block text-warning font-medium mt-1">
+                Low stock alert: Consider placing reorder or custom casting batch.
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+    </DetailDrawer>
   );
 };

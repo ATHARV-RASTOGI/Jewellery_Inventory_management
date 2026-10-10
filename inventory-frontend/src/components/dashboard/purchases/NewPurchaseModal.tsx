@@ -347,7 +347,7 @@ export const NewPurchaseModal = ({
             />
 
             {isSkuFocused && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto divide-y divide-border/40 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto divide-y divide-border/40 animate-in fade-in zoom-in-95 duration-150">
                 {suggestions.map((p, idx) => (
                   <div
                     key={p.id}
@@ -355,32 +355,32 @@ export const NewPurchaseModal = ({
                       e.preventDefault();
                       handleSelectProduct(p);
                     }}
-                    className={`px-4 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${
+                    className={`px-3 py-2 flex items-center justify-between cursor-pointer transition-colors ${
                       idx === selectedIndex
                         ? "bg-primary/10 text-primary-foreground"
                         : "hover:bg-surface-2/70"
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="px-2 py-0.5 rounded-md bg-surface-2 border border-border/80 text-xs font-mono font-bold text-foreground">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="px-1.5 py-0.5 rounded bg-surface-2 border border-border text-[11px] font-mono font-bold text-foreground">
                         {p.sku}
                       </span>
                       <div className="min-w-0">
-                        <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                        <p className="text-xs font-semibold text-foreground truncate">
                           {p.name}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[10.5px] text-muted-foreground">
                           {p.mainCategory} · {p.subCategory || "Standard"}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0 text-right">
-                      <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-warning/15 text-warning">
+                    <div className="flex items-center gap-2.5 shrink-0 text-right">
+                      <span className="px-1.5 py-0.5 rounded text-[10.5px] font-bold bg-warning/15 text-warning">
                         {p.material} {p.purity}
                       </span>
-                      <span className="text-[11px] text-muted-foreground font-mono">
-                        {p.stockQuantity} currently in stock
+                      <span className="text-[10.5px] text-muted-foreground font-mono">
+                        {p.stockQuantity} in stock
                       </span>
                     </div>
                   </div>
@@ -392,7 +392,7 @@ export const NewPurchaseModal = ({
 
         {/* Selected Items Table */}
         {items.length > 0 ? (
-          <div className="border border-border/80 rounded-xl overflow-hidden bg-surface">
+          <div className="border border-border rounded-md overflow-hidden bg-surface">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-surface-2/70 border-b border-border/70 text-muted-foreground font-semibold">
@@ -509,9 +509,9 @@ export const NewPurchaseModal = ({
             </div>
           </div>
         ) : (
-          <div className="py-8 text-center text-sm text-muted-foreground border-2 border-dashed border-border/70 rounded-2xl bg-surface-2/20 space-y-1">
-            <Receipt className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
-            <p className="font-semibold text-foreground">No purchase items added yet</p>
+          <div className="py-6 text-center text-sm text-muted-foreground border border-dashed border-border rounded-md bg-surface-2/20 space-y-1">
+            <Receipt className="w-7 h-7 text-muted-foreground/50 mx-auto mb-1.5" />
+            <p className="font-semibold text-foreground text-xs">No purchase items added yet</p>
             <p className="text-xs text-muted-foreground">
               Search an SKU or product above to add items to this wholesale invoice.
             </p>

@@ -65,53 +65,86 @@ export const TopStats = () => {
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Header bar with Rate Update trigger */}
-      <div className="flex items-center justify-between pb-1 border-b border-border/50">
-        <div>
-          <h2 className="text-xs uppercase tracking-wider font-bold text-muted-foreground">
-            Market Rates &amp; Operational Overview
+    <div className="rounded border border-border bg-surface shadow-xs overflow-hidden">
+      {/* Barometer Header */}
+      <div className="px-3.5 py-2 bg-surface-2/70 border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <h2 className="text-[11px] uppercase tracking-wider font-bold text-muted-foreground select-none">
+            Live Market Barometer &amp; Operational Health
           </h2>
         </div>
         <Button
           variant="secondary"
           size="sm"
           onClick={() => setRateModalOpen(true)}
-          leftIcon={<Pencil className="w-3.5 h-3.5 text-primary" />}
-          className="text-xs h-7.5 font-semibold"
+          leftIcon={<Pencil className="w-3 h-3 text-primary" />}
+          className="text-xs h-6.5 font-semibold px-2"
         >
-          Update Today's Rates
+          Update Rates
         </Button>
       </div>
 
-      {/* Seamless Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={i}
-              className="p-4 rounded-lg bg-surface/50 border border-border/60 hover:bg-surface/80 hover:border-border transition-all duration-150"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {stat.title}
-                </p>
-                <div className="w-7 h-7 rounded-md bg-surface-2 text-muted-foreground flex items-center justify-center border border-border/40">
-                  <Icon className="w-3.5 h-3.5" />
-                </div>
-              </div>
+      {/* Integrated Metrics Grid with Clean Dividers */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 divide-x-0 sm:divide-x divide-border/60">
+        {/* Metric 1: Gold Rate */}
+        <div className="p-3 sm:p-3.5 space-y-1">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[10.5px] uppercase tracking-wider font-semibold">Today's Gold (24K)</span>
+            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          </div>
+          <div className="text-lg sm:text-xl font-bold font-mono text-foreground tabular-nums">
+            {formatINR(s.goldRatePerGram * 10)}
+            <span className="text-xs font-normal text-muted-foreground font-sans ml-1">/ 10g</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground font-mono">
+            ≈ {formatINR(s.goldRatePerGram)} / gram
+          </p>
+        </div>
 
-              <div className="mt-2 text-xl font-bold font-mono tracking-tight text-foreground tabular-nums">
-                {stat.value}
-              </div>
+        {/* Metric 2: Silver Rate */}
+        <div className="p-3 sm:p-3.5 space-y-1">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[10.5px] uppercase tracking-wider font-semibold">Today's Silver</span>
+            <span className="w-2 h-2 rounded-full bg-slate-300 shrink-0" />
+          </div>
+          <div className="text-lg sm:text-xl font-bold font-mono text-foreground tabular-nums">
+            {formatINR(s.silverRatePerGram * 10)}
+            <span className="text-xs font-normal text-muted-foreground font-sans ml-1">/ 10g</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground font-mono">
+            ≈ {formatINR((s.silverRatePerGram * 1000))} / kg
+          </p>
+        </div>
 
-              <div className={cn("mt-2 text-[11px] font-semibold", stat.trendColor)}>
-                {stat.trend}
-              </div>
-            </div>
-          );
-        })}
+        {/* Metric 3: Active Loans Portfolio */}
+        <div className="p-3 sm:p-3.5 space-y-1">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[10.5px] uppercase tracking-wider font-semibold">Active Loan Portfolio</span>
+            <FileText className="w-3.5 h-3.5 text-primary shrink-0" />
+          </div>
+          <div className="text-lg sm:text-xl font-bold font-mono text-foreground tabular-nums">
+            {formatINR(s.totalOutstandingAmount)}
+          </div>
+          <p className="text-[11px] text-primary font-medium">
+            {s.activeLoansCount} active collateral pledges
+          </p>
+        </div>
+
+        {/* Metric 4: Stock Status */}
+        <div className="p-3 sm:p-3.5 space-y-1">
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="text-[10.5px] uppercase tracking-wider font-semibold">Catalog Stock</span>
+            <Package className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          </div>
+          <div className="text-lg sm:text-xl font-bold font-mono text-foreground tabular-nums">
+            {formatNum(s.totalItemsInStock)}
+            <span className="text-xs font-normal text-muted-foreground font-sans ml-1">pieces</span>
+          </div>
+          <p className={cn("text-[11px] font-medium", s.lowStockItemsCount > 0 ? "text-warning" : "text-success")}>
+            {s.lowStockItemsCount > 0 ? `${s.lowStockItemsCount} items low stock` : "Stock levels optimal"}
+          </p>
+        </div>
       </div>
 
       <RateUpdateModal

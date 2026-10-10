@@ -13,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.http.MediaType;
@@ -27,9 +27,12 @@ import com.ems.sales.dto.SalesResponseDTO;
 import com.ems.sales.dto.SalesitemRequestDTO;
 import com.ems.sales.dto.SalesitemResponseDTO;
 import com.ems.sales.service.SalesService;
+import com.ems.config.JacksonConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.context.annotation.Import;
 
 @WebMvcTest (SalesController.class)
+@Import(JacksonConfig.class)
 public class SalesControllerTest {
 
     @Autowired 

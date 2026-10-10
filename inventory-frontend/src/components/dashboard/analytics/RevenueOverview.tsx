@@ -26,14 +26,14 @@ export const RevenueOverview = () => {
   const hasData = data.some((d) => d.revenue > 0);
 
   return (
-    <div className="flex flex-col justify-between p-5 rounded-lg border border-border/60 bg-surface/50 h-full">
-      <div className="flex items-start justify-between mb-3 pb-2 border-b border-border/40">
+    <div className="flex flex-col justify-between p-3.5 rounded border border-border bg-surface shadow-xs h-full">
+      <div className="flex items-start justify-between mb-2.5 pb-2 border-b border-border/60">
         <div>
-          <h3 className="text-sm font-bold tracking-tight text-foreground">
-            Revenue Overview
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground select-none">
+            Monthly Revenue Performance
           </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Monthly performance for {new Date().getFullYear()}
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Fiscal trends for {new Date().getFullYear()}
           </p>
         </div>
         <StatusBadge variant="info" withDot>

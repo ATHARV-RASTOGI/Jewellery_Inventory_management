@@ -19,18 +19,18 @@ export const SearchInput: React.FC<SearchInputProps> = ({
 }) => {
   return (
     <div className={cn("relative flex-1 max-w-sm", className)}>
-      <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <Icon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-9 pr-8 py-2 text-xs bg-surface-2 border border-border/60 hover:border-border rounded-lg text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+        className="w-full pl-8 pr-7 h-8.5 text-xs bg-surface-2 border border-border hover:border-border/80 rounded text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring transition-colors"
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground"
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground cursor-pointer"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -60,7 +60,7 @@ export function FilterTabs<T extends string>({
   return (
     <div
       className={cn(
-        "flex items-center gap-1 bg-surface-2 p-1 rounded-lg border border-border/60 shrink-0",
+        "flex items-center gap-0.5 bg-surface-2 p-0.5 rounded border border-border shrink-0 select-none",
         className
       )}
     >
@@ -70,9 +70,9 @@ export function FilterTabs<T extends string>({
           type="button"
           onClick={() => onChange(opt.id)}
           className={cn(
-            "px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-all select-none",
+            "px-2.5 py-1 text-xs font-medium rounded-xs capitalize transition-colors select-none cursor-pointer",
             active === opt.id
-              ? "bg-surface text-primary font-semibold shadow-xs border border-border/60"
+              ? "bg-surface text-foreground font-semibold shadow-xs border border-border/80"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -95,7 +95,7 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-surface p-3.5 rounded-xl border border-border/80 shadow-xs",
+        "flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2 bg-surface p-2 sm:p-2.5 rounded border border-border shadow-xs",
         className
       )}
     >

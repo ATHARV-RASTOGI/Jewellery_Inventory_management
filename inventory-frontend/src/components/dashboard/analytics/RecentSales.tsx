@@ -43,17 +43,19 @@ export const RecentSales = () => {
   }
 
   return (
-    <div className="flex flex-col justify-between p-5 rounded-lg border border-border/60 bg-surface/50 h-full">
-      <div className="pb-2 border-b border-border/40 mb-3">
-        <h3 className="text-sm font-bold tracking-tight text-foreground">
-          Recent Sales
-        </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {data.length} transaction{data.length === 1 ? "" : "s"} recorded recently
-        </p>
+    <div className="flex flex-col justify-between p-3.5 rounded border border-border bg-surface shadow-xs h-full">
+      <div className="pb-2 border-b border-border/60 mb-2.5 flex items-center justify-between">
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground select-none">
+            Recent Counter Invoices
+          </h3>
+          <p className="text-[11px] text-muted-foreground">
+            {data.length} latest transaction{data.length === 1 ? "" : "s"}
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-2 min-h-[180px] flex flex-col justify-center">
+      <div className="space-y-1.5 min-h-[160px] flex flex-col justify-center">
         {isError ? (
           <ErrorState
             title="Failed to load transactions"
@@ -62,21 +64,21 @@ export const RecentSales = () => {
             className="py-4"
           />
         ) : data.length > 0 ? (
-          <div className="space-y-2">
+          <div className="divide-y divide-border/40">
             {data.map((sale) => (
               <div
                 key={sale.id}
-                className="flex items-center justify-between p-2.5 rounded-md hover:bg-surface-2/60 transition-colors"
+                className="py-2 px-1.5 flex items-center justify-between hover:bg-surface-2/60 rounded transition-colors"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-md bg-primary/15 text-primary flex items-center justify-center text-xs font-bold shrink-0 border border-primary/20">
+                  <div className="w-7 h-7 rounded bg-primary/15 text-primary flex items-center justify-center text-[10.5px] font-bold shrink-0 font-mono border border-primary/20">
                     {initials(sale.customerName)}
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-foreground truncate">
                       {sale.customerName}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[10.5px] text-muted-foreground font-mono">
                       Invoice #{sale.id} · {sale.itemCount ?? 1} item
                       {(sale.itemCount ?? 1) > 1 ? "s" : ""}
                     </p>
@@ -93,14 +95,14 @@ export const RecentSales = () => {
           </div>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
-            <div className="w-10 h-10 rounded-lg bg-surface-2 flex items-center justify-center text-muted-foreground mb-2">
-              <ShoppingBag className="w-5 h-5" />
+            <div className="w-8 h-8 rounded bg-surface-2 flex items-center justify-center text-muted-foreground mb-1.5">
+              <ShoppingBag className="w-4 h-4" />
             </div>
             <p className="text-xs font-semibold text-foreground">
               No recent sales recorded
             </p>
-            <p className="text-[11.5px] text-muted-foreground max-w-xs mt-0.5">
-              Completed counter sales and GST receipts will list here.
+            <p className="text-[11px] text-muted-foreground max-w-xs mt-0.5">
+              Completed counter sales will list here.
             </p>
           </div>
         )}

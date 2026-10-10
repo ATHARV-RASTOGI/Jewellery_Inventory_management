@@ -5,12 +5,12 @@ export type Theme = "light" | "dark" | "system";
 const THEME_STORAGE_KEY = "kk_jewellers_theme";
 
 export function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   const saved = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
   if (saved === "light" || saved === "dark" || saved === "system") {
     return saved;
   }
-  return "dark"; // Default to dark for KK Jewellers
+  return "light"; // Default to light enterprise workstation for KK Jewellers
 }
 
 export function applyTheme(theme: Theme) {

@@ -24,13 +24,13 @@ export const SalesByMaterial = () => {
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
-    <div className="flex flex-col justify-between p-5 rounded-lg border border-border/60 bg-surface/50 h-full">
-      <div className="pb-2 border-b border-border/40 mb-3">
-        <h3 className="text-sm font-bold tracking-tight text-foreground">
-          Sales by Material
+    <div className="flex flex-col justify-between p-3.5 rounded border border-border bg-surface shadow-xs h-full">
+      <div className="pb-2 border-b border-border/60 mb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground select-none">
+          Sales by Material Split
         </h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Revenue split across jewelry categories
+        <p className="text-[11px] text-muted-foreground mt-0.5">
+          Revenue distribution across metal categories
         </p>
       </div>
 

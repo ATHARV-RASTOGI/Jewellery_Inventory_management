@@ -181,7 +181,7 @@ export const CategorySettings = () => {
       />
 
       {/* Category Tree Items */}
-      <div className="rounded-xl border border-border/80 bg-surface divide-y divide-border/50 overflow-hidden shadow-xs">
+      <div className="rounded-md border border-border bg-surface divide-y divide-border/40 overflow-hidden shadow-xs">
         {categories.map((cat) => {
           const isExpanded = expandedId === cat.id;
           const isEditing = editingId === cat.id;

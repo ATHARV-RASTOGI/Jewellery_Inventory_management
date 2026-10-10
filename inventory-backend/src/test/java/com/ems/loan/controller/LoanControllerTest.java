@@ -14,7 +14,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import static org.mockito.ArgumentMatchers.any;
 import java.util.Optional;
 import org.springframework.http.MediaType;
@@ -24,9 +24,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.ems.loan.dto.LoanRequestDTO;
 import com.ems.loan.dto.LoanResponseDTO;
 import com.ems.loan.service.LoanService;
+import com.ems.config.JacksonConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.context.annotation.Import;
 
 @WebMvcTest(LoanController.class)
+@Import(JacksonConfig.class)
 public class LoanControllerTest {
 
     @Autowired

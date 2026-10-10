@@ -1,15 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Printer, Trash2, ShoppingCart, ShoppingBag } from "lucide-react";
+import { Plus, Printer, ShoppingBag, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { formatINR, fmtDate } from "@/lib/utils";
-import {
-  fetchSales,
-  fetchSaleItems,
-  createSale,
-  type Sale,
-  type SaleItem,
-} from "@/lib/api/sales";
+import { fetchSales, fetchSaleItems, createSale, type Sale, type SaleItem } from "@/lib/api/sales";
 import { fetchProducts, Product } from "@/lib/api/inventory";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -18,482 +12,211 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { SalesInvoiceSlip } from "@/components/receipts/SalesInvoiceSlip";
 import { SearchToolbar, SearchInput } from "@/components/ui/SearchToolbar";
 import { DataTable } from "@/components/ui/DataTable";
+import { DetailDrawer } from "@/components/ui/DetailDrawer";
 import { useCartManager } from "@/lib/hooks/useCartManager";
 import { CartTable } from "@/components/ui/CartTable";
 
-import { fetchGoldRate, fetchSilverRate } from "@/lib/api/dashboard";
-import { Zap } from "lucide-react";
-
 const formatPhone = (val: string) => {
-  const digits = val.replace(/\D/g, "").slice(0, 10);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-  return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+  const d = val.replace(/\D/g, "").slice(0, 10);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)} ${d.slice(3)}`;
+  return `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`;
 };
 
-// ─── New Sale Modal ───────────────────────────────────────────────────────────
-const NewSaleModal = ({
-  open,
-  onClose,
-  onCreated,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onCreated: (sale: Sale) => void;
-}) => {
+const NewSaleModal = ({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (sale: Sale) => void }) => {
   const qc = useQueryClient();
-  const [customer, setCustomer] = useState({
-    customerName: "",
-    customerPhone: "",
-    customerAddress: "",
-    customerGstin: "",
-  });
+  const [customer, setCustomer] = useState({ customerName: "", customerPhone: "", customerAddress: "", customerGstin: "" });
   const [isSkuFocused, setIsSkuFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const skuContainerRef = useRef<HTMLDivElement>(null);
 
   const {
-    cart,
-    skuInput,
-    setSkuInput,
-    skuError,
-    setSkuError,
-    addToCart,
-    addProductToCart,
-    removeFromCart,
-    updateQty,
-    updateWeight,
-    updateRate,
-    updateMakingPercent,
-    resetCart,
-    subtotal,
-    gst,
-    grandTotal,
+    cart, skuInput, setSkuInput, skuError, setSkuError, addToCart, addProductToCart,
+    removeFromCart, updateQty, updateWeight, updateRate, updateMakingPercent,
+    resetCart, subtotal, gst, grandTotal,
   } = useCartManager();
 
-  const { data: products = [] } = useQuery({
-    queryKey: ["products"],
-    queryFn: () => fetchProducts(),
-    enabled: open,
-  });
-
-  const { data: goldRate } = useQuery({
-    queryKey: ["dashboard-gold-rate"],
-    queryFn: fetchGoldRate,
-    enabled: open,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const { data: silverRate } = useQuery({
-    queryKey: ["dashboard-silver-rate"],
-    queryFn: fetchSilverRate,
-    enabled: open,
-    staleTime: 1000 * 60 * 5,
-  });
+  const { data: products = [] } = useQuery({ queryKey: ["products"], queryFn: () => fetchProducts(), enabled: open });
 
   const suggestions = useMemo(() => {
     const q = skuInput.trim().toLowerCase();
     if (!q) return [];
-    return products
-      .filter(
-        (p) =>
-          p.sku.toLowerCase().includes(q) ||
-          p.name.toLowerCase().includes(q) ||
-          p.mainCategory?.toLowerCase().includes(q) ||
-          p.subCategory?.toLowerCase().includes(q) ||
-          p.purity?.toLowerCase().includes(q)
-      )
-      .slice(0, 8);
+    return products.filter((p) => p.sku.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) || p.mainCategory?.toLowerCase().includes(q)).slice(0, 7);
   }, [products, skuInput]);
-
-  useEffect(() => {
-    setSelectedIndex(-1);
-  }, [skuInput]);
-
-  // Handle outside clicks to close autocomplete
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        skuContainerRef.current &&
-        !skuContainerRef.current.contains(e.target as Node)
-      ) {
-        setIsSkuFocused(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const mutation = useMutation({
     mutationFn: createSale,
-    onSuccess: (sale) => {
-      toast.success("Sale recorded successfully!");
+    onSuccess: (newSale: Sale) => {
+      toast.success(`Invoice #${newSale.id} created!`);
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["products"] });
-      onCreated(sale);
-      onClose();
+      onCreated(newSale);
       resetCart();
       setCustomer({ customerName: "", customerPhone: "", customerAddress: "", customerGstin: "" });
+      onClose();
     },
-    onError: (e: any) => toast.error(e.message ?? "Failed to record sale"),
+    onError: (e: any) => toast.error(e.response?.data?.message || "Failed to create invoice"),
   });
 
-  if (!open) return null;
-
-  const handleAddItem = () => {
-    if (selectedIndex >= 0 && suggestions[selectedIndex]) {
-      const chosen = suggestions[selectedIndex];
-      addProductToCart(chosen, goldRate?.rate, silverRate?.rate);
-      setSkuInput("");
-      setIsSkuFocused(false);
-      return;
-    }
-    const success = addToCart(products, goldRate?.rate, silverRate?.rate);
-    if (success) {
-      setIsSkuFocused(false);
-    }
-  };
-
   const handleSelectProduct = (p: Product) => {
-    const success = addProductToCart(p, goldRate?.rate, silverRate?.rate);
-    if (success) {
-      setSkuInput("");
-      setIsSkuFocused(false);
-      setSelectedIndex(-1);
-    }
+    addProductToCart(p);
+    setIsSkuFocused(false);
+    setSelectedIndex(-1);
   };
 
   const handleSkuKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (suggestions.length > 0 && isSkuFocused) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
-        return;
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
-        return;
-      }
-      if (e.key === "Escape") {
-        setIsSkuFocused(false);
-        return;
-      }
-    }
-    if (e.key === "Enter") {
+    if (suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      handleAddItem();
+      setSelectedIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedIndex >= 0 && selectedIndex < suggestions.length) handleSelectProduct(suggestions[selectedIndex]);
+      else addToCart(products);
+    } else if (e.key === "Escape") {
+      setIsSkuFocused(false);
     }
   };
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0) {
-      toast.error("Please add at least one item to the cart");
-      return;
-    }
     const cleanPhone = customer.customerPhone.replace(/\D/g, "");
-    if (cleanPhone.length !== 10) {
-      toast.error("Customer mobile number must be exactly 10 digits");
-      return;
-    }
+    if (!cleanPhone || cleanPhone.length !== 10) return toast.error("Mobile number must be exactly 10 digits");
+    if (cart.length === 0) return toast.error("Please add at least one item");
     mutation.mutate({
-      ...customer,
+      customerName: customer.customerName,
       customerPhone: cleanPhone,
+      customerAddress: customer.customerAddress || "",
       customerGstin: customer.customerGstin || undefined,
-      items: cart.map(({ sku, quantity, weight, pricePerPiece, appliedRatePer10g, makingChargePercent, makingChargeAmount }) => ({
-        sku,
-        quantity,
-        weight,
-        pricePerPiece,
-        appliedRatePer10g,
-        makingChargePercent,
-        makingChargeAmount,
+      items: cart.map((it) => ({
+        sku: it.sku,
+        quantity: it.quantity,
+        pricePerPiece: it.pricePerPiece,
+        weight: it.weight,
+        appliedRatePer10g: it.appliedRatePer10g,
+        makingChargePercent: it.makingChargePercent,
+        makingChargeAmount: it.makingChargeAmount,
       })),
     });
   };
+
+  if (!open) return null;
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Create New Counter Sale"
-      subtitle={
-        goldRate ? (
-          <span className="flex items-center gap-2 text-warning font-medium text-xs sm:text-sm">
-            <Zap className="w-4 h-4 text-warning animate-pulse" />
-            Live Gold: ₹{Math.round(goldRate.rate).toLocaleString("en-IN")}/10g · Silver: ₹{Math.round(silverRate?.rate ?? 0).toLocaleString("en-IN")}/10g
-          </span>
-        ) : (
-          "Scan items by SKU, record customer details, and calculate GST invoice."
-        )
-      }
-      maxWidth="5xl"
+      title="POS Counter Sales Register"
+      subtitle="Issue GST tax invoice, deduct catalog stock, and calculate making charges."
+      maxWidth="4xl"
       footer={
         <>
-          <Button variant="ghost" size="md" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="new-sale-form"
-            variant="primary"
-            size="md"
-            isLoading={mutation.isPending}
-            disabled={cart.length === 0}
-            leftIcon={<ShoppingCart className="w-4 h-4" />}
-            className="px-5 text-sm font-semibold shadow-md"
-          >
-            Complete Sale &amp; Print Invoice
+          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button type="submit" form="new-sale-form" variant="primary" size="sm" isLoading={mutation.isPending} disabled={cart.length === 0} leftIcon={<Plus className="w-3.5 h-3.5" />}>
+            Finalize Invoice
           </Button>
         </>
       }
     >
-      <form id="new-sale-form" onSubmit={submit} className="space-y-6">
-        {/* Customer Information Panel */}
-        <div className="bg-surface-2/40 border border-border/70 rounded-2xl p-4 sm:p-5">
-          <h4 className="text-xs uppercase tracking-wider font-bold text-muted-foreground mb-3">
-            Customer Information
-          </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <Input
-                label="Customer Name"
-                required
-                placeholder="e.g. Ramesh Kumar"
-                value={customer.customerName}
-                onChange={(e) =>
-                  setCustomer((p) => ({ ...p, customerName: e.target.value }))
-                }
-                className="py-2.5 text-sm"
-              />
-            </div>
-            <div>
-              <Input
-                label="Mobile Number"
-                required
-                placeholder="987 654 3210"
-                value={customer.customerPhone}
-                onChange={(e) => {
-                  const formatted = formatPhone(e.target.value);
-                  setCustomer((p) => ({ ...p, customerPhone: formatted }));
-                }}
-                className="py-2.5 text-sm font-mono tracking-wider"
-              />
-              <div className="flex justify-end mt-1 text-[11px] font-mono">
-                {(() => {
-                  const count = customer.customerPhone.replace(/\D/g, "").length;
-                  return (
-                    <span
-                      className={
-                        count === 10
-                          ? "text-success font-semibold"
-                          : "text-muted-foreground"
-                      }
-                    >
-                      {count}/10 digits
-                    </span>
-                  );
-                })()}
-              </div>
-            </div>
-            <div>
-              <Input
-                label="Address (Optional)"
-                placeholder="City, Area"
-                value={customer.customerAddress}
-                onChange={(e) =>
-                  setCustomer((p) => ({
-                    ...p,
-                    customerAddress: e.target.value,
-                  }))
-                }
-                className="py-2.5 text-sm"
-              />
-            </div>
-            <div>
-              <Input
-                label="Customer GSTIN (Optional)"
-                placeholder="e.g. 09AAAAA0000A1Z5"
-                value={customer.customerGstin}
-                onChange={(e) =>
-                  setCustomer((p) => ({
-                    ...p,
-                    customerGstin: e.target.value.toUpperCase(),
-                  }))
-                }
-                className="py-2.5 text-sm font-mono tracking-wider"
-              />
-            </div>
+      <form id="new-sale-form" onSubmit={submit} className="space-y-4 text-xs">
+        <div className="bg-surface-2 p-3.5 border border-border">
+          <div className="text-[10.5px] uppercase font-bold text-muted-foreground mb-2">Customer Profile</div>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <Input label="Name" required placeholder="Patron Name" value={customer.customerName} onChange={(e) => setCustomer((p) => ({ ...p, customerName: e.target.value }))} />
+            <Input label="Phone" required placeholder="10-digit mobile" value={customer.customerPhone} onChange={(e) => setCustomer((p) => ({ ...p, customerPhone: formatPhone(e.target.value) }))} />
+            <Input label="Address" placeholder="City, Area" value={customer.customerAddress} onChange={(e) => setCustomer((p) => ({ ...p, customerAddress: e.target.value }))} />
+            <Input label="GSTIN" placeholder="09AAAAA0000A1Z5" value={customer.customerGstin} onChange={(e) => setCustomer((p) => ({ ...p, customerGstin: e.target.value.toUpperCase() }))} />
           </div>
         </div>
 
-        {/* Item Entry by SKU & Autocomplete Search */}
-        <div className="space-y-3 pt-1">
-          <div className="flex items-center justify-between">
-            <label className="block text-xs uppercase tracking-wider font-bold text-muted-foreground">
-              Add Inventory Item to Sale
-            </label>
-            <span className="text-[11px] text-muted-foreground">
-              Type SKU or product name to search
-            </span>
-          </div>
-
-          <div ref={skuContainerRef} className="relative">
-            <div className="flex gap-3 items-stretch">
-              <div className="flex-1 relative">
-                <Input
-                  placeholder="Search by SKU, name, category, or subcategory…"
-                  value={skuInput}
-                  onChange={(e) => {
-                    setSkuInput(e.target.value);
-                    setIsSkuFocused(true);
-                  }}
-                  onFocus={() => setIsSkuFocused(true)}
-                  onKeyDown={handleSkuKeyDown}
-                  error={skuError}
-                  className="py-3 px-4 text-sm sm:text-base font-mono bg-surface border-border hover:border-primary/60 focus:border-primary shadow-xs rounded-xl"
-                  autoComplete="off"
-                />
-              </div>
-
-              <Button
-                type="button"
-                variant="secondary"
-                size="md"
-                onClick={handleAddItem}
-                leftIcon={<Plus className="w-4 h-4" />}
-                className="px-5 font-semibold shrink-0 rounded-xl"
-              >
-                Add Piece
-              </Button>
+        <div ref={skuContainerRef} className="relative">
+          <div className="flex gap-2 items-center">
+            <div className="flex-1 relative">
+              <Input
+                placeholder="Type SKU or product name to search inventory…"
+                value={skuInput}
+                onChange={(e) => { setSkuInput(e.target.value); setIsSkuFocused(true); }}
+                onFocus={() => setIsSkuFocused(true)}
+                onKeyDown={handleSkuKeyDown}
+                error={skuError}
+                autoComplete="off"
+              />
             </div>
-
-            {/* Live SKU / Product Autocomplete Dropdown */}
-            {isSkuFocused && suggestions.length > 0 && (
-              <div className="absolute z-50 left-0 right-0 top-full mt-1.5 bg-surface border border-border rounded-2xl shadow-xl overflow-hidden backdrop-blur-md animate-in fade-in zoom-in-98 duration-150">
-                <div className="px-3.5 py-2 bg-surface-2/80 border-b border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span className="font-semibold text-foreground">
-                    {suggestions.length} matching item{suggestions.length === 1 ? "" : "s"} found
-                  </span>
-                  <span>Use ↑ ↓ to navigate · ↵ or Click to add</span>
-                </div>
-
-                <div className="max-h-60 overflow-y-auto divide-y divide-border/30">
-                  {suggestions.map((p, idx) => {
-                    const isSelected = idx === selectedIndex;
-                    const inStock = (p.stockQuantity ?? 0) > 0;
-                    return (
-                      <div
-                        key={p.sku}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleSelectProduct(p);
-                        }}
-                        className={`px-4 py-2.5 flex items-center justify-between cursor-pointer transition-colors ${isSelected
-                            ? "bg-primary/10 text-primary-foreground"
-                            : "hover:bg-surface-2/70"
-                          }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="px-2 py-0.5 rounded-md bg-surface-2 border border-border/80 text-xs font-mono font-bold text-foreground">
-                            {p.sku}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
-                              {p.name}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {p.mainCategory} · {p.subCategory || "Standard"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 shrink-0 text-right">
-                          <div className="text-right">
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-bold bg-warning/15 text-warning">
-                              {p.material} {p.purity}
-                            </span>
-                            <p className="text-xs font-mono font-medium text-foreground mt-0.5">
-                              {p.totalWeight ?? p.baseWeight} g
-                            </p>
-                          </div>
-
-                          <div className="w-24 text-right">
-                            <span
-                              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block ${inStock
-                                  ? "bg-success/15 text-success"
-                                  : "bg-danger/15 text-danger"
-                                }`}
-                            >
-                              {inStock ? `${p.stockQuantity} in stock` : "Out of stock"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <Button type="button" variant="secondary" size="md" onClick={() => addToCart(products)} leftIcon={<Plus className="w-3.5 h-3.5" />}>
+              Add Item
+            </Button>
           </div>
-        </div>
 
-        {/* Cart Item Listing Table */}
-        <div>
-          {cart.length > 0 ? (
-            <CartTable
-              cart={cart}
-              subtotal={subtotal}
-              gst={gst}
-              grandTotal={grandTotal}
-              onUpdateQty={(sku, qty) =>
-                updateQty(
-                  sku,
-                  qty,
-                  products.find((p) => p.sku === sku)?.stockQuantity
-                )
-              }
-              onUpdateWeight={updateWeight}
-              onUpdateRate={updateRate}
-              onUpdateMaking={updateMakingPercent}
-              onRemove={removeFromCart}
-            />
-          ) : (
-            <div className="py-8 text-center text-sm text-muted-foreground border-2 border-dashed border-border/70 rounded-2xl bg-surface-2/20 space-y-1">
-              <p className="font-semibold text-foreground">Cart is currently empty</p>
-              <p className="text-xs text-muted-foreground">
-                Type an SKU or product keyword in the search box above to add jewelry pieces.
-              </p>
+          {isSkuFocused && suggestions.length > 0 && (
+            <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-surface border border-border rounded shadow-lg overflow-hidden max-h-56 overflow-y-auto divide-y divide-border/40 text-xs">
+              {suggestions.map((p, idx) => (
+                <div
+                  key={p.sku}
+                  onMouseDown={(e) => { e.preventDefault(); handleSelectProduct(p); }}
+                  className={`px-3 py-2 flex items-center justify-between cursor-pointer ${idx === selectedIndex ? "bg-primary/10 text-primary" : "hover:bg-surface-2"}`}
+                >
+                  <div>
+                    <span className="font-mono font-bold">{p.sku}</span> · <span className="font-medium text-foreground">{p.name}</span>
+                    <span className="text-muted-foreground ml-1">({p.material} {p.purity})</span>
+                  </div>
+                  <div className="font-mono text-muted-foreground">{p.totalWeight ?? p.baseWeight}g · {p.stockQuantity} in stock</div>
+                </div>
+              ))}
             </div>
           )}
         </div>
+
+        {cart.length > 0 ? (
+          <CartTable
+            cart={cart}
+            subtotal={subtotal}
+            gst={gst}
+            grandTotal={grandTotal}
+            onUpdateQty={(sku, qty) => updateQty(sku, qty, products.find((p) => p.sku === sku)?.stockQuantity)}
+            onUpdateWeight={updateWeight}
+            onUpdateRate={updateRate}
+            onUpdateMaking={updateMakingPercent}
+            onRemove={removeFromCart}
+          />
+        ) : (
+          <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border bg-surface-2/20">
+            Cart is empty. Type an SKU to add items.
+          </div>
+        )}
       </form>
     </Modal>
   );
 };
 
-
-// ─── Main Sales Ledger Component ─────────────────────────────────────────────
 export const SalesLedger = () => {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [receiptSale, setReceiptSale] = useState<Sale | null>(null);
   const [receiptItems, setReceiptItems] = useState<SaleItem[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const { data: sales = [], isLoading } = useQuery({
-    queryKey: ["sales"],
-    queryFn: fetchSales,
+  const { data: sales = [], isLoading } = useQuery({ queryKey: ["sales"], queryFn: fetchSales });
+  const { data: drawerItems = [], isLoading: isLoadingDrawerItems } = useQuery({
+    queryKey: ["sale-items", selectedSale?.id],
+    queryFn: () => (selectedSale ? fetchSaleItems(selectedSale.id) : []),
+    enabled: !!selectedSale,
   });
 
-  const filtered = sales.filter(
-    (s) =>
-      !search ||
-      s.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      s.customerPhoneNo.includes(search) ||
-      String(s.id).includes(search)
-  );
+  const filtered = useMemo(() => {
+    if (!search) return sales;
+    const q = search.toLowerCase();
+    return sales.filter((s) => s.customerName.toLowerCase().includes(q) || s.customerPhoneNo.includes(q) || String(s.id).includes(q));
+  }, [sales, search]);
+
+  const totals = useMemo(() => {
+    const rev = filtered.reduce((acc, s) => acc + (s.grandTotal || 0), 0);
+    const tax = filtered.reduce((acc, s) => acc + (s.gstAmount || 0), 0);
+    return { count: filtered.length, revenue: rev, gst: tax, taxable: Math.max(0, rev - tax) };
+  }, [filtered]);
 
   const printReceipt = async (sale: Sale) => {
     try {
@@ -502,147 +225,130 @@ export const SalesLedger = () => {
       setReceiptItems(items);
       setTimeout(() => window.print(), 300);
     } catch {
-      toast.error("Failed to load invoice items for printing");
+      toast.error("Failed to load invoice items");
     }
   };
 
   const columns = [
     { header: "Invoice #" },
-    { header: "Customer" },
+    { header: "Customer & Phone" },
     { header: "Date" },
-    { header: "Subtotal", align: "right" as const },
+    { header: "Taxable Subtotal", align: "right" as const },
     { header: "GST (3%)", align: "right" as const },
     { header: "Grand Total", align: "right" as const },
-    { header: "Receipt", align: "right" as const },
+    { header: "Actions", align: "right" as const },
   ];
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300">
+    <div className="space-y-3 animate-in fade-in duration-200">
       <SearchToolbar>
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Search sales by customer name, phone, or invoice #…"
-          className="max-w-md"
-        />
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setModalOpen(true)}
-          leftIcon={<Plus className="w-4 h-4" />}
-        >
+        <SearchInput value={search} onChange={setSearch} placeholder="Search by customer, phone, or invoice #…" className="max-w-md" />
+        <Button variant="primary" size="sm" onClick={() => setModalOpen(true)} leftIcon={<Plus className="w-3.5 h-3.5" />}>
           New Counter Sale
         </Button>
       </SearchToolbar>
 
-      <div className="px-1 text-xs text-muted-foreground">
-        Showing <span className="font-semibold text-foreground">{filtered.length}</span> recorded invoice{filtered.length === 1 ? "" : "s"}
+      {/* Summary Ribbon */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-border bg-surface border border-border text-xs">
+        <div className="p-3"><p className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-wider">Invoices Issued</p><p className="text-base font-bold font-mono text-foreground mt-0.5">{totals.count}</p></div>
+        <div className="p-3"><p className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-wider">Taxable Value</p><p className="text-base font-bold font-mono text-foreground mt-0.5">{formatINR(totals.taxable)}</p></div>
+        <div className="p-3"><p className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-wider">GST 3% Realized</p><p className="text-base font-bold font-mono text-muted-foreground mt-0.5">{formatINR(totals.gst)}</p></div>
+        <div className="p-3 bg-surface-2/40"><p className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-wider">Gross Sales Revenue</p><p className="text-base font-bold font-mono text-primary mt-0.5">{formatINR(totals.revenue)}</p></div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={filtered}
-        isLoading={isLoading}
-        keyExtractor={(sale) => sale.id}
-        emptyState={
-          <EmptyState
-            icon={ShoppingBag}
-            title="No sales transactions recorded"
-            description="Log counter invoices using the 'New Counter Sale' button."
-            action={
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setModalOpen(true)}
-                leftIcon={<Plus className="w-4 h-4" />}
-              >
-                New Sale
-              </Button>
-            }
-          />
-        }
-        renderRow={(sale) => (
-          <tr className="hover:bg-surface-2/50 transition-colors">
-            <td className="px-4 py-3 text-xs font-mono text-muted-foreground">
-              {sale.invoiceNumber ?? `#${sale.id}`}
-            </td>
-            <td className="px-4 py-3 whitespace-nowrap">
-              <p className="font-semibold text-[13px] text-foreground">
-                {sale.customerName}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {sale.customerPhoneNo}
-              </p>
-            </td>
-            <td className="px-4 py-3 text-[12.5px] text-muted-foreground whitespace-nowrap">
-              {fmtDate(sale.saleDate)}
-            </td>
-            <td className="px-4 py-3 text-right text-[12.5px] font-mono whitespace-nowrap">
-              {formatINR(sale.subtotal)}
-            </td>
-            <td className="px-4 py-3 text-right text-[12.5px] text-muted-foreground font-mono whitespace-nowrap">
-              {formatINR(sale.gstAmount)}
-            </td>
-            <td className="px-4 py-3 text-right font-semibold font-mono text-foreground whitespace-nowrap">
-              {formatINR(sale.grandTotal)}
-            </td>
-            <td className="px-4 py-3 text-right whitespace-nowrap">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => printReceipt(sale)}
-                leftIcon={<Printer className="w-3.5 h-3.5" />}
-              >
-                Print
-              </Button>
-            </td>
-          </tr>
-        )}
-      />
+      {/* Main Table */}
+      <div className="bg-surface border border-border overflow-hidden">
+        <DataTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          keyExtractor={(s) => s.id}
+          emptyState={<EmptyState icon={ShoppingBag} title="No sales invoices" description="Create a new sale invoice." />}
+          renderRow={(sale) => (
+            <tr key={sale.id} onClick={() => setSelectedSale(sale)} className={`cursor-pointer transition-colors ${selectedSale?.id === sale.id ? "bg-primary/5 font-medium" : "hover:bg-surface-2/60"}`}>
+              <td className="px-3 py-2 text-xs font-mono font-bold text-foreground">{sale.invoiceNumber ?? `#${sale.id}`}</td>
+              <td className="px-3 py-2"><p className="font-semibold text-xs text-foreground">{sale.customerName}</p><p className="text-[10.5px] text-muted-foreground font-mono">{sale.customerPhoneNo}</p></td>
+              <td className="px-3 py-2 text-xs font-mono text-muted-foreground">{fmtDate(sale.saleDate)}</td>
+              <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-muted-foreground">{formatINR(sale.subtotal)}</td>
+              <td className="px-3 py-2 text-right text-xs font-mono tabular-nums text-muted-foreground">{formatINR(sale.gstAmount)}</td>
+              <td className="px-3 py-2 text-right text-xs font-mono font-bold tabular-nums text-foreground">{formatINR(sale.grandTotal)}</td>
+              <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-end gap-1">
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px]" onClick={() => setSelectedSale(sale)} leftIcon={<Eye className="w-3 h-3" />}>Inspect</Button>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" onClick={() => printReceipt(sale)}><Printer className="w-3.5 h-3.5" /></Button>
+                </div>
+              </td>
+            </tr>
+          )}
+        />
+      </div>
 
-      <NewSaleModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onCreated={(sale) => printReceipt(sale)}
-      />
+      {/* Drawer */}
+      <DetailDrawer
+        open={!!selectedSale}
+        onClose={() => setSelectedSale(null)}
+        width="lg"
+        title={selectedSale?.invoiceNumber ? `Invoice ${selectedSale.invoiceNumber}` : `Invoice #${selectedSale?.id}`}
+        subtitle={selectedSale ? `${selectedSale.customerName} · ${fmtDate(selectedSale.saleDate)}` : ""}
+        actions={
+          selectedSale && (
+            <Button variant="primary" size="sm" onClick={() => printReceipt(selectedSale)} leftIcon={<Printer className="w-3.5 h-3.5" />}>
+              Print Invoice (A5)
+            </Button>
+          )
+        }
+      >
+        {selectedSale && (
+          <div className="space-y-4 text-xs">
+            <div className="p-3 border border-border bg-surface space-y-1">
+              <div className="font-semibold text-foreground text-sm">{selectedSale.customerName}</div>
+              <div className="font-mono text-muted-foreground">📱 {selectedSale.customerPhoneNo}</div>
+              {selectedSale.customerAddress && <div className="text-muted-foreground">📍 {selectedSale.customerAddress}</div>}
+              {selectedSale.customerGstin && <div className="font-mono text-muted-foreground">GSTIN: {selectedSale.customerGstin}</div>}
+            </div>
+
+            <div className="border border-border bg-surface overflow-hidden">
+              <div className="bg-surface-2 p-2.5 font-bold uppercase tracking-wider text-[10.5px]">Itemized Billed Breakdown</div>
+              {isLoadingDrawerItems ? (
+                <div className="py-6 text-center text-muted-foreground">Loading items…</div>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface-2/60 text-muted-foreground font-semibold uppercase text-[10px]">
+                    <tr><th className="px-2.5 py-1.5">Item</th><th className="px-2 py-1.5 text-right">Wt</th><th className="px-2 py-1.5 text-center">Qty</th><th className="px-2.5 py-1.5 text-right">Amount</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40 font-mono">
+                    {drawerItems.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-surface-2/40">
+                        <td className="px-2.5 py-1.5 font-sans"><p className="font-semibold text-foreground">{item.productName ?? item.sku}</p><p className="text-[10px] text-muted-foreground font-mono">{item.sku}</p></td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{item.weight ? `${item.weight}g` : "—"}</td>
+                        <td className="px-2 py-1.5 text-center tabular-nums font-sans">{item.quantity}</td>
+                        <td className="px-2.5 py-1.5 text-right font-bold text-foreground tabular-nums">{formatINR(item.pricePerPiece * item.quantity)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="p-3 bg-surface border border-border space-y-1 font-mono">
+              <div className="flex justify-between text-muted-foreground"><span>Subtotal:</span><span>{formatINR(selectedSale.subtotal)}</span></div>
+              <div className="flex justify-between text-muted-foreground"><span>GST (3%):</span><span>{formatINR(selectedSale.gstAmount)}</span></div>
+              <div className="flex justify-between pt-1 border-t border-border font-bold text-foreground"><span className="font-sans">Grand Total:</span><span className="text-primary text-sm">{formatINR(selectedSale.grandTotal)}</span></div>
+            </div>
+          </div>
+        )}
+      </DetailDrawer>
+
+      <NewSaleModal open={modalOpen} onClose={() => setModalOpen(false)} onCreated={(sale) => printReceipt(sale)} />
 
       {receiptSale && (
-        <Modal
-          open={!!receiptSale}
-          onClose={() => setReceiptSale(null)}
-          title={`Tax Invoice ${receiptSale.invoiceNumber ?? `#${receiptSale.id}`}`}
-          subtitle={`${receiptSale.customerName} · GST-compliant sales invoice`}
-          maxWidth="3xl"
-          footer={
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setReceiptSale(null)}
-              >
-                Close
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => setTimeout(() => window.print(), 200)}
-                leftIcon={<Printer className="w-4 h-4" />}
-              >
-                Print Invoice (A5)
-              </Button>
-            </>
-          }
-        >
-          <div className="overflow-x-auto py-2 flex justify-center">
-            <SalesInvoiceSlip sale={receiptSale} items={receiptItems} />
-          </div>
+        <Modal open={!!receiptSale} onClose={() => setReceiptSale(null)} title={`Tax Invoice ${receiptSale.invoiceNumber ?? `#${receiptSale.id}`}`} subtitle="Official sales invoice" maxWidth="3xl" footer={<Button variant="primary" size="sm" onClick={() => setTimeout(() => window.print(), 200)} leftIcon={<Printer className="w-4 h-4" />}>Print (A5)</Button>}>
+          <div className="overflow-x-auto py-2 flex justify-center"><SalesInvoiceSlip sale={receiptSale} items={receiptItems} /></div>
         </Modal>
       )}
 
       <div className="hidden print:block" ref={printRef}>
-        {receiptSale && (
-          <SalesInvoiceSlip sale={receiptSale} items={receiptItems} />
-        )}
+        {receiptSale && <SalesInvoiceSlip sale={receiptSale} items={receiptItems} />}
       </div>
     </div>
   );
