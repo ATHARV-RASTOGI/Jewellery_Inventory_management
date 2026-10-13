@@ -14,6 +14,7 @@ import {
   LogOut,
   KeyRound,
   ChevronDown,
+  Users,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -32,6 +33,7 @@ import { CustomOrderForm } from "../orders/CustomOrderForm";
 import { SettingsPage } from "../settings/SettingsPage";
 import { RateUpdateModal } from "../analytics/RateUpdateModal";
 import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
+import { StaffManagementModal } from "@/components/auth/StaffManagementModal";
 import { fetchDashboardStats } from "@/lib/api/dashboard";
 import { queryKeys } from "@/lib/api/query-keys";
 import { formatINR } from "@/lib/utils";
@@ -43,6 +45,7 @@ export const DashboardShell = () => {
   const [activeView, setActiveView] = useState<string>("dashboard");
   const [rateModalOpen, setRateModalOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [staffModalOpen, setStaffModalOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { isDark, setTheme } = useTheme();
   const { user, logout } = useAuth();
@@ -383,6 +386,19 @@ export const DashboardShell = () => {
                       <span>Change Password</span>
                     </button>
 
+                    {user?.role === "ROLE_ADMIN" && (
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          setStaffModalOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded hover:bg-surface-2 text-foreground transition-colors cursor-pointer text-left"
+                      >
+                        <Users className="w-3.5 h-3.5 text-primary" />
+                        <span>Manage Staff & Users</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={async () => {
                         setUserMenuOpen(false);
@@ -419,6 +435,11 @@ export const DashboardShell = () => {
       <ChangePasswordModal
         open={passwordModalOpen}
         onClose={() => setPasswordModalOpen(false)}
+      />
+
+      <StaffManagementModal
+        open={staffModalOpen}
+        onClose={() => setStaffModalOpen(false)}
       />
     </div>
   );

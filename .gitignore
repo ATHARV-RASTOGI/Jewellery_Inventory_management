@@ -15,13 +15,12 @@ target/
 # Maven wrapper (keep properties, ignore jar)
 .mvn/wrapper/maven-wrapper.jar
 
-# ─── Application secrets ───────────────────────────────────────────────────────
 # Never commit real credentials
 inventory-backend/src/main/resources/application.properties
 inventory-backend/src/main/resources/application-prod.properties
 inventory-backend/src/main/resources/application-local.properties
 
-# ─── IDE ───────────────────────────────────────────────────────────────────────
+
 .idea/
 *.iml
 *.iws
@@ -67,7 +66,9 @@ spring.log"application.properties"
 .env.*
 **/.env.*
 
-# Database Backups
+# Database Backups & Local SQLite DB
 backups/
 **/backups/
 *.dump
+*.db
+inventory-backend/data/

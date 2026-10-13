@@ -39,10 +39,18 @@ public class SecurityConfig {
         http.csrf(csrf-> csrf.disable())
         .cors(cors-> cors.configurationSource(corsConfigurationSource()))
         .authorizeHttpRequests(auth -> auth
+            // Static frontend assets & HTML
+            .requestMatchers("/", "/index.html", "/assets/**", "/*.ico", "/*.png", "/*.svg").permitAll()
+            // Client-side SPA route
+            .requestMatchers("/login").permitAll()
+            // Public APIs & Docs
             .requestMatchers("/api/auth/**", "/error").permitAll()
             .requestMatchers("/v3/api-docs**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+            // Admin-only user management
             .requestMatchers("/api/users/**").hasAuthority("ROLE_ADMIN")
-            .anyRequest().authenticated()
+            // Protected backend APIs (require login)
+            .requestMatchers("/api/**").authenticated()
+            .anyRequest().permitAll()
         )
         .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {

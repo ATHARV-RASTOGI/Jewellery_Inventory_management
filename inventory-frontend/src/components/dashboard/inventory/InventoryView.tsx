@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import {
   Plus,
   ArrowUp,
@@ -41,18 +42,24 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
   const [stockFilter, setStockFilter] = useState<"all" | "in-stock" | "low" | "out">("all");
   const [activeMetal, setActiveMetal] = useState<"gold" | "silver">(activeView.startsWith("silver") ? "silver" : "gold");
 
+  useEffect(() => {
+    if (activeView.startsWith("silver")) {
+      setActiveMetal("silver");
+      setSelectedCategory("all");
+    } else if (activeView.startsWith("gold")) {
+      setActiveMetal("gold");
+      setSelectedCategory("all");
+    }
+  }, [activeView]);
+
   const categories = useMemo(() => [
     { id: "all", label: "All Items" },
     ...getSidebarCategories(activeMetal).map((c) => ({ id: c.id, label: c.label })),
   ], [activeMetal]);
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", activeView, activeMetal],
-    queryFn: () => {
-      if (!activeView || activeView === "dashboard" || activeView === "all") return fetchProducts(activeView);
-      const parts = activeView.split("-");
-      return fetchProducts(parts.length > 1 ? parts[1] : activeView);
-    },
+    queryKey: ["products"],
+    queryFn: () => fetchProducts(),
   });
 
   const createMutation = useMutation({
@@ -60,6 +67,9 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setShowAdd(false);
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.message || err?.message || "Failed to add product");
     },
   });
 
@@ -69,6 +79,9 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setShowAdd(false);
       setEditingProduct(null);
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.message || err?.message || "Failed to update product");
     },
   });
 
@@ -90,15 +103,20 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
     metalProducts.forEach((p) => {
       const cat = p.mainCategory?.toLowerCase() || "other";
       counts[cat] = (counts[cat] || 0) + 1;
+      counts[`${activeMetal}-${cat}`] = (counts[`${activeMetal}-${cat}`] || 0) + 1;
     });
     return counts;
-  }, [metalProducts]);
+  }, [metalProducts, activeMetal]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const rawSelectedCategory = selectedCategory !== "all" 
+      ? selectedCategory.replace(/^(gold|silver)-/, "").toLowerCase() 
+      : "all";
+
     let res = metalProducts.filter((p: Product) => {
       if (q && !p.name.toLowerCase().includes(q) && !p.sku.toLowerCase().includes(q)) return false;
-      if (selectedCategory !== "all" && p.mainCategory?.toLowerCase() !== selectedCategory.toLowerCase()) return false;
+      if (rawSelectedCategory !== "all" && p.mainCategory?.toLowerCase() !== rawSelectedCategory) return false;
       if (stockFilter !== "all" && getStockStatus(p.stockQuantity) !== stockFilter) return false;
       return true;
     });
@@ -112,6 +130,7 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
     }
     return res;
   }, [metalProducts, search, sortKey, sortDir, selectedCategory, stockFilter]);
+
 
   const metrics = useMemo(() => {
     const totalWeight = filtered.reduce((s, p) => s + (p.totalWeight ?? p.baseWeight ?? 0) * (p.stockQuantity ?? 1), 0);
@@ -326,7 +345,7 @@ export const InventoryView = ({ activeView }: { activeView: string }) => {
         </div>
       </div>
 
-      <AddProductModal open={showAdd} productToEdit={editingProduct} onClose={() => { setShowAdd(false); setEditingProduct(null); }} onCreate={(p) => createMutation.mutate(p)} onUpdate={(p) => updateMutation.mutate(p)} activeCategory={activeView} />
+      <AddProductModal open={showAdd} productToEdit={editingProduct} onClose={() => { setShowAdd(false); setEditingProduct(null); }} onCreate={(p) => createMutation.mutate(p)} onUpdate={(p) => updateMutation.mutate(p)} activeCategory={selectedCategory !== "all" ? selectedCategory : activeMetal} />
       <ProductDrawer product={selected} onClose={() => setSelected(null)} onEdit={(productToEdit) => { setSelected(null); setEditingProduct(productToEdit); setShowAdd(true); }} />
     </div>
   );

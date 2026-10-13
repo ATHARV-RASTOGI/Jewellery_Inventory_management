@@ -18,15 +18,22 @@ export type Product = {
 export async function fetchProducts(category?: string): Promise<Product[]> {
   const params: Record<string, string> = {};
 
-  if (category && category !== "all" && category !== "dashboard") {
-    const isSubCategory = category.includes("-");
-    params.mainCategory = isSubCategory ? category.split("-")[0] : category;
-    if (isSubCategory) params.subCategory = category;
+  if (category && category !== "all" && category !== "dashboard" && category !== "gold" && category !== "silver") {
+    const parts = category.split("-");
+    if (parts.length === 2 && (parts[0] === "gold" || parts[0] === "silver")) {
+      params.mainCategory = parts[1];
+    } else if (parts.length > 2 && (parts[0] === "gold" || parts[0] === "silver")) {
+      params.mainCategory = parts[1];
+      params.subCategory = `${parts[1]}-${parts[2]}`;
+    } else {
+      params.mainCategory = parts[0];
+    }
   }
 
   const { data } = await apiClient.get<Product[]>("/inventory/products", { params });
   return data;
 }
+
 
 // POST /api/inventory/products
 export async function createProduct(

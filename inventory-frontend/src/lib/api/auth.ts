@@ -45,3 +45,47 @@ export async function apiGetMe(): Promise<AuthUser> {
 export async function apiChangePassword(payload: ChangePasswordPayload): Promise<void> {
   await apiClient.post("/auth/change-password", payload);
 }
+
+export type UserSummary = {
+  id: number;
+  username: string;
+  role: string;
+  enabled: boolean;
+};
+
+export type CreateUserPayload = {
+  username: string;
+  password: string;
+  role?: string;
+};
+
+/**
+ * Fetches all users (Admin only)
+ */
+export async function apiFetchUsers(): Promise<UserSummary[]> {
+  const { data } = await apiClient.get<UserSummary[]>("/users");
+  return data;
+}
+
+/**
+ * Creates a new user (Admin only)
+ */
+export async function apiCreateUser(payload: CreateUserPayload): Promise<UserSummary> {
+  const { data } = await apiClient.post<UserSummary>("/users", payload);
+  return data;
+}
+
+/**
+ * Resets a user's password (Admin only)
+ */
+export async function apiResetUserPassword(id: number, newPassword: string): Promise<void> {
+  await apiClient.put(`/users/${id}/reset-password`, { newPassword });
+}
+
+/**
+ * Toggles a user's active/disabled status (Admin only)
+ */
+export async function apiToggleUserStatus(id: number): Promise<UserSummary> {
+  const { data } = await apiClient.patch<UserSummary>(`/users/${id}/toggle-status`);
+  return data;
+}

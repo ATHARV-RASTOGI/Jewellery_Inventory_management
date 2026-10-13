@@ -11,7 +11,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class MainApplication {
 
 	public static void main(String[] args) {
+		// new java.io.File("data").mkdirs();
 		SpringApplication.run(MainApplication.class, args);
 	}
+
 
 }
